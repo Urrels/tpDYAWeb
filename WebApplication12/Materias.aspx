@@ -10,12 +10,9 @@
 
     <asp:Label ID="lblMsg" runat="server" CssClass="alert d-block mb-3" Visible="false"/>
 
-    <!-- Formulario Alta/Edición -->
     <asp:Panel ID="pnlForm" runat="server" Visible="false" CssClass="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-dark text-white">
-            <asp:Label ID="lblTituloForm" runat="server" Text="Nueva Materia"/>
-        </div>
         <div class="card-body p-4">
+            <h6 class="card-section-title"><asp:Label ID="lblTituloForm" runat="server" Text="Nueva Materia"/></h6>
             <asp:HiddenField ID="hfIdMateria" runat="server" Value="0"/>
             <div class="row g-3">
                 <div class="col-md-6">
@@ -53,32 +50,33 @@
         </div>
     </asp:Panel>
 
-    <!-- Lista -->
-    <asp:GridView ID="gvMaterias" runat="server"
-                  CssClass="table table-hover table-bordered"
-                  AutoGenerateColumns="false"
-                  HeaderStyle-CssClass="table-dark"
-                  DataKeyNames="Id"
-                  OnRowCommand="gvMaterias_RowCommand"
-                  GridLines="None">
-        <Columns>
-            <asp:BoundField DataField="Codigo"    HeaderText="Código"    ItemStyle-Width="80"/>
-            <asp:BoundField DataField="Nombre"    HeaderText="Nombre"/>
-            <asp:BoundField DataField="Modalidad" HeaderText="Modalidad" ItemStyle-Width="120"/>
-            <asp:BoundField DataField="Peso"      HeaderText="Peso"      ItemStyle-Width="60"/>
-            <asp:TemplateField HeaderText="Acciones" ItemStyle-Width="200">
-                <ItemTemplate>
-                    <asp:LinkButton CommandName="Editar" CommandArgument='<%# Eval("Id") %>'
-                                    runat="server" CssClass="btn btn-warning btn-sm me-1">
-                        <i class="bi bi-pencil"></i> Editar
-                    </asp:LinkButton>
-                    <asp:LinkButton CommandName="Eliminar" CommandArgument='<%# Eval("Id") %>'
-                                    runat="server" CssClass="btn btn-danger btn-sm"
-                                    OnClientClick="return confirm('¿Eliminar esta materia?')">
-                        <i class="bi bi-trash"></i> Baja
-                    </asp:LinkButton>
-                </ItemTemplate>
-            </asp:TemplateField>
-        </Columns>
-    </asp:GridView>
+    <div class="card shadow-sm border-0 table-card">
+        <asp:GridView ID="gvMaterias" runat="server"
+                      CssClass="table table-hover"
+                      AutoGenerateColumns="false"
+                      HeaderStyle-CssClass=""
+                      DataKeyNames="Id"
+                      OnRowCommand="gvMaterias_RowCommand"
+                      GridLines="None">
+            <Columns>
+                <asp:BoundField DataField="Codigo"    HeaderText="Código"    ItemStyle-Width="80"/>
+                <asp:BoundField DataField="Nombre"    HeaderText="Nombre"/>
+                <asp:BoundField DataField="Modalidad" HeaderText="Modalidad" ItemStyle-Width="120"/>
+                <asp:BoundField DataField="Peso"      HeaderText="Peso"      ItemStyle-Width="60"/>
+                <asp:TemplateField HeaderText="Acciones" ItemStyle-Width="200">
+                    <ItemTemplate>
+                        <asp:LinkButton CommandName="Editar" CommandArgument='<%# Eval("Id") %>'
+                                        runat="server" CssClass="btn btn-warning btn-sm me-1">
+                            <i class="bi bi-pencil"></i> Editar
+                        </asp:LinkButton>
+                        <asp:LinkButton CommandName="Eliminar" CommandArgument='<%# Eval("Id") %>'
+                                        runat="server" CssClass="btn btn-danger btn-sm"
+                                        OnClientClick="return confirm('¿Eliminar esta materia?')">
+                            <i class="bi bi-trash"></i> Baja
+                        </asp:LinkButton>
+                    </ItemTemplate>
+                </asp:TemplateField>
+            </Columns>
+        </asp:GridView>
+    </div>
 </asp:Content>

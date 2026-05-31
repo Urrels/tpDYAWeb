@@ -1,0 +1,384 @@
+/* =============================================
+   CAPAS Académico – site.css
+   ============================================= */
+
+/* ---------- Variables ---------- */
+:root {
+    --color-primary:   #0d9488;
+    --color-success:   #16a34a;
+    --color-warning:   #d97706;
+    --color-danger:    #dc2626;
+    --color-info:      #0ea5e9;
+    --color-secondary: #64748b;
+
+    --sidebar-bg:    #0f172a;
+    --sidebar-hover: #1e293b;
+    --sidebar-text:  #94a3b8;
+
+    --body-bg: #f0fdfa;
+}
+
+/* ---------- Bootstrap variable overrides ---------- */
+:root {
+    --bs-primary:       #0d9488;
+    --bs-primary-rgb:   13, 148, 136;
+    --bs-success:       #16a34a;
+    --bs-success-rgb:   22, 163, 74;
+    --bs-warning:       #d97706;
+    --bs-warning-rgb:   217, 119, 6;
+    --bs-danger:        #dc2626;
+    --bs-danger-rgb:    220, 38, 38;
+    --bs-info:          #0ea5e9;
+    --bs-info-rgb:      14, 165, 233;
+    --bs-secondary:     #64748b;
+    --bs-secondary-rgb: 100, 116, 139;
+    --bs-dark:          #0f172a;
+    --bs-dark-rgb:      15, 23, 42;
+    --bs-body-bg:       #f0fdfa;
+}
+
+.btn-primary {
+    --bs-btn-bg:                 #0d9488;
+    --bs-btn-border-color:       #0d9488;
+    --bs-btn-hover-bg:           #0f766e;
+    --bs-btn-hover-border-color: #0f766e;
+    --bs-btn-active-bg:          #115e59;
+    --bs-btn-active-border-color:#115e59;
+}
+
+.btn-success {
+    --bs-btn-bg:                 #16a34a;
+    --bs-btn-border-color:       #16a34a;
+    --bs-btn-hover-bg:           #15803d;
+    --bs-btn-hover-border-color: #15803d;
+    --bs-btn-active-bg:          #166534;
+    --bs-btn-active-border-color:#166534;
+}
+
+.btn-warning {
+    --bs-btn-color:              #fff;
+    --bs-btn-hover-color:        #fff;
+    --bs-btn-active-color:       #fff;
+    --bs-btn-bg:                 #d97706;
+    --bs-btn-border-color:       #d97706;
+    --bs-btn-hover-bg:           #b45309;
+    --bs-btn-hover-border-color: #b45309;
+    --bs-btn-active-bg:          #92400e;
+    --bs-btn-active-border-color:#92400e;
+}
+
+.btn-danger {
+    --bs-btn-bg:                 #dc2626;
+    --bs-btn-border-color:       #dc2626;
+    --bs-btn-hover-bg:           #b91c1c;
+    --bs-btn-hover-border-color: #b91c1c;
+    --bs-btn-active-bg:          #991b1b;
+    --bs-btn-active-border-color:#991b1b;
+}
+
+/* ---------- Base ---------- */
+body {
+    background-color: var(--body-bg);
+    font-family: 'Inter', sans-serif;
+}
+
+/* ---------- Navbar ---------- */
+.navbar {
+    border-bottom: 2px solid var(--color-primary);
+}
+
+/* ---------- Sidebar section labels ---------- */
+.nav-section-label {
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #475569;
+    padding: .75rem 1rem .25rem;
+    list-style: none;
+    margin-top: .25rem;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+    min-height: calc(100vh - 56px);
+    background: var(--sidebar-bg);
+    padding-top: 1rem;
+}
+
+.sidebar .nav-link {
+    color: var(--sidebar-text);
+    border-left: 3px solid transparent;
+    border-radius: 5px;
+    transition: all .15s ease;
+}
+
+.sidebar .nav-link:hover {
+    color: #fff;
+    background: var(--sidebar-hover);
+}
+
+.sidebar .nav-link.active {
+    color: #fff;
+    background: var(--sidebar-hover);
+    border-left-color: var(--color-primary);
+    font-weight: 600;
+}
+
+.sidebar .nav-link i {
+    margin-right: 8px;
+}
+
+/* ---------- Main content ---------- */
+.main-content {
+    padding: 2rem;
+}
+
+/* ---------- Login ---------- */
+.login-bg {
+    background: linear-gradient(135deg, #0f172a, #134e4a, #0f766e);
+    min-height: 100vh;
+}
+
+.login-card {
+    width: 420px;
+    max-width: 100%;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .4);
+    border-top: 4px solid var(--color-primary);
+}
+
+.login-icon {
+    font-size: 3rem;
+}
+
+.login-card .input-group-text {
+    color: var(--color-primary);
+    background-color: #f8fafc;
+}
+
+/* ---------- Stat cards (Dashboard) ---------- */
+.stat-card {
+    border-top: 3px solid transparent;
+}
+
+.stat-card--primary { border-top-color: var(--color-primary); }
+.stat-card--success { border-top-color: var(--color-success); }
+.stat-card--warning { border-top-color: var(--color-warning); }
+.stat-card--danger  { border-top-color: var(--color-danger); }
+
+.stat-number {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-number--primary { color: var(--color-primary); }
+.stat-number--success { color: var(--color-success); }
+.stat-number--warning { color: var(--color-warning); }
+.stat-number--danger  { color: var(--color-danger); }
+
+
+/* ---------- Hero number (Promedio ponderado en Menu) ---------- */
+.hero-number {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+/* ---------- Nav cards (Menu) ---------- */
+.nav-card {
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.nav-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12) !important;
+}
+
+.nav-card-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin: 0 auto;
+}
+
+.nav-card-icon--primary   { background: rgba(13, 148, 136, .12); color: var(--color-primary); }
+.nav-card-icon--success   { background: rgba(22, 163, 74,  .12); color: var(--color-success); }
+.nav-card-icon--warning   { background: rgba(217, 119, 6,  .12); color: var(--color-warning); }
+.nav-card-icon--danger    { background: rgba(220, 38, 38,  .12); color: var(--color-danger); }
+.nav-card-icon--info      { background: rgba(14, 165, 233, .12); color: var(--color-info); }
+.nav-card-icon--secondary { background: rgba(100, 116, 139,.12); color: var(--color-secondary); }
+
+/* ---------- Promedio card (Menu) ---------- */
+.promedio-card {
+    border-left: 4px solid var(--color-primary) !important;
+}
+
+/* ---------- Card section title (reemplaza card-header bg-*) ---------- */
+.card-section-title {
+    font-weight: 600;
+    font-size: .95rem;
+    color: #0f172a;
+    padding-left: .75rem;
+    border-left: 3px solid var(--color-primary);
+    margin-bottom: 1.25rem;
+}
+
+.card-section-title--warning {
+    border-left-color: var(--color-warning);
+}
+
+/* ---------- Tabla en card ---------- */
+.table-card .card-body {
+    padding: 0;
+}
+
+.table-card .table {
+    margin-bottom: 0;
+}
+
+.table-card .table thead th {
+    background: var(--sidebar-bg);
+    color: #fff;
+    font-weight: 500;
+    font-size: .85rem;
+    border: none;
+    padding: .75rem 1rem;
+}
+
+.table-card .table tbody td {
+    padding: .65rem 1rem;
+    vertical-align: middle;
+    font-size: .88rem;
+}
+
+/* ---------- Select con ancho mínimo ---------- */
+.select-materia {
+    min-width: 250px;
+}
+
+/* ---------- Calendario ---------- */
+.cal-tabla {
+    border-collapse: collapse;
+    width: 100%;
+    table-layout: fixed;
+}
+
+.cal-tabla th {
+    width: 14.28%;
+    background: var(--sidebar-bg);
+    color: white;
+    padding: 10px;
+    text-align: center;
+    font-size: .9rem;
+    overflow: hidden;
+}
+
+.cal-celda {
+    border: 1px solid #dee2e6;
+    vertical-align: top;
+    min-height: 100px;
+    width: 14.28%;
+    padding: 6px;
+    font-size: .82rem;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.cal-numero      { font-weight: bold; font-size: .95rem; margin-bottom: 3px; }
+.cal-vacio       { background: var(--body-bg); }
+.cal-hoy         { background: #cfe2ff !important; }
+.cal-feriado     { background: #fff3cd; }
+.cal-no-laborable { background: #e2e3e5; }
+
+.cal-feriado-nombre {
+    font-size: .7rem;
+    color: #856404;
+    background: #fff3cd;
+    border-left: 3px solid var(--color-warning);
+    border-radius: 3px;
+    padding: 2px 4px;
+    margin-bottom: 2px;
+    display: block;
+}
+
+.evento-verde {
+    background: #d4edda;
+    border-left: 4px solid #28a745;
+    border-radius: 4px;
+    padding: 2px 5px;
+    margin-bottom: 2px;
+    display: block;
+}
+
+.evento-amarillo {
+    background: #fff3cd;
+    border-left: 4px solid var(--color-warning);
+    border-radius: 4px;
+    padding: 2px 5px;
+    margin-bottom: 2px;
+    display: block;
+}
+
+.evento-rojo {
+    background: #f8d7da;
+    border-left: 4px solid var(--color-danger);
+    border-radius: 4px;
+    padding: 2px 5px;
+    margin-bottom: 2px;
+    display: block;
+}
+
+/* ---------- Leyenda del Calendario ---------- */
+.cal-leyenda {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 1px solid #ccc;
+    vertical-align: middle;
+}
+
+.cal-leyenda--hoy    { background: #cfe2ff; }
+.cal-leyenda--feriado { background: #fff3cd; }
+.cal-leyenda--no-lab  { background: #e2e3e5; }
+
+/* ---------- Inscripción — cards seleccionables ---------- */
+.materia-card-sel {
+    border-color: #dee2e6 !important;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+    position: relative;
+}
+
+.materia-card-sel:hover {
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, .15);
+}
+
+.materia-card-sel--activa {
+    border-color: var(--color-primary) !important;
+    background: rgba(13, 148, 136, .06);
+}
+
+.materia-check-icon {
+    display: none;
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    color: var(--color-primary);
+    font-size: 1.1rem;
+}
+
+.materia-card-sel--activa .materia-check-icon {
+    display: block;
+}
+
+.materia-card-bloqueada {
+    border-color: #dee2e6 !important;
+    background: #f8f9fa;
+    opacity: .75;
+}

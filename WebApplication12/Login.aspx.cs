@@ -7,7 +7,10 @@ namespace CAPAS_Web
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["Usuario"] != null)
-                Response.Redirect("~/Menu.aspx");
+            {
+                var u = Session["Usuario"] as BE.USUARIO;
+                Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
+            }
         }
 
         protected void btnIngresar_Click(object sender, EventArgs e)
@@ -30,7 +33,7 @@ namespace CAPAS_Web
                 BE.USUARIO u = BE.SessionManager.getInstane().getUsuario();
                 Session["Usuario"] = u;
                 BE.SessionManager.getInstane().cerrarSesion();
-                Response.Redirect("~/Menu.aspx");
+                Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
             }
             else
             {

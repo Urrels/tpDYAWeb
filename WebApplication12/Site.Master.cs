@@ -12,7 +12,10 @@ namespace CAPAS_Web
                 return;
             }
             var u = Session["Usuario"] as BE.USUARIO;
-            lblUsuarioNav.Text = u.Usuario;
+            lblUsuarioNav.Text  = u.Usuario;
+            lnkInicio.NavigateUrl = u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx";
+            phNavAdmin.Visible  = u.EsAdmin;
+            phNavAlumno.Visible = !u.EsAdmin;
         }
 
         protected void btnCerrarSesion_Click(object sender, EventArgs e)

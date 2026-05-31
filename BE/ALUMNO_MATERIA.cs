@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace BE
 {
@@ -13,20 +13,16 @@ namespace BE
         public int PesoMateria { get; set; }
         public string Estado { get; set; }
 
-        // Notas (0 a 10)
         public decimal? NotaParcial1 { get; set; }
         public decimal? NotaParcial2 { get; set; }
         public decimal? NotaRecuperatorio { get; set; }
         public decimal? NotaFinal { get; set; }
 
-        // Fechas de mesa
         public DateTime? FechaFinal { get; set; }
         public DateTime? FechaRecuperatorio { get; set; }
 
-        // RF10
         public int DVH { get; set; }
 
-        // Calculado - no persistido
         public bool AproboAmbosPariales =>
             (NotaParcial1 ?? 0) >= 4 && (NotaParcial2 ?? 0) >= 4;
 
@@ -38,8 +34,8 @@ namespace BE
 
         public bool TieneRecuperatorio =>
             NecesitaRecuperatorio && FechaRecuperatorio.HasValue;
-        // Predictor de riesgo - calculado, no persistido
-        public string NivelRiesgo { get; set; }     // "Alto", "Medio", "Bajo"
-        public string MensajeRiesgo { get; set; }   // explicación para el alumno
+
+        public string NivelRiesgo { get; set; }
+        public string MensajeRiesgo { get; set; }
     }
 }

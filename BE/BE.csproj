@@ -81,6 +81,8 @@
     <Compile Include="BITACORA.cs" />
     <Compile Include="EVENTO_ACADEMICO.cs" />
     <Compile Include="HashHelper.cs" />
+    <Compile Include="INSCRIPCION.cs" />
+    <Compile Include="PERIODO_ACADEMICO.cs" />
     <Compile Include="MATERIA.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SessionManager.cs" />

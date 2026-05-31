@@ -10,12 +10,9 @@
 
     <asp:Label ID="lblMsg" runat="server" CssClass="alert d-block mb-3" Visible="false"/>
 
-    <!-- Formulario -->
     <asp:Panel ID="pnlForm" runat="server" Visible="false" CssClass="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-dark text-white">
-            <asp:Label ID="lblTituloForm" runat="server" Text="Nuevo Evento"/>
-        </div>
         <div class="card-body p-4">
+            <h6 class="card-section-title"><asp:Label ID="lblTituloForm" runat="server" Text="Nuevo Evento"/></h6>
             <asp:HiddenField ID="hfIdEvento" runat="server" Value="0"/>
             <div class="row g-3">
                 <div class="col-md-4">
@@ -58,33 +55,35 @@
         </div>
     </asp:Panel>
 
-    <asp:GridView ID="gvEventos" runat="server"
-                  CssClass="table table-hover table-bordered"
-                  AutoGenerateColumns="false"
-                  HeaderStyle-CssClass="table-dark"
-                  DataKeyNames="Id"
-                  OnRowCommand="gvEventos_RowCommand"
-                  GridLines="None">
-        <Columns>
-            <asp:BoundField DataField="NombreMateria" HeaderText="Materia"/>
-            <asp:BoundField DataField="Tipo"          HeaderText="Tipo"   ItemStyle-Width="90"/>
-            <asp:BoundField DataField="Descripcion"   HeaderText="Descripción"/>
-            <asp:BoundField DataField="Fecha"         HeaderText="Fecha"
-                            DataFormatString="{0:dd/MM/yyyy HH:mm}" ItemStyle-Width="150"/>
-            <asp:BoundField DataField="Peso"          HeaderText="Peso"   ItemStyle-Width="60"/>
-            <asp:TemplateField HeaderText="Acciones"  ItemStyle-Width="150">
-                <ItemTemplate>
-                    <asp:LinkButton CommandName="Editar"   CommandArgument='<%# Eval("Id") %>'
-                                    runat="server" CssClass="btn btn-warning btn-sm me-1">
-                        <i class="bi bi-pencil"></i>
-                    </asp:LinkButton>
-                    <asp:LinkButton CommandName="Eliminar" CommandArgument='<%# Eval("Id") %>'
-                                    runat="server" CssClass="btn btn-danger btn-sm"
-                                    OnClientClick="return confirm('¿Eliminar evento?')">
-                        <i class="bi bi-trash"></i>
-                    </asp:LinkButton>
-                </ItemTemplate>
-            </asp:TemplateField>
-        </Columns>
-    </asp:GridView>
+    <div class="card shadow-sm border-0 table-card">
+        <asp:GridView ID="gvEventos" runat="server"
+                      CssClass="table table-hover"
+                      AutoGenerateColumns="false"
+                      HeaderStyle-CssClass=""
+                      DataKeyNames="Id"
+                      OnRowCommand="gvEventos_RowCommand"
+                      GridLines="None">
+            <Columns>
+                <asp:BoundField DataField="NombreMateria" HeaderText="Materia"/>
+                <asp:BoundField DataField="Tipo"          HeaderText="Tipo"   ItemStyle-Width="90"/>
+                <asp:BoundField DataField="Descripcion"   HeaderText="Descripción"/>
+                <asp:BoundField DataField="Fecha"         HeaderText="Fecha"
+                                DataFormatString="{0:dd/MM/yyyy HH:mm}" ItemStyle-Width="150"/>
+                <asp:BoundField DataField="Peso"          HeaderText="Peso"   ItemStyle-Width="60"/>
+                <asp:TemplateField HeaderText="Acciones"  ItemStyle-Width="150">
+                    <ItemTemplate>
+                        <asp:LinkButton CommandName="Editar"   CommandArgument='<%# Eval("Id") %>'
+                                        runat="server" CssClass="btn btn-warning btn-sm me-1">
+                            <i class="bi bi-pencil"></i>
+                        </asp:LinkButton>
+                        <asp:LinkButton CommandName="Eliminar" CommandArgument='<%# Eval("Id") %>'
+                                        runat="server" CssClass="btn btn-danger btn-sm"
+                                        OnClientClick="return confirm('¿Eliminar evento?')">
+                            <i class="bi bi-trash"></i>
+                        </asp:LinkButton>
+                    </ItemTemplate>
+                </asp:TemplateField>
+            </Columns>
+        </asp:GridView>
+    </div>
 </asp:Content>

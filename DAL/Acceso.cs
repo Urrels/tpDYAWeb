@@ -11,7 +11,8 @@ namespace DAL
         private SqlTransaction transaccion;
 
         // Cambia el connection string según tu entorno
-        private const string CONNECTION_STRING =  "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=BDCAPAS; Integrated Security=SSPI";
+        //private const string CONNECTION_STRING =  "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=BDCAPAS; Integrated Security=SSPI";
+        private const string CONNECTION_STRING = "initial catalog=BDUNIVERSIDAD; Data Source=.; Integrated Security=SSPI";
 
         public void Abrir()
         {

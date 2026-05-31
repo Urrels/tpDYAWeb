@@ -1,10 +1,5 @@
-﻿namespace BE
+namespace BE
 {
-    /// <summary>
-    /// En la webapp la sesión se guarda en HttpContext.Current.Session["Usuario"]
-    /// Este SessionManager se mantiene por compatibilidad con BLL pero en Web
-    /// solo se usa como puente temporal durante el login.
-    /// </summary>
     public class SessionManager
     {
         private static SessionManager _instance = null;

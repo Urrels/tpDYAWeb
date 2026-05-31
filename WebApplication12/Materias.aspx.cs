@@ -10,6 +10,8 @@ namespace CAPAS_Web
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
+            var u = Session["Usuario"] as BE.USUARIO;
+            if (!u.EsAdmin) Response.Redirect("~/Menu.aspx");
             if (!IsPostBack) CargarGrilla();
         }
 

@@ -7,11 +7,11 @@ namespace CAPAS_Web
     public partial class MisCursadas : System.Web.UI.Page
     {
         private readonly BLL.AlumnoMateriaBLL _bll = new BLL.AlumnoMateriaBLL();
-        private readonly BLL.MateriaBLL _matBll = new BLL.MateriaBLL();
 
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
+            if ((Session["Usuario"] as BE.USUARIO).EsAdmin) Response.Redirect("~/Materias.aspx");
             if (!IsPostBack) CargarGrilla();
         }
 
@@ -35,34 +35,6 @@ namespace CAPAS_Web
             }
         }
 
-        protected void btnInscribir_Click(object sender, EventArgs e)
-        {
-            ddlMaterias.DataSource = _matBll.Listar();
-            ddlMaterias.DataTextField = "Nombre";
-            ddlMaterias.DataValueField = "Id";
-            ddlMaterias.DataBind();
-            pnlInscripcion.Visible = true;
-        }
-
-        protected void btnConfirmarInscripcion_Click(object sender, EventArgs e)
-        {
-            var u = Session["Usuario"] as BE.USUARIO;
-            var am = new BE.ALUMNO_MATERIA
-            {
-                IdUsuario = u.Id,
-                IdMateria = int.Parse(ddlMaterias.SelectedValue),
-                Estado = "Cursando"
-            };
-            bool ok = _bll.Inscribir(am, u.Usuario);
-            MostrarMsg(ok ? "alert-success" : "alert-danger",
-                       ok ? "✔ Inscripción realizada." : "✖ Error (¿ya inscripto?).");
-            pnlInscripcion.Visible = false;
-            CargarGrilla();
-        }
-
-        protected void btnCancelarInscripcion_Click(object sender, EventArgs e) =>
-            pnlInscripcion.Visible = false;
-
         protected void gvCursadas_RowCommand(object sender, GridViewCommandEventArgs e)
         {
             if (e.CommandName != "EditarNotas") return;
@@ -85,7 +57,6 @@ namespace CAPAS_Web
             pnlNotas.Visible = true;
         }
 
-        // Se llama cuando cambian los parciales o el estado
         protected void txtParcial_Changed(object sender, EventArgs e) => RefrescarPaneles();
         protected void ddlEstado_Changed(object sender, EventArgs e) => RefrescarPaneles();
 
@@ -98,8 +69,8 @@ namespace CAPAS_Web
 
         private void ActualizarPaneles(bool aproboAmbos)
         {
-            pnlRecuperatorio.Visible = !aproboAmbos;  // recuperatorio si desaprobó
-            pnlFinal.Visible = aproboAmbos;   // final solo si aprobó ambos
+            pnlRecuperatorio.Visible = !aproboAmbos;
+            pnlFinal.Visible = aproboAmbos;
         }
 
         protected void btnGuardarNotas_Click(object sender, EventArgs e)
@@ -141,17 +112,6 @@ namespace CAPAS_Web
         
         protected void btnCancelarNotas_Click(object sender, EventArgs e) =>
             pnlNotas.Visible = false;
-
-        protected void btnVerificarDV_Click(object sender, EventArgs e)
-        {
-            var u = Session["Usuario"] as BE.USUARIO;
-            bool ok = _bll.VerificarIntegridad(u.Id);
-            pnlDVV.CssClass = ok ? "alert alert-success mt-3" : "alert alert-danger mt-3";
-            lblDVV.Text = ok
-                ? "🔒 Integridad verificada: las notas no fueron alteradas."
-                : "⚠️ ALERTA: Posible alteración de datos detectada.";
-            pnlDVV.Visible = true;
-        }
 
         private void MostrarMsg(string css, string texto)
         {

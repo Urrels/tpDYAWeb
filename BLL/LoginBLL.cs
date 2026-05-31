@@ -1,4 +1,4 @@
-﻿using BE;
+using BE;
 using DAL;
 
 namespace BLL
@@ -50,7 +50,6 @@ namespace BLL
             return _dal.ObtenerPorNombre(usuario);
         }
 
-        /// <summary>RF11 - guarda dirección encriptada con AES</summary>
         public bool ActualizarDireccion(string usuario, string direccion)
         {
             bool ok = _dal.ActualizarDireccion(usuario, direccion);
