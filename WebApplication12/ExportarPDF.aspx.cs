@@ -34,7 +34,7 @@ namespace CAPAS_Web
             var fuenteNormal = FontFactory.GetFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
             var fuenteHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE);
 
-            doc.Add(new Paragraph("CAPAS Académico", fuenteTitulo));
+            doc.Add(new Paragraph("Sistema de Gestión Académico", fuenteTitulo));
             doc.Add(new Paragraph($"Resumen Académico — {u.Usuario}", fuenteSubtit));
             doc.Add(new Paragraph($"Generado el {DateTime.Now:dd/MM/yyyy HH:mm}", fuenteNormal));
             doc.Add(new Paragraph($"Promedio Ponderado: {(promedio > 0 ? promedio.ToString("F2") : "Sin datos")}", fuenteSubtit));
@@ -93,7 +93,7 @@ namespace CAPAS_Web
 
             doc.Add(tabla);
             doc.Add(Chunk.NEWLINE);
-            doc.Add(new Paragraph("* Documento generado automáticamente por CAPAS Académico",
+            doc.Add(new Paragraph("* Documento generado automáticamente por Sistema de Gestión Académico",
                 FontFactory.GetFont(FontFactory.HELVETICA_OBLIQUE, 8, BaseColor.GRAY)));
 
             doc.Close();
