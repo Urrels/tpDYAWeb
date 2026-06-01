@@ -81,6 +81,7 @@
   <ItemGroup>
     <Compile Include="AlumnoMateriaBLL.cs" />
     <Compile Include="BitacoraBLL.cs" />
+    <Compile Include="InscripcionBLL.cs" />
     <Compile Include="EventoBLL.cs" />
     <Compile Include="FeriadosBLL.cs" />
     <Compile Include="LoginBLL.cs" />

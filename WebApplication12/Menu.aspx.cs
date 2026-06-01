@@ -1,7 +1,5 @@
-﻿using System;
+using System;
 using System.Linq;
-using System.Net.Http;
-using System.Web.Script.Serialization;
 
 namespace CAPAS_Web
 {
@@ -10,16 +8,16 @@ namespace CAPAS_Web
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
+            if ((Session["Usuario"] as BE.USUARIO).EsAdmin) Response.Redirect("~/Materias.aspx");
             if (!IsPostBack)
             {
                 var u = Session["Usuario"] as BE.USUARIO;
                 lblNombre.Text = u.Usuario;
-                CargarClima();
                 CargarPromedio();
                 CargarAlertaExamenes();
-
             }
         }
+
         private void CargarAlertaExamenes()
         {
             try
@@ -41,35 +39,6 @@ namespace CAPAS_Web
             }
             catch { }
         }
-        private void CargarClima()
-        {
-            try
-            {
-                string url = "https://api.open-meteo.com/v1/forecast" +
-                             "?latitude=-34.6037&longitude=-58.3816" +
-                             "&current_weather=true&forecast_days=1";
-
-                using (var client = new HttpClient())
-                {
-                    client.Timeout = TimeSpan.FromSeconds(5);
-                    string json = client.GetStringAsync(url).Result;
-                    var serial = new JavaScriptSerializer();
-                    dynamic data = serial.DeserializeObject(json);
-                    var w = data["current_weather"];
-                    double temp = Convert.ToDouble(w["temperature"]);
-                    int cod = Convert.ToInt32(w["weathercode"]);
-
-                    string cond = cod == 0 ? "☀️ Despejado"
-                                : cod <= 3 ? "⛅ Nublado"
-                                : cod <= 69 ? "🌧️ Lluvia"
-                                : "⛈️ Tormenta";
-
-                    lblClima.Text = $"{cond}, {temp}°C en Buenos Aires.";
-                    pnlAlerta.Visible = true;
-                }
-            }
-            catch { pnlAlerta.Visible = false; }
-        }
 
         private void CargarPromedio()
         {
@@ -82,14 +51,12 @@ namespace CAPAS_Web
                 lblPromedio.Text = promedio.ToString("F2");
                 lblMensajePromedio.Text = mensaje;
 
-                // Barra de progreso sobre 10
                 int porcentaje = (int)(promedio * 10);
                 pnlBarra.Style["width"] = porcentaje + "%";
                 pnlBarra.CssClass = promedio >= 7 ? "progress-bar bg-success"
                                   : promedio >= 5 ? "progress-bar bg-warning"
                                   : "progress-bar bg-danger";
 
-                // Diferencia con objetivo 7
                 decimal diff = 7 - promedio;
                 lblDiferenciaObjetivo.Text = diff <= 0
                     ? "✔ Objetivo alcanzado"

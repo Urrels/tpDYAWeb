@@ -2,37 +2,15 @@
          AutoEventWireup="true" CodeBehind="MisCursadas.aspx.cs" Inherits="CAPAS_Web.MisCursadas" %>
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="mb-3">
         <h4><i class="bi bi-journal-check me-2"></i>Mis Cursadas</h4>
-        <div class="d-flex gap-2">
-            <asp:Button ID="btnInscribir" runat="server" Text="+ Inscribirme"
-                        CssClass="btn btn-primary btn-sm" OnClick="btnInscribir_Click"/>
-            <asp:Button ID="btnVerificarDV" runat="server" Text="🔒 Verificar Integridad"
-                        CssClass="btn btn-outline-secondary btn-sm" OnClick="btnVerificarDV_Click"/>
-        </div>
     </div>
 
     <asp:Label ID="lblMsg" runat="server" CssClass="alert d-block mb-3" Visible="false"/>
 
-    <!-- Panel inscripción -->
-    <asp:Panel ID="pnlInscripcion" runat="server" Visible="false" CssClass="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-primary text-white">Inscribirse a una Materia</div>
-        <div class="card-body p-4 d-flex gap-3 align-items-end">
-            <div>
-                <label class="form-label">Materia</label>
-                <asp:DropDownList ID="ddlMaterias" runat="server" CssClass="form-select" Style="min-width:250px"/>
-            </div>
-            <asp:Button ID="btnConfirmarInscripcion" runat="server" Text="Inscribir"
-                        CssClass="btn btn-success" OnClick="btnConfirmarInscripcion_Click"/>
-            <asp:Button ID="btnCancelarInscripcion" runat="server" Text="Cancelar"
-                        CssClass="btn btn-secondary" OnClick="btnCancelarInscripcion_Click"/>
-        </div>
-    </asp:Panel>
-
-    <!-- Panel edición de notas -->
-   <asp:Panel ID="pnlNotas" runat="server" Visible="false" CssClass="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-warning fw-bold">Actualizar Notas</div>
+    <asp:Panel ID="pnlNotas" runat="server" Visible="false" CssClass="card shadow-sm border-0 mb-4">
     <div class="card-body p-4">
+        <h6 class="card-section-title card-section-title--warning">Actualizar Notas</h6>
         <asp:HiddenField ID="hfIdCursada" runat="server"/>
         <asp:HiddenField ID="hfIdMateriaNotas" runat="server"/>
 
@@ -47,7 +25,6 @@
                 </asp:DropDownList>
             </div>
 
-            <!-- Parciales - siempre visibles -->
             <div class="col-md-3">
                 <label class="form-label">Nota Parcial 1 <small class="text-muted">(0-10)</small></label>
                 <asp:TextBox ID="txtParcial1" runat="server" CssClass="form-control"
@@ -61,7 +38,6 @@
                              AutoPostBack="true" OnTextChanged="txtParcial_Changed"/>
             </div>
 
-            <!-- Recuperatorio - aparece si desaprobó algún parcial -->
             <asp:Panel ID="pnlRecuperatorio" runat="server">
                 <div class="col-md-3">
                     <label class="form-label text-warning fw-semibold">
@@ -77,7 +53,6 @@
                 </div>
             </asp:Panel>
 
-            <!-- Final - aparece solo si aprobó ambos parciales -->
             <asp:Panel ID="pnlFinal" runat="server">
                 <div class="col-md-3">
                     <label class="form-label text-success fw-semibold">
@@ -103,11 +78,11 @@
     </div>
 </asp:Panel>
 
-    <!-- Grilla -->
+    <div class="card shadow-sm border-0 table-card">
    <asp:GridView ID="gvCursadas" runat="server"
-              CssClass="table table-hover table-bordered"
+              CssClass="table table-hover"
               AutoGenerateColumns="false"
-              HeaderStyle-CssClass="table-dark"
+              HeaderStyle-CssClass=""
               DataKeyNames="Id"
               OnRowCommand="gvCursadas_RowCommand"
               GridLines="None">
@@ -139,9 +114,6 @@
         </asp:TemplateField>
     </Columns>
 </asp:GridView>
+    </div>
 
-    <!-- DVV -->
-    <asp:Panel ID="pnlDVV" runat="server" CssClass="alert mt-3" Visible="false">
-        <asp:Label ID="lblDVV" runat="server"/>
-    </asp:Panel>
 </asp:Content>

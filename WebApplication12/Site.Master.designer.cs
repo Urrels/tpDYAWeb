@@ -58,5 +58,11 @@ namespace CAPAS_Web
         /// Para modificarlo, mueva la declaración del campo del archivo del diseñador al archivo de código subyacente.
         /// </remarks>
         protected global::System.Web.UI.WebControls.ContentPlaceHolder ScriptContent;
+
+        protected global::System.Web.UI.WebControls.HyperLink lnkInicio;
+
+        protected global::System.Web.UI.WebControls.PlaceHolder phNavAdmin;
+
+        protected global::System.Web.UI.WebControls.PlaceHolder phNavAlumno;
     }
 }

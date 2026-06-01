@@ -23,9 +23,9 @@ namespace DAL
                 DataRow r = dt.Rows[0];
                 return new BE.USUARIO
                 {
-                    Id = System.Convert.ToInt32(r["ID"]),
-                    Usuario = r["USUARIO"].ToString()
-                    // Direccion se carga por separado si se necesita
+                    Id      = System.Convert.ToInt32(r["ID"]),
+                    Usuario = r["USUARIO"].ToString(),
+                    Rol     = r["ROL"].ToString()
                 };
             }
             finally { _acceso.Cerrar(); }
@@ -57,10 +57,10 @@ namespace DAL
                 DataRow r = dt.Rows[0];
                 var u = new BE.USUARIO
                 {
-                    Id = System.Convert.ToInt32(r["ID"]),
-                    Usuario = r["USUARIO"].ToString()
+                    Id      = System.Convert.ToInt32(r["ID"]),
+                    Usuario = r["USUARIO"].ToString(),
+                    Rol     = r["ROL"].ToString()
                 };
-                // RF11: desencriptar dirección
                 if (r["DIRECCION"] != System.DBNull.Value)
                 {
                     byte[] encriptado = (byte[])r["DIRECCION"];
@@ -69,6 +69,25 @@ namespace DAL
                 return u;
             }
             finally { _acceso.Cerrar(); }
+        }
+
+        public List<BE.USUARIO> ListarAlumnos()
+        {
+            var lista = new List<BE.USUARIO>();
+            try
+            {
+                _acceso.Abrir();
+                DataTable dt = _acceso.Leer("USUARIO_LISTAR_ALUMNOS");
+                foreach (DataRow r in dt.Rows)
+                    lista.Add(new BE.USUARIO
+                    {
+                        Id      = System.Convert.ToInt32(r["ID"]),
+                        Usuario = r["USUARIO"].ToString(),
+                        Rol     = "Alumno"
+                    });
+            }
+            finally { _acceso.Cerrar(); }
+            return lista;
         }
 
         public bool ActualizarDireccion(string usuario, string direccion)

@@ -10,80 +10,99 @@
     <h4 class="mb-4"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Dashboard Académico</h4>
 
     <div class="row g-4 mb-4">
-        <!-- Estadísticas rápidas -->
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center p-3">
-                <div style="font-size:2rem; font-weight:bold; color:#0d6efd;">
-                    <asp:Label ID="lblTotalMaterias" runat="server" Text="0"/>
+            <div class="card border-0 shadow-sm stat-card stat-card--primary">
+                <div class="card-body p-4 d-flex align-items-center gap-3">
+                    <div class="nav-card-icon nav-card-icon--primary">
+                        <i class="bi bi-book-fill"></i>
+                    </div>
+                    <div>
+                        <div class="stat-number stat-number--primary">
+                            <asp:Label ID="lblTotalMaterias" runat="server" Text="0"/>
+                        </div>
+                        <div class="text-muted small mt-1">Total Materias</div>
+                    </div>
                 </div>
-                <div class="text-muted small">Total Materias</div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center p-3">
-                <div style="font-size:2rem; font-weight:bold; color:#198754;">
-                    <asp:Label ID="lblAprobadas" runat="server" Text="0"/>
+            <div class="card border-0 shadow-sm stat-card stat-card--success">
+                <div class="card-body p-4 d-flex align-items-center gap-3">
+                    <div class="nav-card-icon nav-card-icon--success">
+                        <i class="bi bi-patch-check-fill"></i>
+                    </div>
+                    <div>
+                        <div class="stat-number stat-number--success">
+                            <asp:Label ID="lblAprobadas" runat="server" Text="0"/>
+                        </div>
+                        <div class="text-muted small mt-1">Aprobadas</div>
+                    </div>
                 </div>
-                <div class="text-muted small">Aprobadas</div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center p-3">
-                <div style="font-size:2rem; font-weight:bold; color:#ffc107;">
-                    <asp:Label ID="lblCursando" runat="server" Text="0"/>
+            <div class="card border-0 shadow-sm stat-card stat-card--warning">
+                <div class="card-body p-4 d-flex align-items-center gap-3">
+                    <div class="nav-card-icon nav-card-icon--warning">
+                        <i class="bi bi-journal-text"></i>
+                    </div>
+                    <div>
+                        <div class="stat-number stat-number--warning">
+                            <asp:Label ID="lblCursando" runat="server" Text="0"/>
+                        </div>
+                        <div class="text-muted small mt-1">Cursando</div>
+                    </div>
                 </div>
-                <div class="text-muted small">Cursando</div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center p-3">
-                <div style="font-size:2rem; font-weight:bold; color:#dc3545;">
-                    <asp:Label ID="lblFinalPendiente" runat="server" Text="0"/>
+            <div class="card border-0 shadow-sm stat-card stat-card--danger">
+                <div class="card-body p-4 d-flex align-items-center gap-3">
+                    <div class="nav-card-icon nav-card-icon--danger">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                    <div>
+                        <div class="stat-number stat-number--danger">
+                            <asp:Label ID="lblFinalPendiente" runat="server" Text="0"/>
+                        </div>
+                        <div class="text-muted small mt-1">Final Pendiente</div>
+                    </div>
                 </div>
-                <div class="text-muted small">Final Pendiente</div>
             </div>
         </div>
     </div>
 
     <div class="row g-4">
-        <!-- Gráfico de barras - notas por materia -->
         <div class="col-md-7">
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-dark text-white">
-                    Notas por Materia
-                </div>
                 <div class="card-body">
+                    <h6 class="card-section-title">Notas por Materia</h6>
                     <canvas id="chartNotas" height="250"/>
                 </div>
             </div>
         </div>
 
-        <!-- Gráfico de torta - estados -->
         <div class="col-md-5">
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-dark text-white">
-                    Estado de Cursadas
-                </div>
                 <div class="card-body">
+                    <h6 class="card-section-title">Estado de Cursadas</h6>
                     <canvas id="chartEstados" height="250"/>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Datos para los gráficos (ocultos, generados desde el servidor) -->
     <asp:HiddenField ID="hfDatosNotas"   runat="server"/>
     <asp:HiddenField ID="hfDatosEstados" runat="server"/>
     <div class="mt-4 text-end">
-    <a href="ExportarPDF.aspx" class="btn btn-danger" target="_blank">
-        <i class="bi bi-file-pdf me-2"></i>Exportar PDF
-    </a>
-</div>
+        <a href="ExportarPDF.aspx" class="btn btn-danger" target="_blank">
+            <i class="bi bi-file-pdf me-2"></i>Exportar PDF
+        </a>
+    </div>
 </asp:Content>
 
 <asp:Content ContentPlaceHolderID="ScriptContent" runat="server">
     <script>
-        // Gráfico de barras - Notas
         var datosNotas = JSON.parse(document.getElementById('<%= hfDatosNotas.ClientID %>').value || '{}');
         if (datosNotas.labels && datosNotas.labels.length > 0) {
             new Chart(document.getElementById('chartNotas'), {
@@ -94,17 +113,17 @@
                         {
                             label: 'Parcial 1',
                             data: datosNotas.parcial1,
-                            backgroundColor: 'rgba(13,110,253,0.7)'
+                            backgroundColor: 'rgba(13,148,136,0.8)'
                         },
                         {
                             label: 'Parcial 2',
                             data: datosNotas.parcial2,
-                            backgroundColor: 'rgba(25,135,84,0.7)'
+                            backgroundColor: 'rgba(22,163,74,0.8)'
                         },
                         {
                             label: 'Final',
                             data: datosNotas.final,
-                            backgroundColor: 'rgba(255,193,7,0.7)'
+                            backgroundColor: 'rgba(217,119,6,0.8)'
                         }
                     ]
                 },
@@ -116,7 +135,6 @@
             });
         }
 
-        // Gráfico de torta - Estados
         var datosEstados = JSON.parse(document.getElementById('<%= hfDatosEstados.ClientID %>').value || '{}');
         if (datosEstados.valores) {
             new Chart(document.getElementById('chartEstados'), {
@@ -125,7 +143,7 @@
                     labels: ['Aprobada', 'Cursando', 'Final Pendiente'],
                     datasets: [{
                         data: datosEstados.valores,
-                        backgroundColor: ['#198754', '#ffc107', '#dc3545']
+                        backgroundColor: ['#16a34a', '#d97706', '#dc2626']
                     }]
                 },
                 options: {

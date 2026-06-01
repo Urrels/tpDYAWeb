@@ -5,10 +5,8 @@
     <div class="row justify-content-center">
         <div class="col-md-6">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-dark text-white">
-                    <i class="bi bi-person-fill me-2"></i>Mi Perfil
-                </div>
                 <div class="card-body p-4">
+                    <h6 class="card-section-title"><i class="bi bi-person-fill me-2"></i>Mi Perfil</h6>
                     <asp:Label ID="lblMsg" runat="server"
                                CssClass="alert d-block mb-3" Visible="false"/>
 
@@ -18,7 +16,6 @@
                                      CssClass="form-control" ReadOnly="true"/>
                     </div>
 
-                    <!-- RF11 - Dirección encriptada con AES -->
                     <div class="mb-3">
                         <label class="form-label fw-semibold">
                             Dirección / Ubicación

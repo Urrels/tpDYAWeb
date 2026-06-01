@@ -6,10 +6,8 @@
     <div class="row justify-content-center">
         <div class="col-md-5">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-dark text-white">
-                    <i class="bi bi-key-fill me-2"></i>Cambiar Contraseña
-                </div>
                 <div class="card-body p-4">
+                    <h6 class="card-section-title"><i class="bi bi-key-fill me-2"></i>Cambiar Contraseña</h6>
                     <asp:Label ID="lblExito" runat="server"
                                CssClass="alert alert-success d-block mb-3" Visible="false"/>
                     <asp:Label ID="lblError" runat="server"

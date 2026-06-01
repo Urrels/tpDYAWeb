@@ -6,19 +6,17 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Iniciar Sesión</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
-    <style>
-        body { background: linear-gradient(135deg,#1a1a2e,#16213e,#0f3460); min-height:100vh; }
-        .login-card { border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.4); }
-    </style>
+    <link href="site.css" rel="stylesheet"/>
 </head>
-<body class="d-flex align-items-center justify-content-center">
+<body class="login-bg d-flex align-items-center justify-content-center">
     <form runat="server">
-        <div class="card login-card" style="width:420px">
+        <div class="card login-card">
             <div class="card-body p-5">
                 <div class="text-center mb-4">
-                    <i class="bi bi-mortarboard-fill text-primary" style="font-size:3rem"></i>
+                    <i class="bi bi-mortarboard-fill text-primary login-icon"></i>
                     <h3 class="mt-2 fw-bold">CAPAS Académico</h3>
                     <p class="text-muted">Iniciá sesión para continuar</p>
                 </div>

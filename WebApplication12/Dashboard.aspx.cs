@@ -9,6 +9,7 @@ namespace CAPAS_Web
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
+            if ((Session["Usuario"] as BE.USUARIO).EsAdmin) Response.Redirect("~/Materias.aspx");
             if (!IsPostBack) CargarDashboard();
         }
 
@@ -17,13 +18,11 @@ namespace CAPAS_Web
             var u = Session["Usuario"] as BE.USUARIO;
             var cursadas = new BLL.AlumnoMateriaBLL().Listar(u.Id);
 
-            // Estadísticas rápidas
             lblTotalMaterias.Text = cursadas.Count.ToString();
             lblAprobadas.Text = cursadas.Count(am => am.Estado == "Aprobada").ToString();
             lblCursando.Text = cursadas.Count(am => am.Estado == "Cursando").ToString();
             lblFinalPendiente.Text = cursadas.Count(am => am.Estado == "FinalPendiente").ToString();
 
-            // Datos para gráfico de barras
             var serial = new JavaScriptSerializer();
 
             var datosNotas = new
@@ -35,7 +34,6 @@ namespace CAPAS_Web
             };
             hfDatosNotas.Value = serial.Serialize(datosNotas);
 
-            // Datos para gráfico de torta
             var datosEstados = new
             {
                 valores = new[]

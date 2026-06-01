@@ -6,16 +6,10 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>CAPAS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
-    <style>
-        body { background-color: #f8f9fa; }
-        .sidebar { min-height: calc(100vh - 56px); background:#212529; padding-top:1rem; }
-        .sidebar .nav-link { color:#adb5bd; }
-        .sidebar .nav-link:hover { color:#fff; background:#343a40; border-radius:5px; }
-        .sidebar .nav-link i { margin-right:8px; }
-        .main-content { padding:2rem; }
-    </style>
+    <link href="~/site.css" rel="stylesheet"/>
     <asp:ContentPlaceHolder ID="HeadContent" runat="server"/>
 </head>
 <body>
@@ -23,7 +17,7 @@
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <div class="container-fluid">
                 <a class="navbar-brand fw-bold" href="Menu.aspx">
-                    <i class="bi bi-mortarboard-fill me-2"></i>CAPAS Académico
+                    <i class="bi bi-mortarboard-fill me-2 text-primary"></i>CAPAS Académico
                 </a>
                 <div class="navbar-nav ms-auto align-items-center flex-row gap-3">
                     <span class="navbar-text text-white">
@@ -41,25 +35,56 @@
             <div class="row">
                 <nav class="col-md-2 d-none d-md-block sidebar">
                     <ul class="nav flex-column p-2">
-                        <li class="nav-item mb-1"><a class="nav-link" href="Menu.aspx"><i class="bi bi-house-fill"></i> Inicio</a></li>
-                        <li class="nav-item mb-1"><a class="nav-link" href="Materias.aspx"><i class="bi bi-book-fill"></i> Materias</a></li>
-                        <li class="nav-item mb-1"><a class="nav-link" href="MisCursadas.aspx"><i class="bi bi-journal-check"></i> Mis Cursadas</a></li>
-                        <li class="nav-item mb-1"><a class="nav-link" href="Eventos.aspx"><i class="bi bi-calendar-event"></i> Eventos</a></li>
-                        <li class="nav-item mb-1"><a class="nav-link" href="Calendario.aspx"><i class="bi bi-calendar3"></i> Calendario</a></li>
-                        <li class="nav-item mb-1"><a class="nav-link" href="Recomendador.aspx"><i class="bi bi-lightbulb-fill"></i> Recomendador</a></li>
-                        <li class="nav-item mb-1"><a class="nav-link" href="Perfil.aspx"><i class="bi bi-person-fill"></i> Mi Perfil</a></li>
-                        <li class="nav-item mb-1"><a class="nav-link" href="CambiarContrasena.aspx"><i class="bi bi-key-fill"></i> Contraseña</a></li>
-                        <li class="nav-item mb-1"><a class="nav-link" href="Bitacora.aspx"><i class="bi bi-clipboard-data"></i> Bitácora</a></li>
                         <li class="nav-item mb-1">
-    <a class="nav-link" href="Simulador.aspx">
-        <i class="bi bi-calculator"></i> Simulador
-    </a>
-</li>
+                            <asp:HyperLink ID="lnkInicio" runat="server"
+                                           CssClass="nav-link">
+                                <i class="bi bi-house-fill"></i> Inicio
+                            </asp:HyperLink>
+                        </li>
+
+                        <asp:PlaceHolder ID="phNavAdmin" runat="server">
+                            <li class="nav-section-label">Gestión</li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="Materias.aspx"><i class="bi bi-book-fill"></i> Materias</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="Inscripcion.aspx"><i class="bi bi-pencil-square"></i> Períodos</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="Bitacora.aspx"><i class="bi bi-clipboard-data"></i> Bitácora</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="Integridad.aspx"><i class="bi bi-shield-lock-fill"></i> Integridad</a>
+                            </li>
+                        </asp:PlaceHolder>
+
+                        <asp:PlaceHolder ID="phNavAlumno" runat="server">
+                            <li class="nav-section-label">Académico</li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="Inscripcion.aspx"><i class="bi bi-pencil-square"></i> Inscripción</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="MisCursadas.aspx"><i class="bi bi-journal-check"></i> Mis Cursadas</a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="Calendario.aspx"><i class="bi bi-calendar3"></i> Calendario</a>
+                            </li>
+
+                            <li class="nav-section-label">Herramientas</li>
+
+
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="Dashboard.aspx"><i class="bi bi-bar-chart-fill"></i> Dashboard</a>
+                            </li>
+                        </asp:PlaceHolder>
+
+                        <li class="nav-section-label">Personal</li>
                         <li class="nav-item mb-1">
-    <a class="nav-link" href="Dashboard.aspx">
-        <i class="bi bi-bar-chart-fill"></i> Dashboard
-    </a>
-</li>
+                            <a class="nav-link" href="Perfil.aspx"><i class="bi bi-person-fill"></i> Mi Perfil</a>
+                        </li>
+                        <li class="nav-item mb-1">
+                            <a class="nav-link" href="CambiarContrasena.aspx"><i class="bi bi-key-fill"></i> Contraseña</a>
+                        </li>
                     </ul>
                 </nav>
                 <main class="col-md-10 main-content">
@@ -70,5 +95,14 @@
     </form>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <asp:ContentPlaceHolder ID="ScriptContent" runat="server"/>
+    <script>
+        (function () {
+            var page = window.location.pathname.split('/').pop().toLowerCase();
+            document.querySelectorAll('.sidebar .nav-link').forEach(function (link) {
+                var href = (link.getAttribute('href') || '').toLowerCase();
+                if (href === page) link.classList.add('active');
+            });
+        })();
+    </script>
 </body>
 </html>

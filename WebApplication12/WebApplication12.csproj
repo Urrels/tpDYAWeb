@@ -128,12 +128,12 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Bitacora.aspx" />
+    <Content Include="Integridad.aspx" />
     <Content Include="Dashboard.aspx" />
-    <Content Include="Eventos.aspx" />
+    <Content Include="Inscripcion.aspx" />
     <Content Include="Global.asax" />
     <Content Include="Login.aspx" />
     <Content Include="Menu.aspx" />
-    <Content Include="Simulador.aspx" />
     <Content Include="Web.config" />
     <Content Include="ExportarPDF.aspx" />
   </ItemGroup>
@@ -144,6 +144,13 @@
     </Compile>
     <Compile Include="Bitacora.aspx.designer.cs">
       <DependentUpon>Bitacora.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Integridad.aspx.cs">
+      <DependentUpon>Integridad.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Integridad.aspx.designer.cs">
+      <DependentUpon>Integridad.aspx</DependentUpon>
     </Compile>
     <Compile Include="Calendario.aspx.cs">
       <DependentUpon>Calendario.aspx</DependentUpon>
@@ -166,17 +173,9 @@
     <Compile Include="Dashboard.aspx.designer.cs">
       <DependentUpon>Dashboard.aspx</DependentUpon>
     </Compile>
-    <Compile Include="Eventos.aspx.cs">
-      <DependentUpon>Eventos.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="Eventos.aspx.designer.cs">
-      <DependentUpon>Eventos.aspx</DependentUpon>
-    </Compile>
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
-    <Compile Include="Helpers\SesionHelper.cs" />
     <Compile Include="Login.aspx.cs">
       <DependentUpon>Login.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -198,6 +197,13 @@
     <Compile Include="Menu.aspx.designer.cs">
       <DependentUpon>Menu.aspx</DependentUpon>
     </Compile>
+    <Compile Include="Inscripcion.aspx.cs">
+      <DependentUpon>Inscripcion.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Inscripcion.aspx.designer.cs">
+      <DependentUpon>Inscripcion.aspx</DependentUpon>
+    </Compile>
     <Compile Include="MisCursadas.aspx.cs">
       <DependentUpon>MisCursadas.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -213,20 +219,8 @@
       <DependentUpon>Perfil.aspx</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Recomendador.aspx.cs">
-      <DependentUpon>Recomendador.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="Recomendador.aspx.designer.cs">
-      <DependentUpon>Recomendador.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="Simulador.aspx.cs">
-      <DependentUpon>Simulador.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="Simulador.aspx.designer.cs">
-      <DependentUpon>Simulador.aspx</DependentUpon>
-    </Compile>
+
+
     <Compile Include="Site.Master.cs">
       <DependentUpon>Site.Master</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -249,8 +243,8 @@
     <Content Include="CambiarContrasena.aspx" />
     <None Include="packages.config" />
     <None Include="Site.Master" />
-    <Content Include="Recomendador.aspx" />
     <Content Include="Perfil.aspx" />
+    <None Include="BD_Universidad.sql" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>

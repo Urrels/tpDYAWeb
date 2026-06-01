@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace BLL
@@ -39,28 +39,16 @@ namespace BLL
             return m;
         }
 
-        public void AgregarCorrelativa(int idMateria, int idCorrelativa) =>
-            _dal.InsertarCorrelativa(idMateria, idCorrelativa);
-
-        public void QuitarCorrelativa(int idMateria, int idCorrelativa) =>
-            _dal.EliminarCorrelativa(idMateria, idCorrelativa);
-
         public List<BE.MATERIA> ListarCorrelativas(int idMateria) =>
             _dal.ListarCorrelativas(idMateria);
 
-        /// <summary>
-        /// RF05 - Recomendador: devuelve materias que el alumno puede cursar
-        /// el próximo cuatrimestre validando correlativas en BD.
-        /// </summary>
         public List<BE.MATERIA> RecomendarMaterias(List<BE.ALUMNO_MATERIA> cursadas)
         {
-            // IDs de materias aprobadas
             var aprobadas = cursadas
                 .Where(am => am.Estado == "Aprobada")
                 .Select(am => am.IdMateria)
                 .ToHashSet();
 
-            // IDs ya inscripto (cualquier estado)
             var yaInscripto = cursadas
                 .Select(am => am.IdMateria)
                 .ToHashSet();
@@ -72,7 +60,6 @@ namespace BLL
             {
                 if (yaInscripto.Contains(materia.Id)) continue;
 
-                // Verificar correlativas en BD
                 var correlativas = _dal.ListarCorrelativas(materia.Id);
                 bool cumpleCorrelativas = correlativas.All(c => aprobadas.Contains(c.Id));
 
