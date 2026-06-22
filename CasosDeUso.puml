@@ -1,0 +1,74 @@
+@startuml CasosDeUso
+title Sistema de Gestión Académico — Diagrama de Casos de Uso
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor White
+    BorderColor #2E74B5
+    ArrowColor #2E74B5
+}
+skinparam actor {
+    BorderColor #1F497D
+}
+
+actor Alumno as A
+actor Administrador as ADM
+
+rectangle "Sistema de Gestión Académico" {
+
+    package "Autenticación" {
+        usecase "CU01\nIniciar Sesión" as CU01
+    }
+
+    package "Gestión de Alumno" {
+        usecase "CU02\nEditar Perfil" as CU02
+        usecase "CU03\nInscribirse a Materias" as CU03
+        usecase "CU04\nConsultar Cursadas" as CU04
+        usecase "CU05\nActualizar Notas" as CU05
+        usecase "CU06\nVer Dashboard Académico" as CU06
+        usecase "CU07\nGestionar Eventos\ndel Calendario" as CU07
+    }
+
+    package "Gestión Administrativa" {
+        usecase "CU08\nGestionar Plan\nde Estudios" as CU08
+        usecase "CU09\nGestionar Períodos\nAcadémicos" as CU09
+        usecase "CU10\nConsultar Bitácora" as CU10
+        usecase "CU11\nVerificar Integridad\nde Datos" as CU11
+    }
+
+    usecase "Registrar en Bitácora" as BITACORA <<include>>
+    usecase "Validar Correlativas" as CORREL <<include>>
+    usecase "Calcular DVH/DVV" as DVV <<include>>
+}
+
+' Alumno
+A --> CU01
+A --> CU02
+A --> CU03
+A --> CU04
+A --> CU06
+A --> CU07
+
+' Administrador
+ADM --> CU01
+ADM --> CU05
+ADM --> CU08
+ADM --> CU09
+ADM --> CU10
+ADM --> CU11
+
+' Includes
+CU03 ..> CORREL : <<include>>
+CU03 ..> DVV    : <<include>>
+CU03 ..> BITACORA : <<include>>
+CU05 ..> DVV    : <<include>>
+CU05 ..> BITACORA : <<include>>
+CU08 ..> BITACORA : <<include>>
+CU09 ..> BITACORA : <<include>>
+
+' Extends
+CU06 ..> CU04 : <<extend>>
+
+@enduml
