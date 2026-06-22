@@ -1,0 +1,146 @@
+@startuml DER
+top to bottom direction
+skinparam entityAttributeIconSize 0
+skinparam classFontSize 10
+skinparam packageFontSize 11
+skinparam shadowing false
+skinparam linetype ortho
+skinparam ranksep 60
+skinparam nodesep 40
+
+' ============================================================
+' TABLAS
+' ============================================================
+
+entity "USUARIO" as USUARIO {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *USUARIO : VARCHAR(50) <<UQ>>
+  *PASS : VARCHAR(64)
+  DIRECCION : VARBINARY(256)
+  *ROL : VARCHAR(10)
+}
+
+entity "BITACORA" as BITACORA {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *USUARIO : VARCHAR(50)
+  *ACCION : VARCHAR(100)
+  *FECHA : DATETIME
+}
+
+entity "MATERIA" as MATERIA {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *NOMBRE : VARCHAR(100)
+  *CODIGO : VARCHAR(20) <<UQ>>
+  *MODALIDAD : VARCHAR(20)
+  *PESO : INT
+  *ACTIVA : BIT
+}
+
+entity "CORRELATIVA" as CORRELATIVA {
+  *ID_MATERIA : INT <<PK, FK>>
+  *ID_CORRELATIVA : INT <<PK, FK>>
+}
+
+entity "ALUMNO_MATERIA" as ALUMNO_MATERIA {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *ID_USUARIO : INT <<FK>>
+  *ID_MATERIA : INT <<FK>>
+  *ESTADO : VARCHAR(30)
+  NOTA_PARCIAL1 : DECIMAL(4,2)
+  NOTA_PARCIAL2 : DECIMAL(4,2)
+  NOTA_RECUPERATORIO : DECIMAL(4,2)
+  NOTA_FINAL : DECIMAL(4,2)
+  FECHA_FINAL : DATETIME
+  FECHA_RECUPERATORIO : DATETIME
+  DVH : INT
+}
+
+entity "DVV_NOTAS" as DVV_NOTAS {
+  *ID_USUARIO : INT <<PK, FK>>
+  --
+  *DVV : INT
+  *FECHA : DATETIME
+}
+
+entity "EVENTO_ACADEMICO" as EVENTO_ACADEMICO {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *ID_MATERIA : INT <<FK>>
+  *ID_USUARIO : INT <<FK>>
+  *TIPO : VARCHAR(30)
+  DESCRIPCION : VARCHAR(200)
+  *FECHA : DATETIME
+  *PESO : INT
+}
+
+entity "PERIODO_ACADEMICO" as PERIODO_ACADEMICO {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *ANIO : INT
+  *CUATRIMESTRE : INT <<UQ con ANIO>>
+  DESCRIPCION : VARCHAR(100)
+  FECHA_INICIO : DATE
+  FECHA_FIN : DATE
+}
+
+entity "INSCRIPCION" as INSCRIPCION {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *ID_USUARIO : INT <<FK>>
+  *ID_PERIODO : INT <<FK>>
+  *FECHA_INSCRIPCION : DATETIME
+}
+
+entity "INSCRIPCION_DETALLE" as INSCRIPCION_DETALLE {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *ID_INSCRIPCION : INT <<FK>>
+  *ID_MATERIA : INT <<FK>>
+}
+
+' ============================================================
+' RELACIONES
+' ============================================================
+
+USUARIO         ||--o{    ALUMNO_MATERIA      : "cursa"
+MATERIA         ||--o{    ALUMNO_MATERIA      : "es cursada por"
+
+USUARIO         ||--o|    DVV_NOTAS           : "tiene"
+
+USUARIO         ||--o{    EVENTO_ACADEMICO    : "genera"
+MATERIA         ||--o{    EVENTO_ACADEMICO    : "pertenece a"
+
+MATERIA         ||--o{    CORRELATIVA         : "ID_MATERIA >"
+MATERIA         ||--o{    CORRELATIVA         : "< ID_CORRELATIVA"
+
+USUARIO         ||--o{    INSCRIPCION         : "realiza"
+PERIODO_ACADEMICO ||--o{  INSCRIPCION         : "agrupa"
+
+INSCRIPCION     ||--o{    INSCRIPCION_DETALLE : "contiene"
+MATERIA         ||--o{    INSCRIPCION_DETALLE : "aparece en"
+
+' ============================================================
+' FLECHAS OCULTAS — controlan posición de tablas
+' ============================================================
+' Columna izquierda: USUARIO, DVV_NOTAS, BITACORA
+USUARIO    -[hidden]down-> DVV_NOTAS
+DVV_NOTAS  -[hidden]down-> BITACORA
+
+' USUARIO a la izquierda de MATERIA
+USUARIO    -[hidden]right-> MATERIA
+
+' Columna central: MATERIA, ALUMNO_MATERIA, CORRELATIVA
+MATERIA         -[hidden]down-> ALUMNO_MATERIA
+ALUMNO_MATERIA  -[hidden]down-> CORRELATIVA
+
+' Columna derecha: EVENTO_ACADEMICO, INSCRIPCION, INSCRIPCION_DETALLE, PERIODO_ACADEMICO
+MATERIA              -[hidden]right-> EVENTO_ACADEMICO
+EVENTO_ACADEMICO     -[hidden]down-> INSCRIPCION
+INSCRIPCION          -[hidden]down-> INSCRIPCION_DETALLE
+INSCRIPCION_DETALLE  -[hidden]down-> PERIODO_ACADEMICO
+
+@enduml

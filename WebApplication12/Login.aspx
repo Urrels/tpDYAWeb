@@ -17,7 +17,7 @@
             <div class="card-body p-5">
                 <div class="text-center mb-4">
                     <i class="bi bi-mortarboard-fill text-primary login-icon"></i>
-                    <h3 class="mt-2 fw-bold">CAPAS Académico</h3>
+                    <h3 class="mt-2 fw-bold">Sistema de Gestión Académica</h3>
                     <p class="text-muted">Iniciá sesión para continuar</p>
                 </div>
                 <asp:Label ID="lblError" runat="server"
