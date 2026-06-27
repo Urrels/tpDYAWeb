@@ -198,7 +198,7 @@ namespace DAL
                             Nombre = r["NOMBRE_MATERIA"].ToString(),
                             Codigo = r["CODIGO_MATERIA"].ToString()
                         });
-                }  
+                }     
             }
             finally { _acceso.Cerrar(); }
             return lista;
