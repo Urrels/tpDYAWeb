@@ -188,7 +188,7 @@ namespace DAL
                             IdPeriodo = Convert.ToInt32(r["ID_PERIODO"]),
                             FechaInscripcion = Convert.ToDateTime(r["FECHA_INSCRIPCION"]),
                             EtiquetaPeriodo = r["ETIQUETA_PERIODO"].ToString()
-                        };
+                        }; 
                         lista.Add(insc);
                     }
                     if (r["ID_MATERIA"] != DBNull.Value)
