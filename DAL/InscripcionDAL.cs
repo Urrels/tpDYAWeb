@@ -201,7 +201,7 @@ namespace DAL
                 }     
             }
             finally { _acceso.Cerrar(); }
-            return lista;
+            return lista; 
         }
           
         public int ContarInscripcionesPorUsuario(int idUsuario)
