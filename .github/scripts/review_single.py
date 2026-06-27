@@ -42,7 +42,7 @@ payload = {
     "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.3}
 }
 
-url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
+url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key={GEMINI_API_KEY}"
 req = urllib.request.Request(
     url,
     data=json.dumps(payload).encode("utf-8"),
