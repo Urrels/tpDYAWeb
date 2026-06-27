@@ -14,58 +14,43 @@ with open("pr.diff", "r", encoding="utf-8") as f:
 
 print(f"📋 Analizando PR #{PR_NUMBER}: {PR_TITLE}")
 
-# ── Listar modelos disponibles ───────────────────────────────────────────────
+# ── Detectar modelo disponible ───────────────────────────────────────────────
 print("🔍 Listando modelos disponibles...")
 list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
-list_req = urllib.request.Request(list_url)
-model = None
+model = "gemini-2.5-flash"
 
 try:
-    with urllib.request.urlopen(list_req) as resp:
+    with urllib.request.urlopen(urllib.request.Request(list_url)) as resp:
         data = json.loads(resp.read())
-    all_models = data.get("models", [])
     flash_models = [
-        m["name"] for m in all_models
+        m["name"] for m in data.get("models", [])
         if "flash" in m["name"].lower()
         and "generateContent" in m.get("supportedGenerationMethods", [])
     ]
-    print(f"✅ Modelos flash disponibles: {flash_models}")
+    print(f"✅ Modelos flash disponibles: {flash_models[:5]}")
     if flash_models:
         model = flash_models[0].replace("models/", "")
-    else:
-        # usar cualquier modelo con generateContent
-        any_model = [
-            m["name"] for m in all_models
-            if "generateContent" in m.get("supportedGenerationMethods", [])
-        ]
-        print(f"📋 Todos los modelos: {any_model}")
-        if any_model:
-            model = any_model[0].replace("models/", "")
-except urllib.error.HTTPError as e:
-    print(f"❌ Error listando modelos: {e.code} - {e.read().decode()}")
-    model = "gemini-pro"
+except Exception as e:
+    print(f"⚠️ No se pudo listar modelos: {e}")
 
 print(f"🚀 Usando modelo: {model}")
 
 # ── Llamar a Gemini ──────────────────────────────────────────────────────────
-prompt = f"""Sos un Senior Developer especializado en code review exhaustivo.
-Analizá el siguiente Pull Request llamado "{PR_TITLE}" y generá un informe en Markdown en español.
+prompt = f"""Sos un Senior Developer haciendo code review. Analizá este diff y respondé en Markdown en español, MUY CONCISO (máximo 400 palabras total):
 
-El informe debe incluir:
-1. 📋 **RESUMEN** — qué cambia y nivel de impacto
-2. 🐛 **BUGS IDENTIFICADOS** — severidad 🔴/🟠/🟡/🔵
-3. ⚡ **PERFORMANCE** — anti-patterns, N+1, enumeraciones múltiples
-4. 🔒 **SEGURIDAD** — vulnerabilidades, credenciales hardcodeadas
-5. 🏗️ **CALIDAD** — SOLID, TODO/FIXME sin ticket
-6. ✅ **VEREDICTO** — APROBADO / APROBADO CON COMENTARIOS / REQUIERE CAMBIOS
+**RESUMEN:** 1-2 oraciones sobre qué cambia.
+**BUGS 🔴/🟠/🟡/🔵:** Lista los problemas encontrados con severidad.
+**SEGURIDAD:** Vulnerabilidades si las hay.
+**PERFORMANCE:** Anti-patterns si los hay.
+**VEREDICTO:** ✅ APROBADO / ⚠️ APROBADO CON COMENTARIOS / ❌ REQUIERE CAMBIOS
 
-GIT DIFF:
+DIFF:
 {diff}
 """
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"maxOutputTokens": 800, "temperature": 0.3}
+    "generationConfig": {"maxOutputTokens": 500, "temperature": 0.3}
 }
 
 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
