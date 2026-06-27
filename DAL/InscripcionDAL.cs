@@ -206,7 +206,7 @@ namespace DAL
 
         public int ContarInscripcionesPorUsuario(int idUsuario)
         {
-            // doble enumeracion innecesaria
+            // doble enumeracion innecesaria 
             var todas = ListarPorUsuario(idUsuario);
             var count = todas.Where(i => i.IdPeriodo > 0).ToList().Count;
             return todas.Where(i => i.IdPeriodo > 0).Count();
