@@ -14,12 +14,31 @@ with open("pr.diff", "r", encoding="utf-8") as f:
 
 print(f"🔗 Iniciando pipeline multiagente para PR #{PR_NUMBER}: {PR_TITLE}")
 
+# ── Detectar modelo disponible ───────────────────────────────────────────────
+print("🔍 Detectando modelo...")
+list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
+model = "gemini-2.5-flash"
+try:
+    with urllib.request.urlopen(urllib.request.Request(list_url)) as resp:
+        data = json.loads(resp.read())
+    flash_models = [
+        m["name"] for m in data.get("models", [])
+        if "flash" in m["name"].lower()
+        and "generateContent" in m.get("supportedGenerationMethods", [])
+    ]
+    if flash_models:
+        model = flash_models[0].replace("models/", "")
+except Exception as e:
+    print(f"⚠️ No se pudo listar modelos: {e}")
+
+print(f"✅ Usando modelo: {model}")
+
 def call_gemini(prompt: str, agent_name: str) -> str:
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"maxOutputTokens": 800, "temperature": 0.3}
     }
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
@@ -125,7 +144,7 @@ comment_body = f"""## 🔗 Análisis de PR — Pipeline Multiagente (Gemini)
 {verdict}
 
 ---
-<sub>🤖 Generado automáticamente por el PR Review Agent | Modo: Multiagente (5 agentes)</sub>
+<sub>🤖 Generado automáticamente | Modo: Multiagente (5 agentes) | Modelo: {model}</sub>
 """
 
 comment_payload = json.dumps({"body": comment_body}).encode("utf-8")
