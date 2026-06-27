@@ -14,33 +14,7 @@ with open("pr.diff", "r", encoding="utf-8") as f:
 
 print(f"📋 Analizando PR #{PR_NUMBER}: {PR_TITLE}")
 
-# ── Detectar modelo disponible (preferir 2.0-flash, no usa thinking tokens) ──
-print("🔍 Listando modelos disponibles...")
-list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
-model = "gemini-2.0-flash"
-
-try:
-    with urllib.request.urlopen(urllib.request.Request(list_url)) as resp:
-        data = json.loads(resp.read())
-    available = [
-        m["name"].replace("models/", "")
-        for m in data.get("models", [])
-        if "generateContent" in m.get("supportedGenerationMethods", [])
-    ]
-    print(f"✅ Modelos disponibles: {available[:10]}")
-    # Preferir gemini-2.0-flash (sin thinking), después flash-latest, después 1.5
-    for preferred in ["gemini-2.0-flash", "gemini-2.0-flash-001", "gemini-flash-latest", "gemini-1.5-flash"]:
-        if preferred in available:
-            model = preferred
-            break
-    else:
-        # Si ninguno preferido, usar el primer flash disponible
-        flash = [m for m in available if "flash" in m.lower()]
-        if flash:
-            model = flash[0]
-except Exception as e:
-    print(f"⚠️ No se pudo listar modelos: {e}")
-
+model = "gemini-2.5-flash"
 print(f"🚀 Usando modelo: {model}")
 
 # ── Llamar a Gemini ──────────────────────────────────────────────────────────
@@ -65,7 +39,11 @@ GIT DIFF:
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"maxOutputTokens": 1500, "temperature": 0.3}
+    "generationConfig": {
+        "maxOutputTokens": 3000,
+        "temperature": 0.3,
+        "thinkingConfig": {"thinkingBudget": 0}
+    }
 }
 
 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
