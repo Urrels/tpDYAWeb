@@ -200,7 +200,7 @@ namespace DAL
                         });
                 }
             }
-            finally { _acceso.Cerrar(); 
+            finally { _acceso.Cerrar(); }
             return lista;
         }
 
