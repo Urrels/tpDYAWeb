@@ -1,0 +1,46 @@
+name: 🤖 AI PR Reviewer
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  review:
+    name: Analizar PR con IA
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Obtener diff del PR
+        id: diff
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
+          echo "Líneas en diff: $(wc -l < pr.diff)"
+
+      - name: Análisis con Gemini (Agente único)
+        if: github.event.pull_request.title != '' && !contains(github.event.pull_request.labels.*.name, 'multi-agent')
+        run: python3 .github/scripts/review_single.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: Análisis con Gemini (Multiagente)
+        if: contains(github.event.pull_request.labels.*.name, 'multi-agent')
+        run: python3 .github/scripts/review_multi.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
