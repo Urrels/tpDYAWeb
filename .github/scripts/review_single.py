@@ -14,43 +14,58 @@ with open("pr.diff", "r", encoding="utf-8") as f:
 
 print(f"📋 Analizando PR #{PR_NUMBER}: {PR_TITLE}")
 
-# ── Detectar modelo disponible ───────────────────────────────────────────────
+# ── Detectar modelo disponible (preferir 2.0-flash, no usa thinking tokens) ──
 print("🔍 Listando modelos disponibles...")
 list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
-model = "gemini-2.5-flash"
+model = "gemini-2.0-flash"
 
 try:
     with urllib.request.urlopen(urllib.request.Request(list_url)) as resp:
         data = json.loads(resp.read())
-    flash_models = [
-        m["name"] for m in data.get("models", [])
-        if "flash" in m["name"].lower()
-        and "generateContent" in m.get("supportedGenerationMethods", [])
+    available = [
+        m["name"].replace("models/", "")
+        for m in data.get("models", [])
+        if "generateContent" in m.get("supportedGenerationMethods", [])
     ]
-    print(f"✅ Modelos flash disponibles: {flash_models[:5]}")
-    if flash_models:
-        model = flash_models[0].replace("models/", "")
+    print(f"✅ Modelos disponibles: {available[:10]}")
+    # Preferir gemini-2.0-flash (sin thinking), después flash-latest, después 1.5
+    for preferred in ["gemini-2.0-flash", "gemini-2.0-flash-001", "gemini-flash-latest", "gemini-1.5-flash"]:
+        if preferred in available:
+            model = preferred
+            break
+    else:
+        # Si ninguno preferido, usar el primer flash disponible
+        flash = [m for m in available if "flash" in m.lower()]
+        if flash:
+            model = flash[0]
 except Exception as e:
     print(f"⚠️ No se pudo listar modelos: {e}")
 
 print(f"🚀 Usando modelo: {model}")
 
 # ── Llamar a Gemini ──────────────────────────────────────────────────────────
-prompt = f"""Sos un Senior Developer haciendo code review. Analizá este diff y respondé en Markdown en español, MUY CONCISO (máximo 400 palabras total):
+prompt = f"""Sos un Senior Developer haciendo code review. Analizá este diff y respondé en Markdown en español de forma CONCISA y DIRECTA.
 
-**RESUMEN:** 1-2 oraciones sobre qué cambia.
-**BUGS 🔴/🟠/🟡/🔵:** Lista los problemas encontrados con severidad.
-**SEGURIDAD:** Vulnerabilidades si las hay.
-**PERFORMANCE:** Anti-patterns si los hay.
-**VEREDICTO:** ✅ APROBADO / ⚠️ APROBADO CON COMENTARIOS / ❌ REQUIERE CAMBIOS
+Estructura del informe:
+**📋 RESUMEN:** 1-2 oraciones sobre qué cambia.
 
-DIFF:
+**🐛 BUGS IDENTIFICADOS:** Lista de problemas con severidad 🔴 CRÍTICO / 🟠 ALTO / 🟡 MEDIO / 🔵 BAJO. Para cada uno: archivo, línea aproximada y descripción corta.
+
+**🔒 SEGURIDAD:** Vulnerabilidades encontradas.
+
+**⚡ PERFORMANCE:** Anti-patterns encontrados.
+
+**🏗️ CALIDAD:** Issues de clean code (TODO/FIXME, naming, etc).
+
+**✅ VEREDICTO:** Una de estas opciones: ✅ APROBADO / ⚠️ APROBADO CON COMENTARIOS / ❌ REQUIERE CAMBIOS. Justificá en 1 oración.
+
+GIT DIFF:
 {diff}
 """
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"maxOutputTokens": 500, "temperature": 0.3}
+    "generationConfig": {"maxOutputTokens": 1500, "temperature": 0.3}
 }
 
 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
@@ -65,7 +80,7 @@ try:
     with urllib.request.urlopen(req) as resp:
         data = json.loads(resp.read())
     analysis = data["candidates"][0]["content"]["parts"][0]["text"]
-    print("✅ Análisis generado correctamente")
+    print(f"✅ Análisis generado: {len(analysis)} caracteres")
 except urllib.error.HTTPError as e:
     error_body = e.read().decode()
     print(f"❌ Error Gemini: {e.code} - {error_body}")
