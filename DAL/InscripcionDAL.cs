@@ -203,7 +203,7 @@ namespace DAL
             finally { _acceso.Cerrar(); }
             return lista;
         }
-
+         
         public int ContarInscripcionesPorUsuario(int idUsuario)
         {
             // doble enumeracion innecesaria
