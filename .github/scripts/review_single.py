@@ -9,29 +9,55 @@ PR_NUMBER      = os.environ["PR_NUMBER"]
 GITHUB_TOKEN   = os.environ["GITHUB_TOKEN"]
 REPO           = os.environ["REPO"]
 
-# Leer diff
 with open("pr.diff", "r", encoding="utf-8") as f:
-    diff = f.read()[:12000]  # limitar tamaño
+    diff = f.read()[:12000]
 
 print(f"📋 Analizando PR #{PR_NUMBER}: {PR_TITLE}")
-print(f"📄 Tamaño del diff: {len(diff)} caracteres")
+
+# ── Listar modelos disponibles ───────────────────────────────────────────────
+print("🔍 Listando modelos disponibles...")
+list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
+list_req = urllib.request.Request(list_url)
+model = None
+
+try:
+    with urllib.request.urlopen(list_req) as resp:
+        data = json.loads(resp.read())
+    all_models = data.get("models", [])
+    flash_models = [
+        m["name"] for m in all_models
+        if "flash" in m["name"].lower()
+        and "generateContent" in m.get("supportedGenerationMethods", [])
+    ]
+    print(f"✅ Modelos flash disponibles: {flash_models}")
+    if flash_models:
+        model = flash_models[0].replace("models/", "")
+    else:
+        # usar cualquier modelo con generateContent
+        any_model = [
+            m["name"] for m in all_models
+            if "generateContent" in m.get("supportedGenerationMethods", [])
+        ]
+        print(f"📋 Todos los modelos: {any_model}")
+        if any_model:
+            model = any_model[0].replace("models/", "")
+except urllib.error.HTTPError as e:
+    print(f"❌ Error listando modelos: {e.code} - {e.read().decode()}")
+    model = "gemini-pro"
+
+print(f"🚀 Usando modelo: {model}")
 
 # ── Llamar a Gemini ──────────────────────────────────────────────────────────
 prompt = f"""Sos un Senior Developer especializado en code review exhaustivo.
 Analizá el siguiente Pull Request llamado "{PR_TITLE}" y generá un informe en Markdown en español.
 
 El informe debe incluir:
-1. 📋 **RESUMEN** — qué cambia y nivel de impacto (crítico/alto/medio/bajo)
-2. 🐛 **BUGS IDENTIFICADOS** — cada bug con severidad (🔴 CRÍTICO / 🟠 ALTO / 🟡 MEDIO / 🔵 BAJO), causa raíz e impacto
-3. ⚡ **PERFORMANCE** — anti-patterns, N+1, enumeraciones múltiples, I/O en loops
-4. 🔒 **SEGURIDAD** — vulnerabilidades, credenciales hardcodeadas, validaciones faltantes
-5. 🏗️ **CALIDAD DE CÓDIGO** — SOLID, clean code, TODO/FIXME sin ticket, código duplicado
-6. ✅ **VEREDICTO FINAL** — una de estas tres opciones:
-   - ✅ APROBADO
-   - ⚠️ APROBADO CON COMENTARIOS
-   - ❌ REQUIERE CAMBIOS
-
-Sé técnico, específico y citá líneas de código cuando sea relevante.
+1. 📋 **RESUMEN** — qué cambia y nivel de impacto
+2. 🐛 **BUGS IDENTIFICADOS** — severidad 🔴/🟠/🟡/🔵
+3. ⚡ **PERFORMANCE** — anti-patterns, N+1, enumeraciones múltiples
+4. 🔒 **SEGURIDAD** — vulnerabilidades, credenciales hardcodeadas
+5. 🏗️ **CALIDAD** — SOLID, TODO/FIXME sin ticket
+6. ✅ **VEREDICTO** — APROBADO / APROBADO CON COMENTARIOS / REQUIERE CAMBIOS
 
 GIT DIFF:
 {diff}
@@ -42,7 +68,7 @@ payload = {
     "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.3}
 }
 
-url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key={GEMINI_API_KEY}"
+url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
 req = urllib.request.Request(
     url,
     data=json.dumps(payload).encode("utf-8"),
@@ -70,7 +96,7 @@ comment_body = f"""## 🤖 Análisis de PR — Agente Único (Gemini)
 {analysis}
 
 ---
-<sub>🤖 Generado automáticamente por el PR Review Agent | Modo: Agente Único</sub>
+<sub>🤖 Generado automáticamente | Modelo: {model}</sub>
 """
 
 comment_payload = json.dumps({"body": comment_body}).encode("utf-8")
