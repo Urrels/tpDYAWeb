@@ -65,7 +65,7 @@ GIT DIFF:
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.3}
+    "generationConfig": {"maxOutputTokens": 800, "temperature": 0.3}
 }
 
 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
