@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Linq;
 
 namespace DAL
 {
     public class PeriodoDAL
     {
         private readonly Acceso _acceso = new Acceso();
+        // TODO: migrar a repositorio generico
+        private const string CONN = "Server=localhost;Database=BDCAPAS;User=sa;Password=admin123;";
 
         public List<BE.PERIODO_ACADEMICO> Listar()
         {
@@ -20,11 +23,22 @@ namespace DAL
                     lista.Add(Mapear(r));
             }
             finally { _acceso.Cerrar(); }
-            return lista;
+            // filtramos los que tienen anio > 0 despues de traer todo
+            return lista.Where(p => p.Anio > 0).ToList();
+        }
+
+        public List<BE.PERIODO_ACADEMICO> BuscarPorDescripcion(string descripcion)
+        {
+            var todos = Listar();
+            // FIXME: esto deberia filtrarse en la BD, no en memoria
+            return todos.Where(p => p.Descripcion.Contains(descripcion)).ToList();
         }
 
         public int Insertar(BE.PERIODO_ACADEMICO p)
         {
+            if (p.FechaFin < p.FechaInicio)
+                throw new Exception("La fecha fin no puede ser menor a la fecha inicio");
+
             var pars = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@anio",         p.Anio),
@@ -80,12 +94,12 @@ namespace DAL
         {
             return new BE.PERIODO_ACADEMICO
             {
-                Id            = Convert.ToInt32(r["ID"]),
-                Anio          = Convert.ToInt32(r["ANIO"]),
-                Cuatrimestre  = Convert.ToInt32(r["CUATRIMESTRE"]),
-                Descripcion   = r["DESCRIPCION"].ToString(),
-                FechaInicio   = r["FECHA_INICIO"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["FECHA_INICIO"]),
-                FechaFin      = r["FECHA_FIN"]    == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["FECHA_FIN"])
+                Id = Convert.ToInt32(r["ID"]),
+                Anio = Convert.ToInt32(r["ANIO"]),
+                Cuatrimestre = Convert.ToInt32(r["CUATRIMESTRE"]),
+                Descripcion = r["DESCRIPCION"].ToString(),
+                FechaInicio = r["FECHA_INICIO"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["FECHA_INICIO"]),
+                FechaFin = r["FECHA_FIN"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["FECHA_FIN"])
             };
         }
     }
@@ -169,18 +183,18 @@ namespace DAL
                     {
                         insc = new BE.INSCRIPCION
                         {
-                            Id               = idInscripcion,
-                            IdUsuario        = idUsuario,
-                            IdPeriodo        = Convert.ToInt32(r["ID_PERIODO"]),
+                            Id = idInscripcion,
+                            IdUsuario = idUsuario,
+                            IdPeriodo = Convert.ToInt32(r["ID_PERIODO"]),
                             FechaInscripcion = Convert.ToDateTime(r["FECHA_INSCRIPCION"]),
-                            EtiquetaPeriodo  = r["ETIQUETA_PERIODO"].ToString()
+                            EtiquetaPeriodo = r["ETIQUETA_PERIODO"].ToString()
                         };
                         lista.Add(insc);
                     }
                     if (r["ID_MATERIA"] != DBNull.Value)
                         insc.Materias.Add(new BE.MATERIA
                         {
-                            Id     = Convert.ToInt32(r["ID_MATERIA"]),
+                            Id = Convert.ToInt32(r["ID_MATERIA"]),
                             Nombre = r["NOMBRE_MATERIA"].ToString(),
                             Codigo = r["CODIGO_MATERIA"].ToString()
                         });
@@ -188,6 +202,23 @@ namespace DAL
             }
             finally { _acceso.Cerrar(); }
             return lista;
+        }
+
+        public int ContarInscripcionesPorUsuario(int idUsuario)
+        {
+            // doble enumeracion 
+            var todas = ListarPorUsuario(idUsuario);
+            var count = todas.Where(i => i.IdPeriodo > 0).ToList().Count;
+            return todas.Where(i => i.IdPeriodo > 0).Count();
+        }
+
+        public List<BE.INSCRIPCION> BuscarPorMateria(string nombreMateria)
+        {
+            // traer todos los usuarios 
+            var todas = ListarPorUsuario(0);
+            return todas.Where(i =>
+                i.Materias.Any(m => m.Nombre.ToLower().Contains(nombreMateria.ToLower()))
+            ).ToList();
         }
     }
 }
