@@ -97,5 +97,35 @@ namespace DAL
             try { _acceso.Abrir(); _acceso.Escribir("DVV_ACTUALIZAR", p); }
             finally { _acceso.Cerrar(); }
         }
+
+        /// <summary>
+        /// Snapshot JSON del último estado válido conocido de la tabla, o
+        /// null si todavía no se guardó ninguno (tabla nunca recalculada).
+        /// </summary>
+        public string ObtenerSnapshot(string tabla)
+        {
+            var p = new List<SqlParameter> { _acceso.CrearParametro("@tabla", tabla) };
+            try
+            {
+                _acceso.Abrir();
+                DataTable dt = _acceso.Leer("SNAPSHOT_OBTENER", p);
+                return dt.Rows.Count == 0 ? null : dt.Rows[0]["DATOS_JSON"].ToString();
+            }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void GuardarSnapshot(string tabla, string datosJson)
+        {
+            // NVARCHAR(MAX) no tiene overload en Acceso.CrearParametro (todos
+            // tienen tamaño fijo); se arma el SqlParameter a mano con
+            // tamaño -1 para que ADO.NET lo mapee a MAX en vez de truncarlo.
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@tabla", tabla),
+                new SqlParameter("@datosJson", SqlDbType.NVarChar, -1) { Value = (object)datosJson ?? DBNull.Value }
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("SNAPSHOT_GUARDAR", p); }
+            finally { _acceso.Cerrar(); }
+        }
     }
 }

@@ -1139,5 +1139,46 @@ BEGIN
 END
 GO
 
+-- ---------------------------------------------
+-- Tabla y procedimientos — snapshot del último estado válido conocido
+-- (uno por tabla, JSON con {ID, Atributos[]} de cada fila). Se guarda cada
+-- vez que se recalcula la integridad de una tabla y se usa para diagnosticar
+-- con precisión (campo a campo) qué cambió cuando se detecta una alteración.
+-- ---------------------------------------------
+
+IF OBJECT_ID('SNAPSHOT_INTEGRIDAD', 'U') IS NULL
+CREATE TABLE SNAPSHOT_INTEGRIDAD (
+    TABLA      VARCHAR(50)   NOT NULL PRIMARY KEY,
+    DATOS_JSON NVARCHAR(MAX) NOT NULL,
+    FECHA      DATETIME      NOT NULL DEFAULT GETDATE()
+)
+GO
+
+IF OBJECT_ID('SNAPSHOT_OBTENER', 'P') IS NOT NULL DROP PROCEDURE SNAPSHOT_OBTENER
+GO
+CREATE PROCEDURE SNAPSHOT_OBTENER
+    @tabla VARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT DATOS_JSON FROM SNAPSHOT_INTEGRIDAD WHERE TABLA = @tabla;
+END
+GO
+
+IF OBJECT_ID('SNAPSHOT_GUARDAR', 'P') IS NOT NULL DROP PROCEDURE SNAPSHOT_GUARDAR
+GO
+CREATE PROCEDURE SNAPSHOT_GUARDAR
+    @tabla      VARCHAR(50),
+    @datosJson  NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM SNAPSHOT_INTEGRIDAD WHERE TABLA = @tabla)
+        UPDATE SNAPSHOT_INTEGRIDAD SET DATOS_JSON = @datosJson, FECHA = GETDATE() WHERE TABLA = @tabla;
+    ELSE
+        INSERT INTO SNAPSHOT_INTEGRIDAD (TABLA, DATOS_JSON) VALUES (@tabla, @datosJson);
+END
+GO
+
 PRINT '✔ Integridad DVH/DVV generalizada instalada correctamente.';
 GO

@@ -29,6 +29,19 @@ namespace BLL
     {
         private readonly DAL.IntegridadDAL _dal = new DAL.IntegridadDAL();
 
+        /// <summary>
+        /// Snapshot de una fila en el último estado válido conocido de una
+        /// tabla — se serializa como JSON (lista de estas) y se guarda en
+        /// SNAPSHOT_INTEGRIDAD cada vez que se recalcula la tabla. Permite
+        /// diagnosticar campo a campo qué cambió cuando se detecta una
+        /// alteración, en vez de solo saber que "algo" está mal.
+        /// </summary>
+        private class FilaSnapshot
+        {
+            public int Id { get; set; }
+            public string[] Atributos { get; set; }
+        }
+
         // Orden canónico de atributos por tabla — fijo, no debe cambiar una
         // vez que haya datos guardados (cambiar el orden invalida todos los
         // DVH/DVV ya calculados).
@@ -69,6 +82,7 @@ namespace BLL
             Func<DataRow, string[]> extraerAtributos, ResultadoIntegridad resultado)
         {
             var todasFilas = new List<string[]>();
+            bool huboErrorDvh = false;
 
             foreach (DataRow fila in datos.Rows)
             {
@@ -81,9 +95,12 @@ namespace BLL
 
                 if (dvhCalculado != dvhGuardado)
                 {
+                    // No se agrega el mensaje acá todavía — se difiere a
+                    // DiagnosticarDiferencias() al final, que compara contra
+                    // el snapshot y puede decir exactamente qué campo cambió
+                    // en vez de solo "el DVH no coincide".
                     resultado.EsValido = false;
-                    resultado.Errores.Add($"{nombreTabla}: fila ID={id} tiene un DVH inválido " +
-                        $"(esperado {dvhCalculado}, guardado {dvhGuardado}).");
+                    huboErrorDvh = true;
                     if (nombreTabla == "USUARIO")
                         resultado.IdsUsuariosAfectados.Add(id);
                 }
@@ -117,6 +134,25 @@ namespace BLL
                         $"(esperado {dvvCalculado}, guardado {dvvGuardado}).");
                 }
             }
+
+            if (!resultado.EsValido)
+            {
+                int erroresAntes = resultado.Errores.Count;
+                DiagnosticarDiferencias(nombreTabla, columnas, datos, extraerAtributos, resultado);
+
+                // Si hubo una fila con DVH inválido y el diagnóstico contra el
+                // snapshot no agregó ningún mensaje explicativo (porque no hay
+                // snapshot todavía, o porque el propio DVH fue alterado
+                // directamente sin tocar ningún campo), no dejamos Errores sin
+                // una pista de qué tabla/motivo está fallando.
+                if (huboErrorDvh && resultado.Errores.Count == erroresAntes)
+                {
+                    resultado.Errores.Add($"{nombreTabla}: hay al menos un registro con DVH inválido, pero no se " +
+                        $"pudo identificar el campo alterado (dígitos verificadores ausentes o no inicializados " +
+                        $"para la tabla, o el propio DVH fue modificado directamente). Recalculá la integridad de " +
+                        $"la tabla para refinar el diagnóstico.");
+                }
+            }
         }
 
         private void RecalcularTabla(string nombreTabla, string[] columnas, DataTable datos,
@@ -139,6 +175,90 @@ namespace BLL
                 int dvv = BE.CalculadorDVH.CalcularVertical(todasFilas, c);
                 _dal.ActualizarDVV(nombreTabla, columnas[c], dvv);
             }
+
+            // El estado que acabamos de recalcular es, por definición, el
+            // último estado válido conocido — se guarda como snapshot para
+            // que la próxima verificación pueda diagnosticar campo a campo.
+            GuardarSnapshot(nombreTabla, datos, extraerAtributos);
+        }
+
+        /// <summary>
+        /// Compara el snapshot del último estado válido conocido de la tabla
+        /// contra los datos actuales y agrega a <paramref name="resultado"/>
+        /// un mensaje preciso por cada alta, baja o modificación de campo
+        /// detectada. Solo tiene sentido llamarlo cuando VerificarTabla ya
+        /// determinó que la tabla no es válida (no se paga este costo en el
+        /// camino feliz). Si todavía no existe snapshot para la tabla (nunca
+        /// se recalculó), no agrega nada — no hay nada contra qué comparar.
+        /// </summary>
+        private void DiagnosticarDiferencias(string nombreTabla, string[] columnas, DataTable datosActuales,
+            Func<DataRow, string[]> extraerAtributos, ResultadoIntegridad resultado)
+        {
+            List<FilaSnapshot> snapshot = ObtenerSnapshot(nombreTabla);
+            if (snapshot.Count == 0)
+                return; // tabla nunca recalculada todavía: no hay snapshot con qué comparar
+
+            var porIdSnapshot = new Dictionary<int, string[]>();
+            foreach (var f in snapshot)
+                porIdSnapshot[f.Id] = f.Atributos;
+
+            var porIdActual = new Dictionary<int, string[]>();
+            foreach (DataRow fila in datosActuales.Rows)
+                porIdActual[Convert.ToInt32(fila["ID"])] = extraerAtributos(fila);
+
+            foreach (var id in porIdActual.Keys)
+            {
+                if (!porIdSnapshot.ContainsKey(id))
+                    resultado.Errores.Add($"{nombreTabla}: se agregó el registro {id} " +
+                        "(no estaba en el último estado válido conocido).");
+            }
+
+            foreach (var id in porIdSnapshot.Keys)
+            {
+                if (!porIdActual.ContainsKey(id))
+                    resultado.Errores.Add($"{nombreTabla}: se eliminó el registro {id}.");
+            }
+
+            foreach (var id in porIdActual.Keys)
+            {
+                if (!porIdSnapshot.TryGetValue(id, out string[] antes))
+                    continue; // ya reportado arriba como alta
+
+                string[] actual = porIdActual[id];
+                int largo = Math.Min(columnas.Length, Math.Min(antes.Length, actual.Length));
+                for (int i = 0; i < largo; i++)
+                {
+                    if (antes[i] != actual[i])
+                        resultado.Errores.Add($"{nombreTabla}: se modificó el campo {columnas[i]} del registro {id} " +
+                            $"(antes: '{antes[i]}', ahora: '{actual[i]}').");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Guarda el estado recién confirmado como bueno (recién recalculado)
+        /// como snapshot de referencia para el próximo diagnóstico.
+        /// </summary>
+        private void GuardarSnapshot(string nombreTabla, DataTable datos, Func<DataRow, string[]> extraerAtributos)
+        {
+            var snapshot = new List<FilaSnapshot>();
+            foreach (DataRow fila in datos.Rows)
+                snapshot.Add(new FilaSnapshot { Id = Convert.ToInt32(fila["ID"]), Atributos = extraerAtributos(fila) });
+
+            string json = new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(snapshot);
+            _dal.GuardarSnapshot(nombreTabla, json);
+        }
+
+        /// <summary>
+        /// Snapshot del último estado válido conocido de la tabla, o lista
+        /// vacía si todavía no se guardó ninguno.
+        /// </summary>
+        private List<FilaSnapshot> ObtenerSnapshot(string nombreTabla)
+        {
+            string json = _dal.ObtenerSnapshot(nombreTabla);
+            if (string.IsNullOrEmpty(json))
+                return new List<FilaSnapshot>();
+            return new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<List<FilaSnapshot>>(json);
         }
 
         // =====================================================
