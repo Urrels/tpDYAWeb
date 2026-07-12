@@ -516,5 +516,360 @@ namespace BLL
             RecalcularInscripcion();
             RecalcularInscripcionDetalle();
         }
+
+        // =====================================================
+        // Restore — devuelve las 9 tablas al último estado guardado en
+        // SNAPSHOT_INTEGRIDAD. Dos fases (ver detalle en cada método) para
+        // no violar ninguna Foreign Key entre tablas.
+        // =====================================================
+
+        /// <summary>
+        /// Restaura las 9 tablas de negocio al último estado guardado en el
+        /// snapshot de integridad: filas agregadas externamente se borran,
+        /// filas eliminadas externamente se re-insertan (con su ID original,
+        /// vía IDENTITY_INSERT) y filas modificadas vuelven a los valores del
+        /// snapshot. Se hace en dos fases para no violar ninguna FK:
+        ///   1) Borrado, en orden hijo→padre (inverso a la dependencia FK).
+        ///   2) Upsert (modificados + eliminados que vuelven), en orden
+        ///      padre→hijo.
+        /// Al final se recalculan DVH/DVV de las 9 tablas (y se regenera el
+        /// snapshot) para que queden consistentes con el estado restaurado.
+        ///
+        /// LIMITACIÓN CONOCIDA Y ACEPTADA: cada llamada a <see cref="DAL.IntegridadDAL"/>
+        /// abre y cierra su propia conexión (patrón Acceso actual: abrir →
+        /// ejecutar → cerrar en finally, por llamada). No hay una única
+        /// transacción SQL que envuelva las 9 tablas de punta a punta —
+        /// hacerlo sería un cambio arquitectural mayor, fuera de alcance de
+        /// esta entrega. Si una tabla falla a mitad del restore, las tablas
+        /// ya procesadas quedan restauradas y las restantes no: la base
+        /// puede quedar parcialmente restaurada. No se resuelve ni se oculta
+        /// acá; queda documentado como limitación conocida.
+        /// </summary>
+        public void RestaurarTodasLasTablas()
+        {
+            // Fase 1: borrado de filas agregadas externamente — hijo→padre.
+            BorrarAgregadosExternamente("INSCRIPCION_DETALLE");
+            BorrarAgregadosExternamente("INSCRIPCION");
+            BorrarAgregadosExternamente("EVENTO_ACADEMICO");
+            BorrarAgregadosExternamente("ALUMNO_MATERIA");
+            BorrarAgregadosExternamente("CORRELATIVA");
+            BorrarAgregadosExternamente("BITACORA");
+            BorrarAgregadosExternamente("PERIODO_ACADEMICO");
+            BorrarAgregadosExternamente("MATERIA");
+            BorrarAgregadosExternamente("USUARIO");
+
+            // Fase 2: upsert de modificados + eliminados que vuelven — padre→hijo.
+            RestaurarUpsertUsuario();
+            RestaurarUpsertMateria();
+            RestaurarUpsertPeriodoAcademico();
+            RestaurarUpsertBitacora();
+            RestaurarUpsertCorrelativa();
+            RestaurarUpsertAlumnoMateria();
+            RestaurarUpsertEventoAcademico();
+            RestaurarUpsertInscripcion();
+            RestaurarUpsertInscripcionDetalle();
+
+            // El estado restaurado debe quedar con DVH/DVV (y snapshot) al día.
+            RecalcularTodasLasTablas();
+        }
+
+        /// <summary>
+        /// Fase de borrado: cualquier ID presente en los datos actuales pero
+        /// ausente del snapshot fue agregado externamente (por fuera del
+        /// mecanismo normal de la aplicación) — se borra.
+        /// </summary>
+        private void BorrarAgregadosExternamente(string nombreTabla)
+        {
+            var idsSnapshot = new HashSet<int>();
+            foreach (var f in ObtenerSnapshot(nombreTabla))
+                idsSnapshot.Add(f.Id);
+
+            DataTable actuales = _dal.ListarParaIntegridad(nombreTabla);
+            foreach (DataRow fila in actuales.Rows)
+            {
+                int id = Convert.ToInt32(fila["ID"]);
+                if (!idsSnapshot.Contains(id))
+                    _dal.EliminarPorId(nombreTabla, id);
+            }
+        }
+
+        // -----------------------------------------------------
+        // Rehidratación — inversa de ExtraerX. Convierte cada string del
+        // snapshot de vuelta a su tipo real antes de pasarlo como SqlParameter.
+        // -----------------------------------------------------
+
+        private static int ParseInt(string s) => int.Parse(s, CultureInfo.InvariantCulture);
+
+        private static decimal? ParseDecNullable(string s) =>
+            string.IsNullOrEmpty(s) ? (decimal?)null : decimal.Parse(s, CultureInfo.InvariantCulture);
+
+        private static DateTime? ParseFechaNullable(string s) =>
+            string.IsNullOrEmpty(s) ? (DateTime?)null : DateTime.ParseExact(s, "yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+
+        private static bool ParseBit(string s) => s == "1";
+
+        private static byte[] ParseBase64(string s) =>
+            string.IsNullOrEmpty(s) ? null : Convert.FromBase64String(s);
+
+        private static string ParseStrNullable(string s) => string.IsNullOrEmpty(s) ? null : s;
+
+        // Objetos simples con los valores ya tipados de una fila del
+        // snapshot, uno por tabla, mismo orden que ColumnasX/ExtraerX.
+
+        private class FilaUsuarioRestaurada
+        {
+            public int Id;
+            public string Usuario;
+            public string Pass;
+            public byte[] Direccion;
+            public string Rol;
+        }
+
+        private class FilaBitacoraRestaurada
+        {
+            public int Id;
+            public string Usuario;
+            public string Accion;
+            public DateTime Fecha;
+        }
+
+        private class FilaMateriaRestaurada
+        {
+            public int Id;
+            public string Nombre;
+            public string Codigo;
+            public string Modalidad;
+            public int Peso;
+            public bool Activa;
+        }
+
+        private class FilaCorrelativaRestaurada
+        {
+            public int Id;
+            public int IdMateria;
+            public int IdCorrelativa;
+        }
+
+        private class FilaAlumnoMateriaRestaurada
+        {
+            public int Id;
+            public int IdUsuario;
+            public int IdMateria;
+            public string Estado;
+            public decimal? NotaParcial1;
+            public decimal? NotaParcial2;
+            public decimal? NotaRecuperatorio;
+            public decimal? NotaFinal;
+            public DateTime? FechaFinal;
+            public DateTime? FechaRecuperatorio;
+        }
+
+        private class FilaEventoAcademicoRestaurada
+        {
+            public int Id;
+            public int IdMateria;
+            public int IdUsuario;
+            public string Tipo;
+            public string Descripcion;
+            public DateTime Fecha;
+            public int Peso;
+        }
+
+        private class FilaPeriodoAcademicoRestaurada
+        {
+            public int Id;
+            public int Anio;
+            public int Cuatrimestre;
+            public string Descripcion;
+            public DateTime? FechaInicio;
+            public DateTime? FechaFin;
+        }
+
+        private class FilaInscripcionRestaurada
+        {
+            public int Id;
+            public int IdUsuario;
+            public int IdPeriodo;
+            public DateTime FechaInscripcion;
+        }
+
+        private class FilaInscripcionDetalleRestaurada
+        {
+            public int Id;
+            public int IdInscripcion;
+            public int IdMateria;
+        }
+
+        private static FilaUsuarioRestaurada RehidratarUsuario(string[] a) => new FilaUsuarioRestaurada
+        {
+            Id = ParseInt(a[0]),
+            Usuario = a[1],
+            Pass = a[2],
+            Direccion = ParseBase64(a[3]),
+            Rol = a[4]
+        };
+
+        private static FilaBitacoraRestaurada RehidratarBitacora(string[] a) => new FilaBitacoraRestaurada
+        {
+            Id = ParseInt(a[0]),
+            Usuario = a[1],
+            Accion = a[2],
+            Fecha = ParseFechaNullable(a[3]).Value
+        };
+
+        private static FilaMateriaRestaurada RehidratarMateria(string[] a) => new FilaMateriaRestaurada
+        {
+            Id = ParseInt(a[0]),
+            Nombre = a[1],
+            Codigo = a[2],
+            Modalidad = a[3],
+            Peso = ParseInt(a[4]),
+            Activa = ParseBit(a[5])
+        };
+
+        private static FilaCorrelativaRestaurada RehidratarCorrelativa(string[] a) => new FilaCorrelativaRestaurada
+        {
+            Id = ParseInt(a[0]),
+            IdMateria = ParseInt(a[1]),
+            IdCorrelativa = ParseInt(a[2])
+        };
+
+        private static FilaAlumnoMateriaRestaurada RehidratarAlumnoMateria(string[] a) => new FilaAlumnoMateriaRestaurada
+        {
+            Id = ParseInt(a[0]),
+            IdUsuario = ParseInt(a[1]),
+            IdMateria = ParseInt(a[2]),
+            Estado = a[3],
+            NotaParcial1 = ParseDecNullable(a[4]),
+            NotaParcial2 = ParseDecNullable(a[5]),
+            NotaRecuperatorio = ParseDecNullable(a[6]),
+            NotaFinal = ParseDecNullable(a[7]),
+            FechaFinal = ParseFechaNullable(a[8]),
+            FechaRecuperatorio = ParseFechaNullable(a[9])
+        };
+
+        private static FilaEventoAcademicoRestaurada RehidratarEventoAcademico(string[] a) => new FilaEventoAcademicoRestaurada
+        {
+            Id = ParseInt(a[0]),
+            IdMateria = ParseInt(a[1]),
+            IdUsuario = ParseInt(a[2]),
+            Tipo = a[3],
+            Descripcion = ParseStrNullable(a[4]),
+            Fecha = ParseFechaNullable(a[5]).Value,
+            Peso = ParseInt(a[6])
+        };
+
+        private static FilaPeriodoAcademicoRestaurada RehidratarPeriodoAcademico(string[] a) => new FilaPeriodoAcademicoRestaurada
+        {
+            Id = ParseInt(a[0]),
+            Anio = ParseInt(a[1]),
+            Cuatrimestre = ParseInt(a[2]),
+            Descripcion = ParseStrNullable(a[3]),
+            FechaInicio = ParseFechaNullable(a[4]),
+            FechaFin = ParseFechaNullable(a[5])
+        };
+
+        private static FilaInscripcionRestaurada RehidratarInscripcion(string[] a) => new FilaInscripcionRestaurada
+        {
+            Id = ParseInt(a[0]),
+            IdUsuario = ParseInt(a[1]),
+            IdPeriodo = ParseInt(a[2]),
+            FechaInscripcion = ParseFechaNullable(a[3]).Value
+        };
+
+        private static FilaInscripcionDetalleRestaurada RehidratarInscripcionDetalle(string[] a) => new FilaInscripcionDetalleRestaurada
+        {
+            Id = ParseInt(a[0]),
+            IdInscripcion = ParseInt(a[1]),
+            IdMateria = ParseInt(a[2])
+        };
+
+        // -----------------------------------------------------
+        // Fase de upsert — un método por tabla (firma de columnas distinta
+        // por tabla), llamado en orden padre→hijo desde RestaurarTodasLasTablas().
+        // -----------------------------------------------------
+
+        private void RestaurarUpsertUsuario()
+        {
+            foreach (var f in ObtenerSnapshot("USUARIO"))
+            {
+                var u = RehidratarUsuario(f.Atributos);
+                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion, u.Rol);
+            }
+        }
+
+        private void RestaurarUpsertMateria()
+        {
+            foreach (var f in ObtenerSnapshot("MATERIA"))
+            {
+                var m = RehidratarMateria(f.Atributos);
+                _dal.RestaurarFilaMateria(m.Id, m.Nombre, m.Codigo, m.Modalidad, m.Peso, m.Activa);
+            }
+        }
+
+        private void RestaurarUpsertPeriodoAcademico()
+        {
+            foreach (var f in ObtenerSnapshot("PERIODO_ACADEMICO"))
+            {
+                var pa = RehidratarPeriodoAcademico(f.Atributos);
+                _dal.RestaurarFilaPeriodoAcademico(pa.Id, pa.Anio, pa.Cuatrimestre, pa.Descripcion, pa.FechaInicio, pa.FechaFin);
+            }
+        }
+
+        private void RestaurarUpsertBitacora()
+        {
+            foreach (var f in ObtenerSnapshot("BITACORA"))
+            {
+                var b = RehidratarBitacora(f.Atributos);
+                _dal.RestaurarFilaBitacora(b.Id, b.Usuario, b.Accion, b.Fecha);
+            }
+        }
+
+        private void RestaurarUpsertCorrelativa()
+        {
+            foreach (var f in ObtenerSnapshot("CORRELATIVA"))
+            {
+                var c = RehidratarCorrelativa(f.Atributos);
+                _dal.RestaurarFilaCorrelativa(c.Id, c.IdMateria, c.IdCorrelativa);
+            }
+        }
+
+        private void RestaurarUpsertAlumnoMateria()
+        {
+            foreach (var f in ObtenerSnapshot("ALUMNO_MATERIA"))
+            {
+                var am = RehidratarAlumnoMateria(f.Atributos);
+                _dal.RestaurarFilaAlumnoMateria(am.Id, am.IdUsuario, am.IdMateria, am.Estado,
+                    am.NotaParcial1, am.NotaParcial2, am.NotaRecuperatorio, am.NotaFinal,
+                    am.FechaFinal, am.FechaRecuperatorio);
+            }
+        }
+
+        private void RestaurarUpsertEventoAcademico()
+        {
+            foreach (var f in ObtenerSnapshot("EVENTO_ACADEMICO"))
+            {
+                var ev = RehidratarEventoAcademico(f.Atributos);
+                _dal.RestaurarFilaEventoAcademico(ev.Id, ev.IdMateria, ev.IdUsuario, ev.Tipo, ev.Descripcion, ev.Fecha, ev.Peso);
+            }
+        }
+
+        private void RestaurarUpsertInscripcion()
+        {
+            foreach (var f in ObtenerSnapshot("INSCRIPCION"))
+            {
+                var i = RehidratarInscripcion(f.Atributos);
+                _dal.RestaurarFilaInscripcion(i.Id, i.IdUsuario, i.IdPeriodo, i.FechaInscripcion);
+            }
+        }
+
+        private void RestaurarUpsertInscripcionDetalle()
+        {
+            foreach (var f in ObtenerSnapshot("INSCRIPCION_DETALLE"))
+            {
+                var d = RehidratarInscripcionDetalle(f.Atributos);
+                _dal.RestaurarFilaInscripcionDetalle(d.Id, d.IdInscripcion, d.IdMateria);
+            }
+        }
     }
 }

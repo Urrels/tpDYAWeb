@@ -127,5 +127,170 @@ namespace DAL
             try { _acceso.Abrir(); _acceso.Escribir("SNAPSHOT_GUARDAR", p); }
             finally { _acceso.Cerrar(); }
         }
+
+        // =====================================================
+        // Restore — mecanismo de "Restaurar base de datos" (Webmaster).
+        // Fase de borrado (uniforme, por ID) + fase de upsert (una firma
+        // distinta por tabla, ver BLL.IntegridadBLL.RestaurarTodasLasTablas).
+        // =====================================================
+
+        private static readonly Dictionary<string, string> SpEliminarPorId = new Dictionary<string, string>
+        {
+            { "USUARIO",              "USUARIO_ELIMINAR_POR_ID" },
+            { "BITACORA",             "BITACORA_ELIMINAR_POR_ID" },
+            { "MATERIA",              "MATERIA_ELIMINAR_POR_ID" },
+            { "CORRELATIVA",          "CORRELATIVA_ELIMINAR_POR_ID" },
+            { "ALUMNO_MATERIA",       "ALUMNO_MATERIA_ELIMINAR_POR_ID" },
+            { "EVENTO_ACADEMICO",     "EVENTO_ACADEMICO_ELIMINAR_POR_ID" },
+            { "PERIODO_ACADEMICO",    "PERIODO_ACADEMICO_ELIMINAR_POR_ID" },
+            { "INSCRIPCION",          "INSCRIPCION_ELIMINAR_POR_ID" },
+            { "INSCRIPCION_DETALLE",  "INSCRIPCION_DETALLE_ELIMINAR_POR_ID" }
+        };
+
+        /// <summary>
+        /// Borra por ID una fila que fue agregada externamente (no está en el
+        /// snapshot del último estado válido conocido). Usado en la fase de
+        /// borrado del restore, en orden hijo→padre.
+        /// </summary>
+        public void EliminarPorId(string tabla, int id)
+        {
+            string sp = SpDe(SpEliminarPorId, tabla);
+            var p = new List<SqlParameter> { _acceso.CrearParametro("@id", id) };
+            try { _acceso.Abrir(); _acceso.Escribir(sp, p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaUsuario(int id, string usuario, string pass, byte[] direccion, string rol)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@usuario", usuario),
+                _acceso.CrearParametro("@pass", pass),
+                _acceso.CrearParametro("@direccion", direccion),
+                _acceso.CrearParametro("@rol", rol)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("USUARIO_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaMateria(int id, string nombre, string codigo, string modalidad, int peso, bool activa)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@nombre", nombre),
+                _acceso.CrearParametro("@codigo", codigo),
+                _acceso.CrearParametro("@modalidad", modalidad),
+                _acceso.CrearParametro("@peso", peso),
+                new SqlParameter("@activa", SqlDbType.Bit) { Value = activa }
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("MATERIA_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaPeriodoAcademico(int id, int anio, int cuatrimestre, string descripcion,
+            DateTime? fechaInicio, DateTime? fechaFin)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@anio", anio),
+                _acceso.CrearParametro("@cuatrimestre", cuatrimestre),
+                _acceso.CrearParametro("@descripcion", descripcion),
+                _acceso.CrearParametro("@fechaInicio", fechaInicio),
+                _acceso.CrearParametro("@fechaFin", fechaFin)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("PERIODO_ACADEMICO_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaBitacora(int id, string usuario, string accion, DateTime fecha)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@usuario", usuario),
+                _acceso.CrearParametro("@accion", accion),
+                _acceso.CrearParametro("@fecha", fecha)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("BITACORA_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaCorrelativa(int id, int idMateria, int idCorrelativa)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@idMateria", idMateria),
+                _acceso.CrearParametro("@idCorrelativa", idCorrelativa)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("CORRELATIVA_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaAlumnoMateria(int id, int idUsuario, int idMateria, string estado,
+            decimal? notaParcial1, decimal? notaParcial2, decimal? notaRecuperatorio, decimal? notaFinal,
+            DateTime? fechaFinal, DateTime? fechaRecuperatorio)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@idUsuario", idUsuario),
+                _acceso.CrearParametro("@idMateria", idMateria),
+                _acceso.CrearParametro("@estado", estado),
+                _acceso.CrearParametro("@notaParcial1", notaParcial1),
+                _acceso.CrearParametro("@notaParcial2", notaParcial2),
+                _acceso.CrearParametro("@notaRecuperatorio", notaRecuperatorio),
+                _acceso.CrearParametro("@notaFinal", notaFinal),
+                _acceso.CrearParametro("@fechaFinal", fechaFinal),
+                _acceso.CrearParametro("@fechaRecuperatorio", fechaRecuperatorio)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("ALUMNO_MATERIA_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaEventoAcademico(int id, int idMateria, int idUsuario, string tipo,
+            string descripcion, DateTime fecha, int peso)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@idMateria", idMateria),
+                _acceso.CrearParametro("@idUsuario", idUsuario),
+                _acceso.CrearParametro("@tipo", tipo),
+                _acceso.CrearParametro("@descripcion", descripcion),
+                _acceso.CrearParametro("@fecha", fecha),
+                _acceso.CrearParametro("@peso", peso)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("EVENTO_ACADEMICO_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaInscripcion(int id, int idUsuario, int idPeriodo, DateTime fechaInscripcion)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@idUsuario", idUsuario),
+                _acceso.CrearParametro("@idPeriodo", idPeriodo),
+                _acceso.CrearParametro("@fechaInscripcion", fechaInscripcion)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("INSCRIPCION_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaInscripcionDetalle(int id, int idInscripcion, int idMateria)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@idInscripcion", idInscripcion),
+                _acceso.CrearParametro("@idMateria", idMateria)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("INSCRIPCION_DETALLE_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
     }
 }

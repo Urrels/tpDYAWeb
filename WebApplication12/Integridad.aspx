@@ -36,6 +36,22 @@
                 </asp:Repeater>
                 <asp:Label ID="lblSinAlumnos" runat="server" Visible="false"
                            Text="<p class='text-muted small mt-2'>No se detectaron alteraciones en ninguna de las 9 tablas de negocio.</p>"/>
+
+                <asp:Panel ID="pnlAcciones" runat="server" Visible="false" CssClass="mt-3 pt-3 border-top">
+                    <p class="text-muted small mb-2">
+                        Elegí cómo continuar: cancelar sin aplicar ningún cambio, aceptar el estado
+                        actual de los datos (recalcular dígitos verificadores) o volver al último
+                        estado válido conocido (restaurar base de datos).
+                    </p>
+                    <asp:Button ID="btnCancelar" runat="server" Text="Cancelar" CausesValidation="false"
+                                CssClass="btn btn-outline-secondary btn-sm me-2" OnClick="btnCancelar_Click"/>
+                    <asp:Button ID="btnRecalcular" runat="server" Text="Recalcular dígitos verificadores"
+                                CssClass="btn btn-warning btn-sm me-2" OnClick="btnRecalcular_Click"/>
+                    <asp:Button ID="btnRestaurar" runat="server" Text="Restaurar base de datos"
+                                CssClass="btn btn-danger btn-sm"
+                                OnClientClick="return confirm('¿Restaurar la base de datos al último estado válido conocido? Se perderán los cambios posteriores.');"
+                                OnClick="btnRestaurar_Click"/>
+                </asp:Panel>
             </div>
         </div>
     </asp:Panel>
