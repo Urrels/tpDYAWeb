@@ -84,6 +84,7 @@
     <Compile Include="InscripcionBLL.cs" />
     <Compile Include="EventoBLL.cs" />
     <Compile Include="FeriadosBLL.cs" />
+    <Compile Include="IntegridadBLL.cs" />
     <Compile Include="LoginBLL.cs" />
     <Compile Include="MateriaBLL.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

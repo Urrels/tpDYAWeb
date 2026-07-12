@@ -79,6 +79,7 @@
     <Compile Include="AESHelper.cs" />
     <Compile Include="ALUMNO_MATERIA.cs" />
     <Compile Include="BITACORA.cs" />
+    <Compile Include="CalculadorDVH.cs" />
     <Compile Include="EVENTO_ACADEMICO.cs" />
     <Compile Include="HashHelper.cs" />
     <Compile Include="INSCRIPCION.cs" />
