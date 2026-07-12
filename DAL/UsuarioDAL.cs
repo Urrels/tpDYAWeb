@@ -41,7 +41,8 @@ namespace DAL
             try
             {
                 _acceso.Abrir();
-                return _acceso.Escribir("USUARIO_CAMBIAR_PASS", p) > 0;
+                object resultado = _acceso.EscribirConRetorno("USUARIO_CAMBIAR_PASS", p);
+                return System.Convert.ToInt32(resultado) > 0;
             }
             finally { _acceso.Cerrar(); }
         }
@@ -101,7 +102,8 @@ namespace DAL
             try
             {
                 _acceso.Abrir();
-                return _acceso.Escribir("USUARIO_ACTUALIZAR_DIRECCION", p) > 0;
+                object resultado = _acceso.EscribirConRetorno("USUARIO_ACTUALIZAR_DIRECCION", p);
+                return System.Convert.ToInt32(resultado) > 0;
             }
             finally { _acceso.Cerrar(); }
         }

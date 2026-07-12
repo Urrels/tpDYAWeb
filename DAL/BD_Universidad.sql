@@ -163,6 +163,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     UPDATE USUARIO SET PASS = @pass WHERE USUARIO = @usuario;
+    SELECT @@ROWCOUNT AS FILAS;
 END
 GO
 
@@ -175,6 +176,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     UPDATE USUARIO SET DIRECCION = @direccion WHERE USUARIO = @usuario;
+    SELECT @@ROWCOUNT AS FILAS;
 END
 GO
 
@@ -245,6 +247,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     UPDATE MATERIA SET NOMBRE=@nombre, CODIGO=@codigo, MODALIDAD=@modalidad, PESO=@peso WHERE ID=@id;
+    SELECT @@ROWCOUNT AS FILAS;
 END
 GO
 
@@ -256,6 +259,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     UPDATE MATERIA SET ACTIVA=0 WHERE ID=@id;
+    SELECT @@ROWCOUNT AS FILAS;
 END
 GO
 
@@ -337,6 +341,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO ALUMNO_MATERIA (ID_USUARIO, ID_MATERIA, ESTADO) VALUES (@id_usuario, @id_materia, @estado);
+    SELECT SCOPE_IDENTITY() AS ID;
 END
 GO
 
@@ -365,6 +370,7 @@ BEGIN
            FECHA_RECUPERATORIO = @fecha_recuperatorio,
            DVH                 = @dvh
     WHERE  ID = @id;
+    SELECT @@ROWCOUNT AS FILAS;
 END
 GO
 
@@ -553,6 +559,7 @@ BEGIN
            FECHA_INICIO = @fecha_inicio,
            FECHA_FIN    = @fecha_fin
     WHERE  ID = @id;
+    SELECT @@ROWCOUNT AS FILAS;
 END
 GO
 

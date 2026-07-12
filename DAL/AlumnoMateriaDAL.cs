@@ -17,7 +17,12 @@ namespace DAL
                 _acceso.CrearParametro("@id_materia", am.IdMateria),
                 _acceso.CrearParametro("@estado",     am.Estado)
             };
-            try { _acceso.Abrir(); return _acceso.Escribir("ALUMNO_MATERIA_INSERTAR", p) > 0; }
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("ALUMNO_MATERIA_INSERTAR", p);
+                return resultado != null && resultado != DBNull.Value;
+            }
             finally { _acceso.Cerrar(); }
         }
         public bool Actualizar(BE.ALUMNO_MATERIA am)
@@ -34,7 +39,12 @@ namespace DAL
         _acceso.CrearParametro("@fecha_recuperatorio",  am.FechaRecuperatorio),
         _acceso.CrearParametro("@dvh",                  am.DVH)
     };
-            try { _acceso.Abrir(); return _acceso.Escribir("ALUMNO_MATERIA_ACTUALIZAR", p) > 0; }
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("ALUMNO_MATERIA_ACTUALIZAR", p);
+                return Convert.ToInt32(resultado) > 0;
+            }
             finally { _acceso.Cerrar(); }
         }
         public List<BE.ALUMNO_MATERIA> Listar(int idUsuario)
