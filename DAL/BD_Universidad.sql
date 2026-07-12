@@ -293,7 +293,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     IF NOT EXISTS (SELECT 1 FROM CORRELATIVA WHERE ID_MATERIA=@id_materia AND ID_CORRELATIVA=@id_correlativa)
-        INSERT INTO CORRELATIVA VALUES (@id_materia, @id_correlativa);
+        INSERT INTO CORRELATIVA (ID_MATERIA, ID_CORRELATIVA) VALUES (@id_materia, @id_correlativa);
 END
 GO
 
