@@ -84,7 +84,18 @@ namespace DAL
         _acceso.CrearParametro("@fecha",       e.Fecha),
         _acceso.CrearParametro("@peso",        e.Peso)
     };
-            try { _acceso.Abrir(); return _acceso.Escribir("EVENTO_INSERTAR", p) > 0; }
+            // EVENTO_INSERTAR termina en SELECT SCOPE_IDENTITY() y se lee con
+            // EscribirConRetorno (ExecuteScalar) en vez de Escribir(...) > 0:
+            // con SET NOCOUNT ON, ExecuteNonQuery() no devuelve de forma
+            // confiable la cantidad de filas afectadas — el insert pasaba
+            // igual pero el DAL reportaba false (bug real, visto en el
+            // calendario de eventos).
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("EVENTO_INSERTAR", p);
+                return resultado != null && resultado != DBNull.Value;
+            }
             finally { _acceso.Cerrar(); }
         }
 
@@ -98,14 +109,24 @@ namespace DAL
                 _acceso.CrearParametro("@fecha",       e.Fecha),
                 _acceso.CrearParametro("@peso",        e.Peso)
             };
-                    try { _acceso.Abrir(); return _acceso.Escribir("EVENTO_ACTUALIZAR", p) > 0; }
-                    finally { _acceso.Cerrar(); }
-                }
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("EVENTO_ACTUALIZAR", p);
+                return Convert.ToInt32(resultado) > 0;
+            }
+            finally { _acceso.Cerrar(); }
+        }
 
         public bool Eliminar(int id)
         {
             var p = new List<SqlParameter> { _acceso.CrearParametro("@id", id) };
-            try { _acceso.Abrir(); return _acceso.Escribir("EVENTO_ELIMINAR", p) > 0; }
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("EVENTO_ELIMINAR", p);
+                return Convert.ToInt32(resultado) > 0;
+            }
             finally { _acceso.Cerrar(); }
         }
 
