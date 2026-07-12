@@ -18,7 +18,10 @@ namespace CAPAS_Web
         {
             var u = Session["Usuario"] as BE.USUARIO;
             if (u != null)
+            {
                 BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
+                new BLL.BitacoraBLL().RegistrarLogout(u.Usuario);
+            }
         }
     }
 }

@@ -813,6 +813,14 @@ IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'DVH' AND Object_ID = Obje
     ALTER TABLE BITACORA ADD DVH INT NOT NULL DEFAULT 0
 GO
 
+-- CRITICIDAD se agrega acá (no en el bloque de "Bitácora: filtros y
+-- paginado" más abajo) por la misma razón que INTENTOS_FALLIDOS/BLOQUEADO:
+-- BITACORA_LISTAR_PARA_INTEGRIDAD, unas líneas más abajo en este mismo
+-- bloque, ya hace SELECT de esta columna.
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'CRITICIDAD' AND Object_ID = Object_ID('BITACORA'))
+    ALTER TABLE BITACORA ADD CRITICIDAD VARCHAR(10) NOT NULL DEFAULT 'Media'
+GO
+
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'DVH' AND Object_ID = Object_ID('MATERIA'))
     ALTER TABLE MATERIA ADD DVH INT NOT NULL DEFAULT 0
 GO
@@ -943,7 +951,7 @@ CREATE PROCEDURE BITACORA_LISTAR_PARA_INTEGRIDAD
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO, ACCION, FECHA, DVH FROM BITACORA ORDER BY ID;
+    SELECT ID, USUARIO, ACCION, FECHA, CRITICIDAD, DVH FROM BITACORA ORDER BY ID;
 END
 GO
 
@@ -1616,4 +1624,64 @@ END
 GO
 
 PRINT '✔ Bloqueo de cuenta por intentos fallidos instalado correctamente.';
+GO
+
+-- =============================================
+-- Bitácora: filtros + paginado (CRITICIDAD ya fue agregada más arriba,
+-- junto a DVH de BITACORA, porque BITACORA_LISTAR_PARA_INTEGRIDAD la
+-- necesitaba antes)
+-- =============================================
+
+IF OBJECT_ID('BITACORA_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE BITACORA_INSERTAR
+GO
+CREATE PROCEDURE BITACORA_INSERTAR
+    @usuario    VARCHAR(50),
+    @accion     VARCHAR(100),
+    @criticidad VARCHAR(10)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO BITACORA (USUARIO, ACCION, FECHA, CRITICIDAD) VALUES (@usuario, @accion, GETDATE(), @criticidad);
+END
+GO
+
+IF OBJECT_ID('BITACORA_LISTAR_USUARIOS_DISTINCT', 'P') IS NOT NULL DROP PROCEDURE BITACORA_LISTAR_USUARIOS_DISTINCT
+GO
+CREATE PROCEDURE BITACORA_LISTAR_USUARIOS_DISTINCT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT DISTINCT USUARIO FROM BITACORA ORDER BY USUARIO;
+END
+GO
+
+IF OBJECT_ID('BITACORA_LISTAR_PAGINADO', 'P') IS NOT NULL DROP PROCEDURE BITACORA_LISTAR_PAGINADO
+GO
+CREATE PROCEDURE BITACORA_LISTAR_PAGINADO
+    @usuario     VARCHAR(50) = NULL,
+    @criticidad  VARCHAR(10) = NULL,
+    @fecha_desde DATETIME    = NULL,
+    @fecha_hasta DATETIME    = NULL,
+    @pagina      INT         = 1,
+    @tamanio     INT         = 50
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @pagina  < 1 SET @pagina  = 1;
+    IF @tamanio < 1 SET @tamanio = 50;
+
+    SELECT ID, USUARIO, ACCION, FECHA, CRITICIDAD,
+           COUNT(*) OVER() AS TOTAL_FILAS
+    FROM BITACORA
+    WHERE (@usuario     IS NULL OR USUARIO    = @usuario)
+      AND (@criticidad  IS NULL OR CRITICIDAD = @criticidad)
+      AND (@fecha_desde IS NULL OR FECHA     >= @fecha_desde)
+      AND (@fecha_hasta IS NULL OR FECHA     <  @fecha_hasta)
+    ORDER BY FECHA DESC
+    OFFSET (@pagina - 1) * @tamanio ROWS
+    FETCH NEXT @tamanio ROWS ONLY;
+END
+GO
+
+PRINT '✔ Bitácora: filtros y paginado instalados correctamente.';
 GO

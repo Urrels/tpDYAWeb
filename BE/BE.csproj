@@ -80,6 +80,7 @@
     <Compile Include="AESHelper.cs" />
     <Compile Include="ALUMNO_MATERIA.cs" />
     <Compile Include="BITACORA.cs" />
+    <Compile Include="BitacoraPaginaResultado.cs" />
     <Compile Include="CalculadorDVH.cs" />
     <Compile Include="EVENTO_ACADEMICO.cs" />
     <Compile Include="HashHelper.cs" />

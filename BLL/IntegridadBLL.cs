@@ -49,7 +49,7 @@ namespace BLL
             { "ID", "USUARIO", "PASS", "DIRECCION", "ROL", "INTENTOS_FALLIDOS", "BLOQUEADO" };
 
         private static readonly string[] ColumnasBitacora =
-            { "ID", "USUARIO", "ACCION", "FECHA" };
+            { "ID", "USUARIO", "ACCION", "FECHA", "CRITICIDAD" };
 
         private static readonly string[] ColumnasMateria =
             { "ID", "NOMBRE", "CODIGO", "MODALIDAD", "PESO", "ACTIVA" };
@@ -296,7 +296,7 @@ namespace BLL
 
         private static string[] ExtraerBitacora(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["ACCION"]), DateStr(r["FECHA"])
+            IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["ACCION"]), DateStr(r["FECHA"]), StrStr(r["CRITICIDAD"])
         };
 
         private static string[] ExtraerMateria(DataRow r) => new[]
