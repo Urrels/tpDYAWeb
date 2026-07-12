@@ -31,6 +31,21 @@ namespace CAPAS_Web
             if (ok)
             {
                 BE.USUARIO u = BE.SessionManager.getInstane().getUsuario();
+
+                var integridadBll = new BLL.IntegridadBLL();
+                BLL.ResultadoIntegridad resultadoIntegridad = integridadBll.VerificarTodasLasTablas();
+
+                if (!resultadoIntegridad.EsValido && !u.EsAdmin)
+                {
+                    // Usuario común: la base fue manipulada externamente.
+                    // No se revela el detalle de resultadoIntegridad.Errores (eso es
+                    // tarea del panel de Webmaster, no implementada acá).
+                    BE.SessionManager.getInstane().cerrarSesion();
+                    Session["Usuario"] = null;
+                    pnlInconsistencia.Visible = true;
+                    return;
+                }
+
                 Session["Usuario"] = u;
                 BE.SessionManager.getInstane().cerrarSesion();
                 Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");

@@ -42,6 +42,29 @@
                             OnClick="btnIngresar_Click"/>
             </div>
         </div>
+
+        <asp:Panel ID="pnlInconsistencia" runat="server" Visible="false">
+            <div id="divModalInconsistencia" runat="server" class="modal fade show" style="display:block;" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Aviso</h5>
+                        </div>
+                        <div class="modal-body text-center py-4">
+                            <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3rem;"></i>
+                            <p class="mt-3 mb-0">El sistema no se encuentra disponible en este momento, intente más tarde.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary"
+                                    onclick="document.getElementById('<%= divModalInconsistencia.ClientID %>').style.display='none'; document.getElementById('<%= divBackdropInconsistencia.ClientID %>').style.display='none';">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="divBackdropInconsistencia" runat="server" class="modal-backdrop fade show"></div>
+        </asp:Panel>
     </form>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
