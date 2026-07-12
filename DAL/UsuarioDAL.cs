@@ -105,5 +105,63 @@ namespace DAL
             }
             finally { _acceso.Cerrar(); }
         }
+
+        public bool EstaBloqueado(string usuario)
+        {
+            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", usuario) };
+            try
+            {
+                _acceso.Abrir();
+                DataTable dt = _acceso.Leer("USUARIO_VERIFICAR_BLOQUEO", p);
+                return dt.Rows.Count == 0 ? false : System.Convert.ToBoolean(dt.Rows[0]["BLOQUEADO"]);
+            }
+            finally { _acceso.Cerrar(); }
+        }
+
+        // Devuelve true si el usuario quedó bloqueado con este intento.
+        public bool IncrementarIntentos(string usuario)
+        {
+            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", usuario) };
+            try
+            {
+                _acceso.Abrir();
+                DataTable dt = _acceso.Leer("USUARIO_INCREMENTAR_INTENTOS", p);
+                return dt.Rows.Count == 0 ? false : System.Convert.ToBoolean(dt.Rows[0]["BLOQUEADO"]);
+            }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void ResetearIntentos(string usuario)
+        {
+            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", usuario) };
+            try { _acceso.Abrir(); _acceso.Escribir("USUARIO_RESETEAR_INTENTOS", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void Desbloquear(string usuario)
+        {
+            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", usuario) };
+            try { _acceso.Abrir(); _acceso.Escribir("USUARIO_DESBLOQUEAR", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public List<BE.USUARIO> ListarBloqueados()
+        {
+            var lista = new List<BE.USUARIO>();
+            try
+            {
+                _acceso.Abrir();
+                DataTable dt = _acceso.Leer("USUARIO_LISTAR_BLOQUEADOS");
+                foreach (DataRow r in dt.Rows)
+                    lista.Add(new BE.USUARIO
+                    {
+                        Id               = System.Convert.ToInt32(r["ID"]),
+                        Usuario          = r["USUARIO"].ToString(),
+                        IntentosFallidos = System.Convert.ToInt32(r["INTENTOS_FALLIDOS"])
+                    });
+            }
+            finally { _acceso.Cerrar(); }
+            return lista;
+        }
     }
 }

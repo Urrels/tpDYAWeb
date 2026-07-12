@@ -1,28 +1,54 @@
+using System.Collections.Generic;
 using BE;
 using DAL;
 
 namespace BLL
 {
+    public enum LoginResultado
+    {
+        Exito,
+        CredencialesInvalidas,
+        UsuarioBloqueado
+    }
+
     public class LoginBLL
     {
         private readonly UsuarioDAL _dal = new UsuarioDAL();
         private readonly BitacoraBLL _bitacora = new BitacoraBLL();
+        private readonly IntegridadBLL _integridad = new IntegridadBLL();
 
-        public bool AutenticarUsuario(string usuario, string contrasena)
+        public LoginResultado AutenticarUsuario(string usuario, string contrasena)
         {
             if (string.IsNullOrEmpty(usuario) || string.IsNullOrEmpty(contrasena))
-                return false;
+                return LoginResultado.CredencialesInvalidas;
+
+            // Se chequea el bloqueo ANTES de validar credenciales: no gasta el
+            // hash ni le da al atacante ninguna pista sobre si la contraseña
+            // ingresada era correcta.
+            if (_dal.EstaBloqueado(usuario))
+                return LoginResultado.UsuarioBloqueado;
 
             string hash = HashHelper.HashSHA256(contrasena);
             BE.USUARIO u = _dal.ObtenerPorCredenciales(usuario, hash);
 
             if (u != null)
             {
+                _dal.ResetearIntentos(usuario);
+                _integridad.RecalcularUsuario();
                 BE.SessionManager.getInstane().setUsuario(u);
                 _bitacora.RegistrarLogin(usuario);
-                return true;
+                return LoginResultado.Exito;
             }
-            return false;
+
+            bool quedoBloqueado = _dal.IncrementarIntentos(usuario);
+            _integridad.RecalcularUsuario();
+            _bitacora.RegistrarAccion(usuario, "LOGIN_FALLIDO");
+            if (quedoBloqueado)
+            {
+                _bitacora.RegistrarAccion(usuario, "USUARIO_BLOQUEADO");
+                return LoginResultado.UsuarioBloqueado;
+            }
+            return LoginResultado.CredencialesInvalidas;
         }
     }
 
@@ -65,5 +91,21 @@ namespace BLL
             }
             return ok;
         }
+
+        /// <summary>
+        /// Acción de Admin: desbloquea una cuenta bloqueada por intentos
+        /// fallidos. El proyecto usa Session["Usuario"] de ASP.NET (no un
+        /// SessionManager persistente entre requests) como mecanismo real de
+        /// sesión, por eso el admin que ejecuta la acción se recibe como
+        /// parámetro desde la página en vez de leerse acá.
+        /// </summary>
+        public void Desbloquear(string usuario, string admin)
+        {
+            _dal.Desbloquear(usuario);
+            _bitacora.RegistrarAccion(admin, "DESBLOQUEO_USUARIO:" + usuario);
+            _integridad.RecalcularUsuario();
+        }
+
+        public List<BE.USUARIO> ListarBloqueados() => _dal.ListarBloqueados();
     }
 }

@@ -26,9 +26,9 @@ namespace CAPAS_Web
             }
 
             var bll = new BLL.LoginBLL();
-            bool ok = bll.AutenticarUsuario(usuario, contrasena);
+            BLL.LoginResultado resultado = bll.AutenticarUsuario(usuario, contrasena);
 
-            if (ok)
+            if (resultado == BLL.LoginResultado.Exito)
             {
                 BE.USUARIO u = BE.SessionManager.getInstane().getUsuario();
 
@@ -50,7 +50,13 @@ namespace CAPAS_Web
                 BE.SessionManager.getInstane().cerrarSesion();
                 Response.Redirect(u.EsWebmaster ? "~/Integridad.aspx" : (u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx"));
             }
-            else
+            else if (resultado == BLL.LoginResultado.UsuarioBloqueado)
+            {
+                lblError.Text = "Tu cuenta fue bloqueada por demasiados intentos fallidos. Contactá a un administrador para desbloquearla.";
+                lblError.Visible = true;
+                txtContrasena.Text = "";
+            }
+            else // CredencialesInvalidas
             {
                 lblError.Text = "Usuario o contraseña incorrectos.";
                 lblError.Visible = true;

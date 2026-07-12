@@ -46,7 +46,7 @@ namespace BLL
         // vez que haya datos guardados (cambiar el orden invalida todos los
         // DVH/DVV ya calculados).
         private static readonly string[] ColumnasUsuario =
-            { "ID", "USUARIO", "PASS", "DIRECCION", "ROL" };
+            { "ID", "USUARIO", "PASS", "DIRECCION", "ROL", "INTENTOS_FALLIDOS", "BLOQUEADO" };
 
         private static readonly string[] ColumnasBitacora =
             { "ID", "USUARIO", "ACCION", "FECHA" };
@@ -290,7 +290,8 @@ namespace BLL
 
         private static string[] ExtraerUsuario(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["PASS"]), Base64Str(r["DIRECCION"]), StrStr(r["ROL"])
+            IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["PASS"]), Base64Str(r["DIRECCION"]), StrStr(r["ROL"]),
+            IntStr(r["INTENTOS_FALLIDOS"]), BitStr(r["BLOQUEADO"])
         };
 
         private static string[] ExtraerBitacora(DataRow r) => new[]
