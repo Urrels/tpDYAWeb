@@ -12,7 +12,7 @@ namespace DAL
         private SqlTransaction transaccion;
 
         // TODO: mover esto a appsettings antes del release
-        private const string CONNECTION_STRING = "initial catalog=BDUNIVERSIDAD; Data Source=.; User Id=sa; Password=universidad2024;";
+        private const string CONNECTION_STRING = "initial catalog=BDUNIVERSIDAD; Data Source=.; Integrated Security=SSPI";
 
         // log para debug, sacar antes de produccion
         private static string logPath = @"C:\logs\acceso_db.txt";
@@ -21,7 +21,7 @@ namespace DAL
         {
             conexion = new SqlConnection(CONNECTION_STRING);
             conexion.Open();
-            LogDebug("Conexion abierta: " + CONNECTION_STRING); // 🔴 logea el conn string completo
+            LogDebug("Conexion abierta: " + CONNECTION_STRING); // logea el conn string completo
         }
 
         public void Cerrar()
