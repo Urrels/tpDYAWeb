@@ -88,6 +88,7 @@
     <Compile Include="MATERIA.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SessionManager.cs" />
+    <Compile Include="SessionRegistry.cs" />
     <Compile Include="USUARIO.cs" />
   </ItemGroup>
   <ItemGroup>

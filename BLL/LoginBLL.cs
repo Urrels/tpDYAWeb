@@ -8,7 +8,8 @@ namespace BLL
     {
         Exito,
         CredencialesInvalidas,
-        UsuarioBloqueado
+        UsuarioBloqueado,
+        SesionYaActiva
     }
 
     public class LoginBLL
@@ -17,7 +18,7 @@ namespace BLL
         private readonly BitacoraBLL _bitacora = new BitacoraBLL();
         private readonly IntegridadBLL _integridad = new IntegridadBLL();
 
-        public LoginResultado AutenticarUsuario(string usuario, string contrasena)
+        public LoginResultado AutenticarUsuario(string usuario, string contrasena, string sessionId)
         {
             if (string.IsNullOrEmpty(usuario) || string.IsNullOrEmpty(contrasena))
                 return LoginResultado.CredencialesInvalidas;
@@ -35,6 +36,12 @@ namespace BLL
             {
                 _dal.ResetearIntentos(usuario);
                 _integridad.RecalcularUsuario();
+
+                if (BE.SessionRegistry.Instancia.TieneSesionActiva(usuario))
+                    return LoginResultado.SesionYaActiva;
+
+                BE.SessionRegistry.Instancia.RegistrarSesion(usuario, sessionId);
+
                 BE.SessionManager.getInstane().setUsuario(u);
                 _bitacora.RegistrarLogin(usuario);
                 return LoginResultado.Exito;

@@ -23,7 +23,10 @@ namespace CAPAS_Web
         {
             var u = Session["Usuario"] as BE.USUARIO;
             if (u != null)
+            {
                 new BLL.BitacoraBLL().RegistrarLogout(u.Usuario);
+                BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
+            }
             Session.Abandon();
             Response.Redirect("~/Login.aspx");
         }

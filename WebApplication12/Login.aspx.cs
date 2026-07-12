@@ -26,7 +26,7 @@ namespace CAPAS_Web
             }
 
             var bll = new BLL.LoginBLL();
-            BLL.LoginResultado resultado = bll.AutenticarUsuario(usuario, contrasena);
+            BLL.LoginResultado resultado = bll.AutenticarUsuario(usuario, contrasena, Session.SessionID);
 
             if (resultado == BLL.LoginResultado.Exito)
             {
@@ -53,6 +53,12 @@ namespace CAPAS_Web
             else if (resultado == BLL.LoginResultado.UsuarioBloqueado)
             {
                 lblError.Text = "Tu cuenta fue bloqueada por demasiados intentos fallidos. Contactá a un administrador para desbloquearla.";
+                lblError.Visible = true;
+                txtContrasena.Text = "";
+            }
+            else if (resultado == BLL.LoginResultado.SesionYaActiva)
+            {
+                lblError.Text = "Ya hay una sesión activa con este usuario. Cerrá la sesión anterior antes de volver a ingresar.";
                 lblError.Visible = true;
                 txtContrasena.Text = "";
             }
