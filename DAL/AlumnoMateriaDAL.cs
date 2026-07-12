@@ -67,28 +67,6 @@ namespace DAL
             finally { _acceso.Cerrar(); }
             return lista;
         }
-        public void GuardarDVV(int idUsuario, int dvv)
-        {
-            var p = new List<SqlParameter>
-            {
-                _acceso.CrearParametro("@id_usuario", idUsuario),
-                _acceso.CrearParametro("@dvv",        dvv)
-            };
-            try { _acceso.Abrir(); _acceso.Escribir("DVV_GUARDAR", p); }
-            finally { _acceso.Cerrar(); }
-        }
-
-        public int ObtenerDVV(int idUsuario)
-        {
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@id_usuario", idUsuario) };
-            try
-            {
-                _acceso.Abrir();
-                DataTable dt = _acceso.Leer("DVV_OBTENER", p);
-                return dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0]["DVV"]) : -1;
-            }
-            finally { _acceso.Cerrar(); }
-        }
     }
 
     public class EventoDAL

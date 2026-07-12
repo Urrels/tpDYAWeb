@@ -8,25 +8,38 @@ namespace BLL
     {
         private readonly DAL.EventoDAL _dal = new DAL.EventoDAL();
         private readonly BitacoraBLL _bitacora = new BitacoraBLL();
+        private readonly IntegridadBLL _integridad = new IntegridadBLL();
 
         public bool Insertar(BE.EVENTO_ACADEMICO e, string usuarioAccion)
         {
             bool ok = _dal.Insertar(e);
-            if (ok) _bitacora.RegistrarAccion(usuarioAccion, $"ALTA_EVENTO:{e.Tipo}:{e.Fecha:dd/MM/yyyy}");
+            if (ok)
+            {
+                _bitacora.RegistrarAccion(usuarioAccion, $"ALTA_EVENTO:{e.Tipo}:{e.Fecha:dd/MM/yyyy}");
+                _integridad.RecalcularEventoAcademico();
+            }
             return ok;
         }
 
         public bool Actualizar(BE.EVENTO_ACADEMICO e, string usuarioAccion)
         {
             bool ok = _dal.Actualizar(e);
-            if (ok) _bitacora.RegistrarAccion(usuarioAccion, $"EDICION_EVENTO:{e.Id}");
+            if (ok)
+            {
+                _bitacora.RegistrarAccion(usuarioAccion, $"EDICION_EVENTO:{e.Id}");
+                _integridad.RecalcularEventoAcademico();
+            }
             return ok;
         }
 
         public bool Eliminar(int id, string usuarioAccion)
         {
             bool ok = _dal.Eliminar(id);
-            if (ok) _bitacora.RegistrarAccion(usuarioAccion, $"BAJA_EVENTO:{id}");
+            if (ok)
+            {
+                _bitacora.RegistrarAccion(usuarioAccion, $"BAJA_EVENTO:{id}");
+                _integridad.RecalcularEventoAcademico();
+            }
             return ok;
         }
 
