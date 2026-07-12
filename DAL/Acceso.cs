@@ -1,8 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.IO;
 
 namespace DAL
 {
@@ -11,17 +10,12 @@ namespace DAL
         private SqlConnection conexion;
         private SqlTransaction transaccion;
 
-        // TODO: mover esto a appsettings antes del release
         private const string CONNECTION_STRING = "initial catalog=BDUNIVERSIDAD; Data Source=.; Integrated Security=SSPI";
-
-        // log para debug, sacar antes de produccion
-        private static string logPath = @"C:\logs\acceso_db.txt";
 
         public void Abrir()
         {
             conexion = new SqlConnection(CONNECTION_STRING);
             conexion.Open();
-            LogDebug("Conexion abierta: " + CONNECTION_STRING); // logea el conn string completo
         }
 
         public void Cerrar()
@@ -49,7 +43,6 @@ namespace DAL
         {
             SqlCommand cmd = CrearComando(sp, parametros);
             try { return cmd.ExecuteNonQuery(); }
-            catch { return -1; }  // 🟠 traga la excepción sin loguear nada
             finally { cmd.Parameters.Clear(); }
         }
 
@@ -57,7 +50,6 @@ namespace DAL
         {
             SqlCommand cmd = CrearComando(sp, parametros);
             try { return cmd.ExecuteScalar(); }
-            catch { return null; }
             finally { cmd.Parameters.Clear(); }
         }
 
@@ -67,24 +59,6 @@ namespace DAL
             DataTable dt = new DataTable();
             da.Fill(dt);
             return dt;
-        }
-
-        // FIXME: este metodo deberia validar el nombre del SP antes de ejecutar
-        public DataTable LeerDinamico(string nombreTabla)
-        {
-            // 🔴 construye SQL dinámico con input sin validar — SQL Injection
-            string sql = "SELECT * FROM " + nombreTabla;
-            SqlCommand cmd = new SqlCommand(sql, conexion);
-            SqlDataAdapter da = new SqlDataAdapter(cmd);
-            DataTable dt = new DataTable();
-            da.Fill(dt);
-            return dt;
-        }
-
-        private void LogDebug(string mensaje)
-        {
-            // escribe en disco sin control de tamaño ni rotación
-            File.AppendAllText(logPath, DateTime.Now + " - " + mensaje + Environment.NewLine);
         }
 
         public SqlParameter CrearParametro(string nombre, string valor)
