@@ -797,6 +797,18 @@ IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'DVH' AND Object_ID = Obje
     ALTER TABLE USUARIO ADD DVH INT NOT NULL DEFAULT 0
 GO
 
+-- INTENTOS_FALLIDOS/BLOQUEADO se agregan acá (no en el bloque de "Bloqueo de
+-- cuenta" más abajo) porque USUARIO_LISTAR_PARA_INTEGRIDAD, unas líneas más
+-- abajo en este mismo bloque, ya hace SELECT de esas columnas — tienen que
+-- existir en la tabla ANTES de que se compile ese stored procedure.
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'INTENTOS_FALLIDOS' AND Object_ID = Object_ID('USUARIO'))
+    ALTER TABLE USUARIO ADD INTENTOS_FALLIDOS INT NOT NULL DEFAULT 0
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'BLOQUEADO' AND Object_ID = Object_ID('USUARIO'))
+    ALTER TABLE USUARIO ADD BLOQUEADO BIT NOT NULL DEFAULT 0
+GO
+
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'DVH' AND Object_ID = Object_ID('BITACORA'))
     ALTER TABLE BITACORA ADD DVH INT NOT NULL DEFAULT 0
 GO
@@ -1540,15 +1552,9 @@ GO
 
 -- =============================================
 -- Bloqueo de cuenta por intentos fallidos — portado de "ingenieria_software"
+-- (las columnas INTENTOS_FALLIDOS/BLOQUEADO se agregan más arriba, junto a
+-- DVH de USUARIO, porque USUARIO_LISTAR_PARA_INTEGRIDAD las necesita antes)
 -- =============================================
-
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'INTENTOS_FALLIDOS' AND Object_ID = Object_ID('USUARIO'))
-    ALTER TABLE USUARIO ADD INTENTOS_FALLIDOS INT NOT NULL DEFAULT 0
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'BLOQUEADO' AND Object_ID = Object_ID('USUARIO'))
-    ALTER TABLE USUARIO ADD BLOQUEADO BIT NOT NULL DEFAULT 0
-GO
 
 IF OBJECT_ID('USUARIO_VERIFICAR_BLOQUEO', 'P') IS NOT NULL DROP PROCEDURE USUARIO_VERIFICAR_BLOQUEO
 GO
