@@ -648,7 +648,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'admin')
     INSERT INTO USUARIO (USUARIO, PASS, ROL)
-    VALUES ('admin', 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', 'Admin');
+    VALUES ('admin', '3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2', 'Admin');
 GO
 
 -- =============================================
