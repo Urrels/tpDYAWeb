@@ -13,9 +13,10 @@ namespace CAPAS_Web
             }
             var u = Session["Usuario"] as BE.USUARIO;
             lblUsuarioNav.Text  = u.Usuario;
-            lnkInicio.NavigateUrl = u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx";
-            phNavAdmin.Visible  = u.EsAdmin;
-            phNavAlumno.Visible = !u.EsAdmin;
+            lnkInicio.NavigateUrl = u.EsWebmaster ? "~/Integridad.aspx" : (u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
+            phNavAdmin.Visible      = u.EsAdmin;
+            phNavAlumno.Visible     = !u.EsAdmin && !u.EsWebmaster;
+            phNavWebmaster.Visible  = u.EsWebmaster;
         }
 
         protected void btnCerrarSesion_Click(object sender, EventArgs e)

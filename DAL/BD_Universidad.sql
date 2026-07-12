@@ -652,6 +652,16 @@ IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'admin')
 GO
 
 -- =============================================
+-- DATOS INICIALES — USUARIO WEBMASTER
+-- Contraseña: Webmaster123
+-- =============================================
+
+IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'webmaster')
+    INSERT INTO USUARIO (USUARIO, PASS, ROL)
+    VALUES ('webmaster', '407c21d8ba9449b1f2e7ef81db1cbca0e1a702998de688e42dd468f2079d31f8', 'Webmaster');
+GO
+
+-- =============================================
 -- DATOS INICIALES — PLAN DE ESTUDIOS
 -- Ingeniería en Sistemas Informáticos UAI T109
 -- Peso: 1=32h  2=48h  3=64h  4=80h  5=200h
@@ -763,6 +773,7 @@ GO
 
 PRINT '✔ BDUNIVERSIDAD creada y configurada correctamente.';
 PRINT 'Admin: usuario=admin | contraseña=Admin123';
+PRINT 'Webmaster: usuario=webmaster | contraseña=Webmaster123';
 GO
 
 -- =============================================

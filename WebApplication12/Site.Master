@@ -78,6 +78,13 @@
                             </li>
                         </asp:PlaceHolder>
 
+                        <asp:PlaceHolder ID="phNavWebmaster" runat="server">
+                            <li class="nav-section-label">Mantenimiento</li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link" href="Integridad.aspx"><i class="bi bi-shield-lock-fill"></i> Integridad</a>
+                            </li>
+                        </asp:PlaceHolder>
+
                         <li class="nav-section-label">Personal</li>
                         <li class="nav-item mb-1">
                             <a class="nav-link" href="Perfil.aspx"><i class="bi bi-person-fill"></i> Mi Perfil</a>

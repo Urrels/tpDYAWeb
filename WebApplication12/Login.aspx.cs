@@ -9,7 +9,7 @@ namespace CAPAS_Web
             if (Session["Usuario"] != null)
             {
                 var u = Session["Usuario"] as BE.USUARIO;
-                Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
+                Response.Redirect(u.EsWebmaster ? "~/Integridad.aspx" : (u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx"));
             }
         }
 
@@ -35,7 +35,7 @@ namespace CAPAS_Web
                 var integridadBll = new BLL.IntegridadBLL();
                 BLL.ResultadoIntegridad resultadoIntegridad = integridadBll.VerificarTodasLasTablas();
 
-                if (!resultadoIntegridad.EsValido && !u.EsAdmin)
+                if (!resultadoIntegridad.EsValido && !u.EsAdmin && !u.EsWebmaster)
                 {
                     // Usuario común: la base fue manipulada externamente.
                     // No se revela el detalle de resultadoIntegridad.Errores (eso es
@@ -48,7 +48,7 @@ namespace CAPAS_Web
 
                 Session["Usuario"] = u;
                 BE.SessionManager.getInstane().cerrarSesion();
-                Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
+                Response.Redirect(u.EsWebmaster ? "~/Integridad.aspx" : (u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx"));
             }
             else
             {

@@ -8,6 +8,7 @@ namespace CAPAS_Web
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
+            if ((Session["Usuario"] as BE.USUARIO).EsWebmaster) { Response.Redirect("~/Integridad.aspx"); return; }
             if ((Session["Usuario"] as BE.USUARIO).EsAdmin) Response.Redirect("~/Materias.aspx");
             if (!IsPostBack)
             {

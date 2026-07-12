@@ -10,5 +10,6 @@ namespace BE
         public string Rol { get; set; }
 
         public bool EsAdmin => Rol == "Admin";
+        public bool EsWebmaster => Rol == "Webmaster";
     }
 }

@@ -10,7 +10,11 @@ namespace CAPAS_Web
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            if (!(Session["Usuario"] as BE.USUARIO).EsAdmin) Response.Redirect("~/Menu.aspx");
+            BE.USUARIO u = Session["Usuario"] as BE.USUARIO;
+            if (!u.EsWebmaster)
+            {
+                Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
+            }
         }
 
         protected void btnVerificar_Click(object sender, EventArgs e)

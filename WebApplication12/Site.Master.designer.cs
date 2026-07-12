@@ -64,5 +64,7 @@ namespace CAPAS_Web
         protected global::System.Web.UI.WebControls.PlaceHolder phNavAdmin;
 
         protected global::System.Web.UI.WebControls.PlaceHolder phNavAlumno;
+
+        protected global::System.Web.UI.WebControls.PlaceHolder phNavWebmaster;
     }
 }
