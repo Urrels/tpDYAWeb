@@ -72,6 +72,25 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
+        public List<BE.USUARIO> ListarAlumnos()
+        {
+            var lista = new List<BE.USUARIO>();
+            try
+            {
+                _acceso.Abrir();
+                DataTable dt = _acceso.Leer("USUARIO_LISTAR_ALUMNOS");
+                foreach (DataRow r in dt.Rows)
+                    lista.Add(new BE.USUARIO
+                    {
+                        Id      = System.Convert.ToInt32(r["ID"]),
+                        Usuario = r["USUARIO"].ToString(),
+                        Rol     = "Alumno"
+                    });
+            }
+            finally { _acceso.Cerrar(); }
+            return lista;
+        }
+
         public bool ActualizarDireccion(string usuario, string direccion)
         {
             byte[] encriptado = BE.AESHelper.Encriptar(direccion);

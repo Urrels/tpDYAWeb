@@ -114,5 +114,7 @@ namespace BLL
         }
 
         public List<BE.USUARIO> ListarBloqueados() => _dal.ListarBloqueados();
+
+        public List<BE.USUARIO> ListarAlumnos() => _dal.ListarAlumnos();
     }
 }
