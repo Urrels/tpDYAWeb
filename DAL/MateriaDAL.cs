@@ -36,14 +36,24 @@ namespace DAL
                 _acceso.CrearParametro("@modalidad", m.Modalidad),
                 _acceso.CrearParametro("@peso",      m.Peso)
             };
-            try { _acceso.Abrir(); return _acceso.Escribir("MATERIA_ACTUALIZAR", p) > 0; }
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("MATERIA_ACTUALIZAR", p);
+                return System.Convert.ToInt32(resultado) > 0;
+            }
             finally { _acceso.Cerrar(); }
         }
 
         public bool Eliminar(int id)
         {
             var p = new List<SqlParameter> { _acceso.CrearParametro("@id", id) };
-            try { _acceso.Abrir(); return _acceso.Escribir("MATERIA_ELIMINAR", p) > 0; }
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("MATERIA_ELIMINAR", p);
+                return System.Convert.ToInt32(resultado) > 0;
+            }
             finally { _acceso.Cerrar(); }
         }
 

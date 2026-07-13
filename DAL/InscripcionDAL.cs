@@ -56,7 +56,8 @@ namespace DAL
             try
             {
                 _acceso.Abrir();
-                return _acceso.Escribir("PERIODO_ACTUALIZAR", pars) > 0;
+                object resultado = _acceso.EscribirConRetorno("PERIODO_ACTUALIZAR", pars);
+                return Convert.ToInt32(resultado) > 0;
             }
             finally { _acceso.Cerrar(); }
         }

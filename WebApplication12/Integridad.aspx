@@ -13,26 +13,20 @@
     <asp:Panel ID="pnlResultados" runat="server" Visible="false">
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <h6 class="card-section-title mb-3">Estado por alumno</h6>
+                <h6 class="card-section-title mb-3">Alteraciones detectadas</h6>
                 <asp:Repeater ID="rptResultados" runat="server">
                     <HeaderTemplate>
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Alumno</th>
-                                    <th style="width:160px">Estado</th>
+                                    <th>Detalle</th>
                                 </tr>
                             </thead>
                             <tbody>
                     </HeaderTemplate>
                     <ItemTemplate>
                         <tr>
-                            <td><i class="bi bi-person-circle me-2 text-muted"></i><%# Eval("NombreUsuario") %></td>
-                            <td>
-                                <%# (bool)Eval("Ok")
-                                    ? "<span class='badge bg-success'><i class='bi bi-check-circle me-1'></i>OK</span>"
-                                    : "<span class='badge bg-danger'><i class='bi bi-exclamation-triangle me-1'></i>Alteración detectada</span>" %>
-                            </td>
+                            <td><i class="bi bi-exclamation-triangle me-2 text-danger"></i><%# Container.DataItem %></td>
                         </tr>
                     </ItemTemplate>
                     <FooterTemplate>
@@ -41,7 +35,23 @@
                     </FooterTemplate>
                 </asp:Repeater>
                 <asp:Label ID="lblSinAlumnos" runat="server" Visible="false"
-                           Text="<p class='text-muted small mt-2'>No hay alumnos registrados.</p>"/>
+                           Text="<p class='text-muted small mt-2'>No se detectaron alteraciones en ninguna de las 9 tablas de negocio.</p>"/>
+
+                <asp:Panel ID="pnlAcciones" runat="server" Visible="false" CssClass="mt-3 pt-3 border-top">
+                    <p class="text-muted small mb-2">
+                        Elegí cómo continuar: cancelar sin aplicar ningún cambio, aceptar el estado
+                        actual de los datos (recalcular dígitos verificadores) o volver al último
+                        estado válido conocido (restaurar base de datos).
+                    </p>
+                    <asp:Button ID="btnCancelar" runat="server" Text="Cancelar" CausesValidation="false"
+                                CssClass="btn btn-outline-secondary btn-sm me-2" OnClick="btnCancelar_Click"/>
+                    <asp:Button ID="btnRecalcular" runat="server" Text="Recalcular dígitos verificadores"
+                                CssClass="btn btn-warning btn-sm me-2" OnClick="btnRecalcular_Click"/>
+                    <asp:Button ID="btnRestaurar" runat="server" Text="Restaurar base de datos"
+                                CssClass="btn btn-danger btn-sm"
+                                OnClientClick="return confirm('¿Restaurar la base de datos al último estado válido conocido? Se perderán los cambios posteriores.');"
+                                OnClick="btnRestaurar_Click"/>
+                </asp:Panel>
             </div>
         </div>
     </asp:Panel>

@@ -1,4 +1,5 @@
 using System;
+using System.Configuration;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -7,8 +8,9 @@ namespace BE
 {
     public static class AESHelper
     {
-        private static readonly byte[] Key = Encoding.UTF8.GetBytes("CAPAS_AES_KEY_32BYTES_SEGURA!!!!");
-        private static readonly byte[] IV  = Encoding.UTF8.GetBytes("CAPAS_IV_16BYTES");
+        // Clave e IV viven en Web.config (appSettings), no en el código fuente.
+        private static readonly byte[] Key = Convert.FromBase64String(ConfigurationManager.AppSettings["AesKey"]);
+        private static readonly byte[] IV  = Convert.FromBase64String(ConfigurationManager.AppSettings["AesIV"]);
 
         public static byte[] Encriptar(string texto)
         {

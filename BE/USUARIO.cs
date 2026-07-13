@@ -8,7 +8,9 @@ namespace BE
         public string DireccionEncriptada { get; set; }
         public string DireccionVisible { get; set; }
         public string Rol { get; set; }
+        public int IntentosFallidos { get; set; }
 
         public bool EsAdmin => Rol == "Admin";
+        public bool EsWebmaster => Rol == "Webmaster";
     }
 }

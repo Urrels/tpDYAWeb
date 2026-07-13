@@ -4,17 +4,11 @@ using System.Linq;
 
 namespace BLL
 {
-    public class ResultadoIntegridad
-    {
-        public int    IdUsuario     { get; set; }
-        public string NombreUsuario { get; set; }
-        public bool   Ok            { get; set; }
-    }
-
     public class AlumnoMateriaBLL
     {
         private readonly DAL.AlumnoMateriaDAL _dal = new DAL.AlumnoMateriaDAL();
         private readonly BitacoraBLL _bitacora = new BitacoraBLL();
+        private readonly IntegridadBLL _integridad = new IntegridadBLL();
 
         public List<BE.ALUMNO_MATERIA> Listar(int idUsuario) => _dal.Listar(idUsuario);
 
@@ -25,56 +19,23 @@ namespace BLL
             return ok;
         }
 
+        // El DVH/DVV de ALUMNO_MATERIA ahora se calcula con el mecanismo
+        // genérico de integridad (BE.CalculadorDVH + IntegridadBLL), con el
+        // mismo orden canónico de columnas usado por
+        // IntegridadDAL/IntegridadBLL.ColumnasAlumnoMateria. Ya no se escribe
+        // a DVV_NOTAS (tabla vieja, de propósito único) sino a
+        // DIGITO_VERIFICADOR_VERTICAL vía IntegridadBLL.RecalcularAlumnoMateria().
         public bool ActualizarNotas(BE.ALUMNO_MATERIA am, string usuarioAccion)
         {
-            am.DVH = CalcularDVH(am);
+            am.DVH = _integridad.CalcularDVHAlumnoMateria(am);
             bool ok = _dal.Actualizar(am);
 
             if (ok)
             {
                 _bitacora.RegistrarAccion(usuarioAccion, $"ACTUALIZACION_NOTAS:{am.IdMateria}");
-                ActualizarDVV(am.IdUsuario, usuarioAccion);
+                _integridad.RecalcularAlumnoMateria();
             }
             return ok;
-        }
-
-        public int CalcularDVH(BE.ALUMNO_MATERIA am)
-        {
-            int p1   = (int)((am.NotaParcial1      ?? 0) * 10);
-            int p2   = (int)((am.NotaParcial2      ?? 0) * 10);
-            int rec  = (int)((am.NotaRecuperatorio ?? 0) * 10);
-            int fin  = (int)((am.NotaFinal         ?? 0) * 10);
-            int peso = am.PesoMateria;
-            return (p1 + p2 + rec + fin + peso) % 10;
-        }
-
-        public void ActualizarDVV(int idUsuario, string usuarioAccion)
-        {
-            var lista = _dal.Listar(idUsuario);
-            int dvv = lista.Sum(am => am.DVH) % 10;
-            _dal.GuardarDVV(idUsuario, dvv);
-        }
-
-        public bool VerificarIntegridad(int idUsuario)
-        {
-            var lista    = _dal.Listar(idUsuario);
-            int dvvReal  = lista.Sum(am => am.DVH) % 10;
-            int dvvGuard = _dal.ObtenerDVV(idUsuario);
-            return dvvReal == dvvGuard;
-        }
-
-        public List<ResultadoIntegridad> VerificarTodos()
-        {
-            var alumnos = new DAL.UsuarioDAL().ListarAlumnos();
-            var resultado = new List<ResultadoIntegridad>();
-            foreach (var u in alumnos)
-                resultado.Add(new ResultadoIntegridad
-                {
-                    IdUsuario     = u.Id,
-                    NombreUsuario = u.Usuario,
-                    Ok            = VerificarIntegridad(u.Id)
-                });
-            return resultado;
         }
 
         public List<BE.ALUMNO_MATERIA> ListarConRiesgo(int idUsuario, List<BE.EVENTO_ACADEMICO> eventos)

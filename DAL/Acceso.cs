@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -10,8 +10,6 @@ namespace DAL
         private SqlConnection conexion;
         private SqlTransaction transaccion;
 
-        // Cambia el connection string según tu entorno
-        //private const string CONNECTION_STRING =  "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=BDCAPAS; Integrated Security=SSPI";
         private const string CONNECTION_STRING = "initial catalog=BDUNIVERSIDAD; Data Source=.; Integrated Security=SSPI";
 
         public void Abrir()
@@ -45,7 +43,6 @@ namespace DAL
         {
             SqlCommand cmd = CrearComando(sp, parametros);
             try { return cmd.ExecuteNonQuery(); }
-            catch { return -1; }
             finally { cmd.Parameters.Clear(); }
         }
 
@@ -53,7 +50,6 @@ namespace DAL
         {
             SqlCommand cmd = CrearComando(sp, parametros);
             try { return cmd.ExecuteScalar(); }
-            catch { return null; }
             finally { cmd.Parameters.Clear(); }
         }
 
@@ -91,8 +87,7 @@ namespace DAL
         }
         public SqlParameter CrearParametro(string nombre, DateTime? valor)
         {
-            return new SqlParameter(nombre, SqlDbType.DateTime)
-            { Value = (object)valor ?? DBNull.Value };
+            return new SqlParameter(nombre, SqlDbType.DateTime) { Value = (object)valor ?? DBNull.Value };
         }
     }
 }

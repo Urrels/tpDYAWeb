@@ -129,6 +129,7 @@
   <ItemGroup>
     <Content Include="Bitacora.aspx" />
     <Content Include="Integridad.aspx" />
+    <Content Include="UsuariosBloqueados.aspx" />
     <Content Include="Dashboard.aspx" />
     <Content Include="Inscripcion.aspx" />
     <Content Include="Global.asax" />
@@ -151,6 +152,13 @@
     </Compile>
     <Compile Include="Integridad.aspx.designer.cs">
       <DependentUpon>Integridad.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="UsuariosBloqueados.aspx.cs">
+      <DependentUpon>UsuariosBloqueados.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="UsuariosBloqueados.aspx.designer.cs">
+      <DependentUpon>UsuariosBloqueados.aspx</DependentUpon>
     </Compile>
     <Compile Include="Calendario.aspx.cs">
       <DependentUpon>Calendario.aspx</DependentUpon>

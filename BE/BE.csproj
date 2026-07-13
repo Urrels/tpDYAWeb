@@ -74,11 +74,14 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AESHelper.cs" />
     <Compile Include="ALUMNO_MATERIA.cs" />
     <Compile Include="BITACORA.cs" />
+    <Compile Include="BitacoraPaginaResultado.cs" />
+    <Compile Include="CalculadorDVH.cs" />
     <Compile Include="EVENTO_ACADEMICO.cs" />
     <Compile Include="HashHelper.cs" />
     <Compile Include="INSCRIPCION.cs" />
@@ -86,6 +89,7 @@
     <Compile Include="MATERIA.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SessionManager.cs" />
+    <Compile Include="SessionRegistry.cs" />
     <Compile Include="USUARIO.cs" />
   </ItemGroup>
   <ItemGroup>

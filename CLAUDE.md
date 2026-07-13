@@ -16,7 +16,7 @@ The connection string is hardcoded in `DAL/Acceso.cs`:
 ```
 initial catalog=BDUNIVERSIDAD; Data Source=.; Integrated Security=SSPI
 ```
-Change `Data Source=.` if the SQL Server instance is named (e.g. `.\SQLEXPRESS`). **The comments in `DAL/Acceso.cs` must never be removed.**
+Change `Data Source=.` if the SQL Server instance is named (e.g. `.\SQLEXPRESS`).
 
 Default admin credentials: `admin` / `Admin123`
 

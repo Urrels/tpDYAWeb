@@ -7,6 +7,7 @@ namespace BLL
     {
         private readonly DAL.PeriodoDAL _dal = new DAL.PeriodoDAL();
         private readonly BitacoraBLL _bitacora = new BitacoraBLL();
+        private readonly IntegridadBLL _integridad = new IntegridadBLL();
 
         public List<BE.PERIODO_ACADEMICO> Listar() => _dal.Listar();
 
@@ -15,14 +16,22 @@ namespace BLL
         public int Insertar(BE.PERIODO_ACADEMICO p, string usuarioAccion)
         {
             int id = _dal.Insertar(p);
-            if (id > 0) _bitacora.RegistrarAccion(usuarioAccion, $"ALTA_PERIODO:{p.Etiqueta}");
+            if (id > 0)
+            {
+                _bitacora.RegistrarAccion(usuarioAccion, $"ALTA_PERIODO:{p.Etiqueta}");
+                _integridad.RecalcularPeriodoAcademico();
+            }
             return id;
         }
 
         public bool Actualizar(BE.PERIODO_ACADEMICO p, string usuarioAccion)
         {
             bool ok = _dal.Actualizar(p);
-            if (ok) _bitacora.RegistrarAccion(usuarioAccion, $"MODIF_PERIODO:{p.Etiqueta}");
+            if (ok)
+            {
+                _bitacora.RegistrarAccion(usuarioAccion, $"MODIF_PERIODO:{p.Etiqueta}");
+                _integridad.RecalcularPeriodoAcademico();
+            }
             return ok;
         }
     }
@@ -109,7 +118,9 @@ namespace BLL
                 });
             }
 
-            new AlumnoMateriaBLL().ActualizarDVV(idUsuario, usuarioAccion);
+            new IntegridadBLL().RecalcularAlumnoMateria();
+            new IntegridadBLL().RecalcularInscripcion();
+            new IntegridadBLL().RecalcularInscripcionDetalle();
             _bitacora.RegistrarAccion(usuarioAccion,
                 $"INSCRIPCION_CUATRIMESTRAL:PERIODO_{idPeriodo}:{idsMaterias.Count}_MATERIAS");
 

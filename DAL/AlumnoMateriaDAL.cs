@@ -17,7 +17,12 @@ namespace DAL
                 _acceso.CrearParametro("@id_materia", am.IdMateria),
                 _acceso.CrearParametro("@estado",     am.Estado)
             };
-            try { _acceso.Abrir(); return _acceso.Escribir("ALUMNO_MATERIA_INSERTAR", p) > 0; }
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("ALUMNO_MATERIA_INSERTAR", p);
+                return resultado != null && resultado != DBNull.Value;
+            }
             finally { _acceso.Cerrar(); }
         }
         public bool Actualizar(BE.ALUMNO_MATERIA am)
@@ -34,7 +39,12 @@ namespace DAL
         _acceso.CrearParametro("@fecha_recuperatorio",  am.FechaRecuperatorio),
         _acceso.CrearParametro("@dvh",                  am.DVH)
     };
-            try { _acceso.Abrir(); return _acceso.Escribir("ALUMNO_MATERIA_ACTUALIZAR", p) > 0; }
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("ALUMNO_MATERIA_ACTUALIZAR", p);
+                return Convert.ToInt32(resultado) > 0;
+            }
             finally { _acceso.Cerrar(); }
         }
         public List<BE.ALUMNO_MATERIA> Listar(int idUsuario)
@@ -67,28 +77,6 @@ namespace DAL
             finally { _acceso.Cerrar(); }
             return lista;
         }
-        public void GuardarDVV(int idUsuario, int dvv)
-        {
-            var p = new List<SqlParameter>
-            {
-                _acceso.CrearParametro("@id_usuario", idUsuario),
-                _acceso.CrearParametro("@dvv",        dvv)
-            };
-            try { _acceso.Abrir(); _acceso.Escribir("DVV_GUARDAR", p); }
-            finally { _acceso.Cerrar(); }
-        }
-
-        public int ObtenerDVV(int idUsuario)
-        {
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@id_usuario", idUsuario) };
-            try
-            {
-                _acceso.Abrir();
-                DataTable dt = _acceso.Leer("DVV_OBTENER", p);
-                return dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0]["DVV"]) : -1;
-            }
-            finally { _acceso.Cerrar(); }
-        }
     }
 
     public class EventoDAL
@@ -106,7 +94,18 @@ namespace DAL
         _acceso.CrearParametro("@fecha",       e.Fecha),
         _acceso.CrearParametro("@peso",        e.Peso)
     };
-            try { _acceso.Abrir(); return _acceso.Escribir("EVENTO_INSERTAR", p) > 0; }
+            // EVENTO_INSERTAR termina en SELECT SCOPE_IDENTITY() y se lee con
+            // EscribirConRetorno (ExecuteScalar) en vez de Escribir(...) > 0:
+            // con SET NOCOUNT ON, ExecuteNonQuery() no devuelve de forma
+            // confiable la cantidad de filas afectadas — el insert pasaba
+            // igual pero el DAL reportaba false (bug real, visto en el
+            // calendario de eventos).
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("EVENTO_INSERTAR", p);
+                return resultado != null && resultado != DBNull.Value;
+            }
             finally { _acceso.Cerrar(); }
         }
 
@@ -120,14 +119,24 @@ namespace DAL
                 _acceso.CrearParametro("@fecha",       e.Fecha),
                 _acceso.CrearParametro("@peso",        e.Peso)
             };
-                    try { _acceso.Abrir(); return _acceso.Escribir("EVENTO_ACTUALIZAR", p) > 0; }
-                    finally { _acceso.Cerrar(); }
-                }
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("EVENTO_ACTUALIZAR", p);
+                return Convert.ToInt32(resultado) > 0;
+            }
+            finally { _acceso.Cerrar(); }
+        }
 
         public bool Eliminar(int id)
         {
             var p = new List<SqlParameter> { _acceso.CrearParametro("@id", id) };
-            try { _acceso.Abrir(); return _acceso.Escribir("EVENTO_ELIMINAR", p) > 0; }
+            try
+            {
+                _acceso.Abrir();
+                object resultado = _acceso.EscribirConRetorno("EVENTO_ELIMINAR", p);
+                return Convert.ToInt32(resultado) > 0;
+            }
             finally { _acceso.Cerrar(); }
         }
 

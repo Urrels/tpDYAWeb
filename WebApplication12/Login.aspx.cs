@@ -9,7 +9,7 @@ namespace CAPAS_Web
             if (Session["Usuario"] != null)
             {
                 var u = Session["Usuario"] as BE.USUARIO;
-                Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
+                Response.Redirect(u.EsWebmaster ? "~/Integridad.aspx" : (u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx"));
             }
         }
 
@@ -26,16 +26,43 @@ namespace CAPAS_Web
             }
 
             var bll = new BLL.LoginBLL();
-            bool ok = bll.AutenticarUsuario(usuario, contrasena);
+            BLL.LoginResultado resultado = bll.AutenticarUsuario(usuario, contrasena, Session.SessionID);
 
-            if (ok)
+            if (resultado == BLL.LoginResultado.Exito)
             {
                 BE.USUARIO u = BE.SessionManager.getInstane().getUsuario();
+
+                var integridadBll = new BLL.IntegridadBLL();
+                BLL.ResultadoIntegridad resultadoIntegridad = integridadBll.VerificarTodasLasTablas();
+
+                if (!resultadoIntegridad.EsValido && !u.EsAdmin && !u.EsWebmaster)
+                {
+                    // Usuario común: la base fue manipulada externamente.
+                    // No se revela el detalle de resultadoIntegridad.Errores (eso es
+                    // tarea del panel de Webmaster, no implementada acá).
+                    BE.SessionManager.getInstane().cerrarSesion();
+                    Session["Usuario"] = null;
+                    pnlInconsistencia.Visible = true;
+                    return;
+                }
+
                 Session["Usuario"] = u;
                 BE.SessionManager.getInstane().cerrarSesion();
-                Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
+                Response.Redirect(u.EsWebmaster ? "~/Integridad.aspx" : (u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx"));
             }
-            else
+            else if (resultado == BLL.LoginResultado.UsuarioBloqueado)
+            {
+                lblError.Text = "Tu cuenta fue bloqueada por demasiados intentos fallidos. Contactá a un administrador para desbloquearla.";
+                lblError.Visible = true;
+                txtContrasena.Text = "";
+            }
+            else if (resultado == BLL.LoginResultado.SesionYaActiva)
+            {
+                lblError.Text = "Ya hay una sesión activa con este usuario. Cerrá la sesión anterior antes de volver a ingresar.";
+                lblError.Visible = true;
+                txtContrasena.Text = "";
+            }
+            else // CredencialesInvalidas
             {
                 lblError.Text = "Usuario o contraseña incorrectos.";
                 lblError.Visible = true;
