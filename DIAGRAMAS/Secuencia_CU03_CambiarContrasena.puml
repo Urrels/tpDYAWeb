@@ -1,0 +1,72 @@
+@startuml Secuencia_CU03_CambiarContrasena
+title CU03 — Cambiar Contraseña
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor "Alumno / Administrador" as A
+participant "CambiarContrasena.aspx" as PAGE <<Page>>
+participant "UsuarioBLL" as BLL <<BLL>>
+participant "UsuarioDAL" as DAL <<DAL>>
+participant "BitacoraBLL" as BIT <<BLL>>
+participant "IntegridadBLL" as INT <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+A -> PAGE : ingresa contraseña actual, nueva y confirmación, confirma (btnGuardar_Click)
+activate PAGE
+PAGE -> PAGE : valida campos completos, coincidencia (nueva == confirmación)\ny formato (regex: 6+ caracteres, 1 mayúscula, 1 número)
+
+PAGE -> BLL : VerificarContrasena(usuario, actual)
+activate BLL
+BLL -> BLL : HashHelper.HashSHA256(actual)
+BLL -> DAL : ObtenerPorCredenciales(usuario, hash)
+activate DAL
+DAL -> DB : SP USUARIO_LOGIN
+DB --> DAL : datos del usuario
+DAL --> BLL : USUARIO
+deactivate DAL
+BLL --> PAGE : true
+deactivate BLL
+
+PAGE -> BLL : CambiarContrasena(usuario, nueva)
+activate BLL
+BLL -> BLL : HashHelper.HashSHA256(nueva)
+BLL -> DAL : CambiarContrasena(usuario, hash)
+activate DAL
+DAL -> DB : SP USUARIO_CAMBIAR_PASS
+DB --> DAL : filas afectadas
+DAL --> BLL : true
+deactivate DAL
+
+BLL -> BIT : RegistrarAccion(usuario, "CAMBIO_CONTRASENA")
+activate BIT
+BIT -> DB : SP BITACORA_INSERTAR
+BIT -> INT : RecalcularBitacora()
+deactivate BIT
+
+BLL -> INT : RecalcularUsuario()
+activate INT
+INT -> DB : SP USUARIO_ACTUALIZAR_DVH (recalcula DVH/DVV de USUARIO)
+deactivate INT
+
+BLL --> PAGE : true
+deactivate BLL
+PAGE --> A : "✔ Contraseña cambiada.", limpia los campos
+deactivate PAGE
+
+alt la contraseña actual no coincide
+  BLL --> PAGE : false
+  PAGE --> A : "La contraseña actual es incorrecta." (no se llega a llamar a CambiarContrasena)
+else datos inválidos (campos vacíos, no coinciden o no cumplen el formato)
+  PAGE --> A : mensaje de validación correspondiente
+else error al cambiar la contraseña (ok = false)
+  BLL --> PAGE : false
+  PAGE --> A : "✖ Error al cambiar."
+end
+
+@enduml

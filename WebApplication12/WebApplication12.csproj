@@ -219,6 +219,13 @@
     <Compile Include="MisCursadas.aspx.designer.cs">
       <DependentUpon>MisCursadas.aspx</DependentUpon>
     </Compile>
+    <Compile Include="Notas.aspx.cs">
+      <DependentUpon>Notas.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Notas.aspx.designer.cs">
+      <DependentUpon>Notas.aspx</DependentUpon>
+    </Compile>
     <Compile Include="Perfil.aspx.cs">
       <DependentUpon>Perfil.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -246,6 +253,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Materias.aspx" />
+    <Content Include="Notas.aspx" />
     <Content Include="MisCursadas.aspx" />
     <Content Include="Calendario.aspx" />
     <Content Include="CambiarContrasena.aspx" />

@@ -1,0 +1,116 @@
+@startuml Secuencia_CU11_GestionarPeriodos
+title CU11 — Gestionar Períodos Académicos
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "Inscripcion.aspx" as PAGE <<Page>>
+participant "InscripcionBLL" as INSBLL <<BLL>>
+participant "PeriodoBLL" as PERBLL <<BLL>>
+participant "IntegridadBLL" as INTEG <<BLL>>
+participant "BitacoraBLL" as BITBLL <<BLL>>
+participant "PeriodoDAL" as PERDAL <<DAL>>
+participant "BitacoraDAL" as BITDAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : ingresa a Inscripcion.aspx (Session["Usuario"].EsAdmin == true)
+activate PAGE
+
+PAGE -> INSBLL : ObtenerPeriodoActual()
+activate INSBLL
+INSBLL -> PERDAL : ObtenerActual()
+activate PERDAL
+PERDAL -> DB : Leer("PERIODO_OBTENER_ACTUAL", @hoy)
+note right of DB : SP: PERIODO_OBTENER_ACTUAL\n(WHERE @hoy BETWEEN FECHA_INICIO AND FECHA_FIN)
+DB --> PERDAL : fila (o ninguna)
+PERDAL --> INSBLL : PERIODO_ACADEMICO / null
+deactivate PERDAL
+INSBLL --> PAGE : periodo actual
+deactivate INSBLL
+
+PAGE -> PERBLL : Listar()
+activate PERBLL
+PERBLL -> PERDAL : Listar()
+activate PERDAL
+PERDAL -> DB : Leer("PERIODO_LISTAR")
+DB --> PERDAL : filas
+PERDAL --> PERBLL : List<PERIODO_ACADEMICO>
+deactivate PERDAL
+PERBLL --> PAGE : lista de períodos
+deactivate PERBLL
+PAGE --> ADM : muestra pnlAdminAcciones + rptPeriodos (grilla de períodos)
+deactivate PAGE
+
+ADM -> PAGE : "Nuevo Período" o "Editar" en un período, completa año/cuatrimestre/\ndescripción/fecha inicio/fecha fin, click "Guardar Período"
+activate PAGE
+
+alt período nuevo (hfIdPeriodo.Value == "0")
+  PAGE -> PERBLL : Insertar(periodo, u.Usuario)
+  activate PERBLL
+  PERBLL -> PERDAL : Insertar(periodo)
+  activate PERDAL
+  PERDAL -> DB : EscribirConRetorno("PERIODO_INSERTAR", params)
+  note right of DB : SP: PERIODO_INSERTAR
+  DB --> PERDAL : id (SCOPE_IDENTITY)
+  PERDAL --> PERBLL : int id
+  deactivate PERDAL
+  alt id > 0
+    PERBLL -> BITBLL : RegistrarAccion(usuario, "ALTA_PERIODO:{Etiqueta}")
+    activate BITBLL
+    BITBLL -> BITDAL : Registrar(usuario, accion, criticidad)
+    BITDAL -> DB : Escribir("BITACORA_INSERTAR", params)
+    deactivate BITBLL
+    PERBLL -> INTEG : RecalcularPeriodoAcademico()
+  end
+  PERBLL --> PAGE : int id
+  deactivate PERBLL
+else edición de período existente
+  PAGE -> PERBLL : Actualizar(periodo, u.Usuario)
+  activate PERBLL
+  PERBLL -> PERDAL : Actualizar(periodo)
+  activate PERDAL
+  PERDAL -> DB : EscribirConRetorno("PERIODO_ACTUALIZAR", params)
+  note right of DB : SP: PERIODO_ACTUALIZAR
+  DB --> PERDAL : filas afectadas
+  PERDAL --> PERBLL : bool ok
+  deactivate PERDAL
+  alt ok == true
+    PERBLL -> BITBLL : RegistrarAccion(usuario, "MODIF_PERIODO:{Etiqueta}")
+    activate BITBLL
+    BITBLL -> BITDAL : Registrar(usuario, accion, criticidad)
+    BITDAL -> DB : Escribir("BITACORA_INSERTAR", params)
+    deactivate BITBLL
+    PERBLL -> INTEG : RecalcularPeriodoAcademico()
+  end
+  PERBLL --> PAGE : bool ok
+  deactivate PERBLL
+end
+
+PAGE -> PERBLL : Listar()  ' recarga CargarListaPeriodos()
+activate PERBLL
+PERBLL -> PERDAL : Listar()
+PERDAL -> DB : Leer("PERIODO_LISTAR")
+PERBLL --> PAGE : lista de períodos actualizada
+deactivate PERBLL
+
+PAGE --> ADM : "Período {Etiqueta} creado/actualizado correctamente." / "Error al crear/actualizar el período.", recarga rptPeriodos
+deactivate PAGE
+
+note over PERBLL, PERDAL
+  IMPORTANTE (verificado literalmente en el código, no asumido):
+  BE.PERIODO_ACADEMICO (BE/PERIODO_ACADEMICO.cs) no tiene ningún
+  campo "Activo", y ni PeriodoBLL ni PeriodoDAL contienen lógica
+  que desactive un período anterior al crear o modificar uno nuevo.
+  "ObtenerPeriodoActual()" no lee ningún flag: el SP
+  PERIODO_OBTENER_ACTUAL determina el período vigente en tiempo
+  real por rango de fechas. No hay ningún control de exclusividad:
+  pueden coexistir varios períodos con fechas superpuestas.
+end note
+
+@enduml

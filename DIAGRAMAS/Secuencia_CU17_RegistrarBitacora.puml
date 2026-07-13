@@ -1,0 +1,64 @@
+@startuml Secuencia_CU17_RegistrarBitacora
+title CU17 — Registrar en Bitácora (CU de sistema)
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+participant "CU invocante (ej. CU06, CU10...)" as ORIGEN
+participant "BitacoraBLL" as BLL <<BLL>>
+participant "BitacoraDAL" as DAL <<DAL>>
+participant "IntegridadBLL" as INTEG <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+note over ORIGEN
+  CU17 no lo dispara un actor humano: lo invoca internamente
+  otro CU de escritura, vía BitacoraBLL.RegistrarAccion(usuario,
+  accion). RegistrarLogin(usuario) y RegistrarLogout(usuario)
+  siguen exactamente el mismo patrón de 2 pasos, con accion fija
+  ("LOGIN" / "LOGOUT").
+end note
+
+ORIGEN -> BLL : RegistrarAccion(usuario, accion)
+activate BLL
+
+BLL -> BLL : criticidad = ClasificarCriticidad(accion)
+note right of BLL
+  Método privado estático de BitacoraBLL (no una clase aparte),
+  lógica inline con if/else sobre el string accion:
+  - "Alta": accion.StartsWith("BAJA_") || accion == "USUARIO_BLOQUEADO"
+    || accion == "LOGIN_FALLIDO" || accion.StartsWith("DESBLOQUEO_USUARIO")
+    || accion == "CAMBIO_CONTRASENA"
+  - "Baja": accion == "LOGIN" || accion == "LOGOUT"
+  - "Media": cualquier otro valor (ALTA_*, EDICION_*, MODIF_*,
+    ACTUALIZACION_*, INSCRIPCION_*, y cualquier acción futura
+    no clasificada)
+end note
+
+BLL -> DAL : Registrar(usuario, accion, criticidad)
+activate DAL
+DAL -> DB : EXEC BITACORA_INSERTAR
+DB --> DAL : (rows affected)
+DAL --> BLL : (retorna, void)
+deactivate DAL
+
+BLL -> INTEG : RecalcularBitacora()
+activate INTEG
+note over BLL, INTEG
+  Se dispara incondicionalmente después de cada escritura, ya
+  que BitacoraDAL.Registrar() no devuelve resultado (se asume
+  exitoso si no lanza excepción). Internamente sigue el mismo
+  flujo genérico ya modelado en CU15 (Recalcular Integridad),
+  aplicado solo a la tabla BITACORA.
+end note
+INTEG --> BLL : (retorna, void)
+deactivate INTEG
+
+BLL --> ORIGEN : (retorna, void)
+deactivate BLL
+
+@enduml

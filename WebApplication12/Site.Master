@@ -48,6 +48,9 @@
                                 <a class="nav-link" href="Materias.aspx"><i class="bi bi-book-fill"></i> Materias</a>
                             </li>
                             <li class="nav-item mb-1">
+                                <a class="nav-link" href="Notas.aspx"><i class="bi bi-journal-text"></i> Notas</a>
+                            </li>
+                            <li class="nav-item mb-1">
                                 <a class="nav-link" href="Inscripcion.aspx"><i class="bi bi-pencil-square"></i> Períodos</a>
                             </li>
                             <li class="nav-item mb-1">

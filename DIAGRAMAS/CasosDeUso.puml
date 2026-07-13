@@ -15,30 +15,43 @@ skinparam actor {
 
 actor Alumno as A
 actor Administrador as ADM
+actor Webmaster as WM
 
 rectangle "Sistema de Gestión Académico" {
 
-    package "Autenticación" {
+    package "Autenticación y Sesión" {
         usecase "CU01\nIniciar Sesión" as CU01
+        usecase "CU18\nCerrar Sesión" as CU18
     }
 
-    package "Gestión de Alumno" {
+    package "Cuenta" {
         usecase "CU02\nEditar Perfil" as CU02
-        usecase "CU03\nInscribirse a Materias" as CU03
-        usecase "CU04\nConsultar Cursadas" as CU04
-        usecase "CU05\nActualizar Notas" as CU05
-        usecase "CU06\nVer Dashboard Académico" as CU06
-        usecase "CU07\nGestionar Eventos\ndel Calendario" as CU07
+        usecase "CU03\nCambiar Contraseña" as CU03
+    }
+
+    package "Gestión Académica del Alumno" {
+        usecase "CU04\nInscribirse a Materias" as CU04
+        usecase "CU05\nConsultar Cursadas" as CU05
+        usecase "CU07\nVer Dashboard Académico" as CU07
+        usecase "CU08\nExportar Resumen\nAcadémico a PDF" as CU08
+        usecase "CU09\nGestionar Eventos\ndel Calendario" as CU09
     }
 
     package "Gestión Administrativa" {
-        usecase "CU08\nGestionar Plan\nde Estudios" as CU08
-        usecase "CU09\nGestionar Períodos\nAcadémicos" as CU09
-        usecase "CU10\nConsultar Bitácora" as CU10
-        usecase "CU11\nVerificar Integridad\nde Datos" as CU11
+        usecase "CU06\nActualizar Notas" as CU06
+        usecase "CU10\nGestionar Plan\nde Estudios" as CU10
+        usecase "CU11\nGestionar Períodos\nAcadémicos" as CU11
+        usecase "CU12\nConsultar Bitácora" as CU12
+        usecase "CU13\nDesbloquear Usuarios" as CU13
     }
 
-    usecase "Registrar en Bitácora" as BITACORA <<include>>
+    package "Integridad de Datos (Webmaster)" {
+        usecase "CU14\nVerificar Integridad\nde Datos" as CU14
+        usecase "CU15\nRecalcular Integridad" as CU15
+        usecase "CU16\nRestaurar Datos" as CU16
+    }
+
+    usecase "CU17\nRegistrar en Bitácora" as BITACORA <<include>>
     usecase "Validar Correlativas" as CORREL <<include>>
     usecase "Calcular DVH/DVV" as DVV <<include>>
 }
@@ -48,27 +61,46 @@ A --> CU01
 A --> CU02
 A --> CU03
 A --> CU04
-A --> CU06
+A --> CU05
 A --> CU07
+A --> CU08
+A --> CU09
+A --> CU18
 
 ' Administrador
 ADM --> CU01
-ADM --> CU05
-ADM --> CU08
-ADM --> CU09
+ADM --> CU02
+ADM --> CU03
+ADM --> CU06
 ADM --> CU10
 ADM --> CU11
+ADM --> CU12
+ADM --> CU13
+ADM --> CU18
 
-' Includes
-CU03 ..> CORREL : <<include>>
-CU03 ..> DVV    : <<include>>
+' Webmaster
+WM --> CU01
+WM --> CU14
+WM --> CU15
+WM --> CU16
+WM --> CU18
+
+' Includes — toda escritura auditada pasa por CU17
+CU02 ..> BITACORA : <<include>>
 CU03 ..> BITACORA : <<include>>
-CU05 ..> DVV    : <<include>>
-CU05 ..> BITACORA : <<include>>
-CU08 ..> BITACORA : <<include>>
+CU04 ..> BITACORA : <<include>>
+CU04 ..> CORREL   : <<include>>
+CU06 ..> BITACORA : <<include>>
+CU06 ..> DVV      : <<include>>
 CU09 ..> BITACORA : <<include>>
+CU10 ..> BITACORA : <<include>>
+CU11 ..> BITACORA : <<include>>
+CU13 ..> BITACORA : <<include>>
+CU15 ..> BITACORA : <<include>>
+CU16 ..> BITACORA : <<include>>
 
 ' Extends
-CU06 ..> CU04 : <<extend>>
+CU07 ..> CU05 : <<extend>>
+CU08 ..> CU07 : <<extend>>
 
 @enduml

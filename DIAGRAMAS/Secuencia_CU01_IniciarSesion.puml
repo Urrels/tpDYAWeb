@@ -1,0 +1,97 @@
+@startuml Secuencia_CU01_IniciarSesion
+title CU01 — Iniciar Sesión
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor "Alumno / Administrador / Webmaster" as A
+participant "Login.aspx" as PAGE <<Page>>
+participant "LoginBLL" as BLL <<BLL>>
+participant "UsuarioDAL" as DAL <<DAL>>
+participant "BitacoraBLL" as BIT <<BLL>>
+participant "IntegridadBLL" as INT <<BLL>>
+participant "BE.SessionRegistry" as SR
+participant "BE.SessionManager" as SM
+database "SQL Server" as DB <<BD>>
+
+A -> PAGE : ingresa usuario y contraseña, confirma (btnIngresar_Click)
+activate PAGE
+PAGE -> BLL : AutenticarUsuario(usuario, contrasena, Session.SessionID)
+activate BLL
+
+BLL -> DAL : EstaBloqueado(usuario)
+activate DAL
+DAL -> DB : SP USUARIO_VERIFICAR_BLOQUEO
+DB --> DAL : bloqueado = false
+DAL --> BLL : false
+deactivate DAL
+
+BLL -> BLL : HashHelper.HashSHA256(contrasena)
+BLL -> DAL : ObtenerPorCredenciales(usuario, hash)
+activate DAL
+DAL -> DB : SP USUARIO_LOGIN
+DB --> DAL : datos del usuario
+DAL --> BLL : USUARIO
+deactivate DAL
+
+BLL -> DAL : ResetearIntentos(usuario)
+activate DAL
+DAL -> DB : SP USUARIO_RESETEAR_INTENTOS
+deactivate DAL
+
+BLL -> INT : RecalcularUsuario()
+activate INT
+INT -> DB : SP USUARIO_ACTUALIZAR_DVH (recalcula DVH/DVV de USUARIO)
+deactivate INT
+
+BLL -> SR : TieneSesionActiva(usuario)
+activate SR
+SR --> BLL : false
+deactivate SR
+
+BLL -> SR : RegistrarSesion(usuario, sessionId)
+BLL -> SM : setUsuario(u)
+
+BLL -> BIT : RegistrarLogin(usuario)
+activate BIT
+BIT -> DB : SP BITACORA_INSERTAR
+BIT -> INT : RecalcularBitacora()
+deactivate BIT
+
+BLL --> PAGE : LoginResultado.Exito
+deactivate BLL
+
+PAGE -> SM : getUsuario()
+SM --> PAGE : USUARIO
+
+PAGE -> INT : new IntegridadBLL().VerificarTodasLasTablas()
+activate INT
+INT -> DB : consulta DVH/DVV de las 9 tablas de negocio
+INT --> PAGE : ResultadoIntegridad (EsValido = true)
+deactivate INT
+
+PAGE -> SM : cerrarSesion()
+PAGE --> A : redirige según rol (Integridad.aspx / Materias.aspx / Menu.aspx)
+deactivate PAGE
+
+alt credenciales inválidas
+  BLL --> PAGE : LoginResultado.CredencialesInvalidas
+  PAGE --> A : "Usuario o contraseña incorrectos.", limpia campo contraseña
+else cuenta bloqueada
+  BLL --> PAGE : LoginResultado.UsuarioBloqueado
+  PAGE --> A : aviso de cuenta bloqueada, limpia campo contraseña
+else sesión ya activa
+  BLL --> PAGE : LoginResultado.SesionYaActiva
+  PAGE --> A : aviso de sesión ya activa, limpia campo contraseña
+else inconsistencia de integridad detectada (usuario no es Admin/Webmaster)
+  INT --> PAGE : ResultadoIntegridad (EsValido = false)
+  PAGE -> SM : cerrarSesion()
+  PAGE --> A : cierra la sesión y muestra aviso genérico de inconsistencia (pnlInconsistencia)
+end
+
+@enduml

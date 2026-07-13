@@ -1,0 +1,90 @@
+@startuml Secuencia_CU14_VerificarIntegridad
+title CU14 — Verificar Integridad de Datos
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Webmaster as WM
+participant "Integridad.aspx" as PAGE <<Page>>
+participant "IntegridadBLL" as BLL <<BLL>>
+participant "IntegridadDAL" as DAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+WM -> PAGE : clic en "Verificar todos" (btnVerificar_Click)
+activate PAGE
+PAGE -> BLL : VerificarTodasLasTablas()
+activate BLL
+
+note over BLL
+  Invoca 9 métodos explícitos y secuenciales (no es un loop
+  sobre una lista de nombres de tabla):
+  VerificarUsuario(), VerificarBitacora(), VerificarMateria(),
+  VerificarCorrelativa(), VerificarAlumnoMateria(),
+  VerificarEventoAcademico(), VerificarPeriodoAcademico(),
+  VerificarInscripcion(), VerificarInscripcionDetalle()
+  Cada uno delega en el motor genérico VerificarTabla(...).
+end note
+
+loop por cada una de las 9 tablas de negocio
+    BLL -> DAL : ListarParaIntegridad(tabla)
+    activate DAL
+    DAL -> DB : EXEC {TABLA}_LISTAR_PARA_INTEGRIDAD
+    DB --> DAL : DataTable (filas + columna DVH)
+    DAL --> BLL : DataTable
+    deactivate DAL
+
+    note over BLL
+        Por cada fila: calcula BE.CalculadorDVH.Calcular(atributos)
+        y lo compara contra la columna DVH guardada.
+        Si nombreTabla == "USUARIO" y difiere, agrega el ID
+        a IdsUsuariosAfectados.
+    end note
+
+    BLL -> DAL : ObtenerDVV(tabla)
+    activate DAL
+    DAL -> DB : EXEC DVV_LISTAR
+    DB --> DAL : dict columna -> DVV
+    DAL --> BLL : dict columna -> DVV
+    deactivate DAL
+
+    note over BLL
+        Por cada columna: calcula BE.CalculadorDVH.CalcularVertical(...)
+        y lo compara contra el DVV guardado.
+        Si algún DVH o DVV no coincide, EsValido = false.
+    end note
+
+    opt !resultado.EsValido
+        BLL -> DAL : ObtenerSnapshot(tabla)
+        activate DAL
+        DAL -> DB : EXEC SNAPSHOT_OBTENER
+        DB --> DAL : DATOS_JSON (o vacío si nunca se recalculó)
+        DAL --> BLL : json
+        deactivate DAL
+        note over BLL
+            DiagnosticarDiferencias(): compara snapshot vs. datos
+            actuales fila a fila y agrega a Errores un mensaje por
+            cada alta, baja o modificación de campo detectada.
+        end note
+    end
+end
+
+BLL --> PAGE : ResultadoIntegridad (EsValido, Errores, IdsUsuariosAfectados)
+deactivate BLL
+
+PAGE -> PAGE : MostrarResultado(resultado)
+note over PAGE
+  Si EsValido: alert-success "Integridad verificada correctamente
+  en las 9 tablas de negocio."
+  Si no: alert-danger "{N} alteración(es) detectada(s)." + IDs de
+  usuarios afectados (si los hay) + pnlAcciones visible.
+end note
+
+PAGE --> WM : muestra resultado por tabla
+deactivate PAGE
+
+@enduml

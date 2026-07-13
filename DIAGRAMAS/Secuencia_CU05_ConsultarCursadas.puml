@@ -1,0 +1,70 @@
+@startuml Secuencia_CU05_ConsultarCursadas
+title CU05 — Consultar Cursadas
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Alumno as A
+participant "MisCursadas.aspx" as PAGE <<Page>>
+participant "EventoBLL" as BLLEVT <<BLL>>
+participant "AlumnoMateriaBLL" as BLLAM <<BLL>>
+participant "EventoDAL" as DALEVT <<DAL>>
+participant "AlumnoMateriaDAL" as DALAM <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+A -> PAGE : ingresa a Mis Cursadas
+activate PAGE
+PAGE -> PAGE : Page_Load() -> CargarGrilla()
+
+PAGE -> BLLEVT : ListarPorUsuario(idUsuario)
+activate BLLEVT
+BLLEVT -> DALEVT : ListarPorUsuario(idUsuario)
+activate DALEVT
+DALEVT -> DB : EXEC EVENTO_LISTAR_USUARIO @id_usuario
+activate DB
+DB --> DALEVT : filas de eventos académicos
+deactivate DB
+DALEVT --> BLLEVT : List<EVENTO_ACADEMICO>
+deactivate DALEVT
+BLLEVT --> PAGE : eventos
+deactivate BLLEVT
+
+PAGE -> BLLAM : ListarConRiesgo(idUsuario, eventos)
+activate BLLAM
+BLLAM -> BLLAM : Listar(idUsuario)
+BLLAM -> DALAM : Listar(idUsuario)
+activate DALAM
+DALAM -> DB : EXEC ALUMNO_MATERIA_LISTAR @id_usuario
+activate DB
+DB --> DALAM : filas de cursadas del alumno
+deactivate DB
+DALAM --> BLLAM : List<ALUMNO_MATERIA>
+deactivate DALAM
+
+loop por cada materia cursada
+  BLLAM -> BLLAM : CalcularRiesgo(am, eventos)
+  note right of BLLAM
+    calcula NivelRiesgo y MensajeRiesgo
+    en memoria (sin acceso a BD)
+  end note
+end
+
+BLLAM --> PAGE : List<ALUMNO_MATERIA> con NivelRiesgo/MensajeRiesgo
+deactivate BLLAM
+
+PAGE -> PAGE : gvCursadas.DataSource = cursadas\ngvCursadas.DataBind()
+PAGE --> A : muestra grilla (solo lectura)
+deactivate PAGE
+
+alt alumno sin materias registradas
+  DALAM --> BLLAM : lista vacía
+  BLLAM --> PAGE : lista vacía
+  PAGE --> A : grilla sin filas
+end
+
+@enduml

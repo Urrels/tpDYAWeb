@@ -54,33 +54,5 @@ namespace BLL
 
         public List<BE.MATERIA> ListarCorrelativas(int idMateria) =>
             _dal.ListarCorrelativas(idMateria);
-
-        public List<BE.MATERIA> RecomendarMaterias(List<BE.ALUMNO_MATERIA> cursadas)
-        {
-            var aprobadas = cursadas
-                .Where(am => am.Estado == "Aprobada")
-                .Select(am => am.IdMateria)
-                .ToHashSet();
-
-            var yaInscripto = cursadas
-                .Select(am => am.IdMateria)
-                .ToHashSet();
-
-            var todasLasMaterias = _dal.Listar();
-            var recomendadas = new List<BE.MATERIA>();
-
-            foreach (var materia in todasLasMaterias)
-            {
-                if (yaInscripto.Contains(materia.Id)) continue;
-
-                var correlativas = _dal.ListarCorrelativas(materia.Id);
-                bool cumpleCorrelativas = correlativas.All(c => aprobadas.Contains(c.Id));
-
-                if (cumpleCorrelativas)
-                    recomendadas.Add(materia);
-            }
-
-            return recomendadas;
-        }
     }
 }

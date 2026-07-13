@@ -83,28 +83,6 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void InsertarCorrelativa(int idMateria, int idCorrelativa)
-        {
-            var p = new List<SqlParameter>
-            {
-                _acceso.CrearParametro("@id_materia",     idMateria),
-                _acceso.CrearParametro("@id_correlativa", idCorrelativa)
-            };
-            try { _acceso.Abrir(); _acceso.Escribir("CORRELATIVA_INSERTAR", p); }
-            finally { _acceso.Cerrar(); }
-        }
-
-        public void EliminarCorrelativa(int idMateria, int idCorrelativa)
-        {
-            var p = new List<SqlParameter>
-            {
-                _acceso.CrearParametro("@id_materia",     idMateria),
-                _acceso.CrearParametro("@id_correlativa", idCorrelativa)
-            };
-            try { _acceso.Abrir(); _acceso.Escribir("CORRELATIVA_ELIMINAR", p); }
-            finally { _acceso.Cerrar(); }
-        }
-
         public List<BE.MATERIA> ListarCorrelativas(int idMateria)
         {
             var lista = new List<BE.MATERIA>();

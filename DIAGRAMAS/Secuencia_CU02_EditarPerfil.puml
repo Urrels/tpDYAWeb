@@ -1,0 +1,71 @@
+@startuml Secuencia_CU02_EditarPerfil
+title CU02 — Editar Perfil
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor "Alumno / Administrador" as A
+participant "Perfil.aspx" as PAGE <<Page>>
+participant "UsuarioBLL" as BLL <<BLL>>
+participant "UsuarioDAL" as DAL <<DAL>>
+participant "BitacoraBLL" as BIT <<BLL>>
+participant "IntegridadBLL" as INT <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+A -> PAGE : abre "Mi Perfil" (Page_Load, primera carga)
+activate PAGE
+PAGE -> BLL : ObtenerPerfil(usuario)
+activate BLL
+BLL -> DAL : ObtenerPorNombre(usuario)
+activate DAL
+DAL -> DB : SP USUARIO_OBTENER
+DB --> DAL : datos del usuario (DIRECCION cifrada)
+DAL -> DAL : BE.AESHelper.Desencriptar(direccion)
+DAL --> BLL : USUARIO (con DireccionVisible)
+deactivate DAL
+BLL --> PAGE : USUARIO
+deactivate BLL
+PAGE --> A : muestra usuario y dirección actual
+deactivate PAGE
+
+A -> PAGE : modifica la dirección y confirma (btnGuardar_Click)
+activate PAGE
+PAGE -> BLL : ActualizarDireccion(usuario, direccion)
+activate BLL
+BLL -> DAL : ActualizarDireccion(usuario, direccion)
+activate DAL
+DAL -> DAL : BE.AESHelper.Encriptar(direccion)
+DAL -> DB : SP USUARIO_ACTUALIZAR_DIRECCION
+DB --> DAL : filas afectadas
+DAL --> BLL : true
+deactivate DAL
+
+BLL -> BIT : RegistrarAccion(usuario, "ACTUALIZACION_DIRECCION")
+activate BIT
+BIT -> DB : SP BITACORA_INSERTAR
+BIT -> INT : RecalcularBitacora()
+deactivate BIT
+
+BLL -> INT : RecalcularUsuario()
+activate INT
+INT -> DB : SP USUARIO_ACTUALIZAR_DVH (recalcula DVH/DVV de USUARIO)
+deactivate INT
+
+BLL --> PAGE : true
+deactivate BLL
+PAGE --> A : "✔ Dirección guardada con AES-256."
+deactivate PAGE
+
+alt el usuario no modifica ningún campo
+  PAGE --> A : no presiona "Guardar"; no se llega a llamar a ActualizarDireccion()
+else error al guardar (ok = false)
+  BLL --> PAGE : false
+  PAGE --> A : "✖ Error al guardar."
+end
+
+@enduml

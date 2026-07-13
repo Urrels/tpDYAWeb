@@ -1,0 +1,74 @@
+@startuml Secuencia_CU08_ExportarPDF
+title CU08 — Exportar Resumen Academico a PDF
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Alumno as A
+participant "ExportarPDF.aspx" as PAGE <<Page>>
+participant "AlumnoMateriaBLL" as BLL <<BLL>>
+participant "AlumnoMateriaDAL" as DAL <<DAL>>
+participant "iTextSharp\n(Document / PdfWriter)" as PDF
+database "SQL Server" as DB <<BD>>
+
+A -> PAGE : solicita exportar Resumen Academico (GET ExportarPDF.aspx)
+activate PAGE
+
+note right of PAGE
+  Page_Load valida rol antes de generar el PDF:
+  sin sesion -> redirige a Login.aspx
+  EsWebmaster -> redirige a Integridad.aspx
+  EsAdmin -> redirige a Materias.aspx
+  Solo el Alumno llega a GenerarPDF()
+end note
+
+PAGE -> BLL : Listar(u.Id)
+activate BLL
+BLL -> DAL : Listar(idUsuario)
+activate DAL
+DAL -> DB : EXEC ALUMNO_MATERIA_LISTAR @id_usuario
+activate DB
+DB --> DAL : filas ALUMNO_MATERIA
+deactivate DB
+DAL --> BLL : List<ALUMNO_MATERIA>
+deactivate DAL
+BLL --> PAGE : cursadas (detalle de materias)
+deactivate BLL
+
+PAGE -> BLL : CalcularPromedioPonderado(u.Id)
+activate BLL
+note right of BLL
+  CalcularPromedioPonderado vuelve a
+  invocar Listar(idUsuario) internamente
+  (no reutiliza la lista "cursadas" ya obtenida)
+  -> segunda consulta a ALUMNO_MATERIA_LISTAR
+end note
+BLL -> DAL : Listar(idUsuario)
+activate DAL
+DAL -> DB : EXEC ALUMNO_MATERIA_LISTAR @id_usuario
+activate DB
+DB --> DAL : filas ALUMNO_MATERIA
+deactivate DB
+DAL --> BLL : List<ALUMNO_MATERIA>
+deactivate DAL
+BLL -> BLL : calcula promedio ponderado\n(suma NotaFinal*PesoMateria / suma PesoMateria)
+BLL --> PAGE : (promedio, mensaje)
+deactivate BLL
+
+PAGE -> PAGE : arma Content-Disposition\n(attachment; filename=Resumen_{usuario}_{fecha}.pdf)
+PAGE -> PDF : new Document(...) / PdfWriter.GetInstance(doc, Response.OutputStream)
+activate PDF
+PAGE -> PDF : doc.Open()
+PAGE -> PDF : agrega titulo, promedio ponderado\ny tabla (PdfPTable) con detalle de materias
+PAGE -> PDF : doc.Close()
+deactivate PDF
+
+PAGE --> A : entrega Resumen_{usuario}_{fecha}.pdf\n(escrito directo a Response.OutputStream)
+deactivate PAGE
+
+@enduml

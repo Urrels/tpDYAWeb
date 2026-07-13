@@ -1,0 +1,94 @@
+@startuml Secuencia_CU15_RecalcularIntegridad
+title CU15 — Recalcular Integridad
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Webmaster as WM
+participant "Integridad.aspx" as PAGE <<Page>>
+participant "IntegridadBLL" as BLL <<BLL>>
+participant "IntegridadDAL" as DAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+note over WM, PAGE
+  Precondición: CU14 (Verificar Integridad) detectó al menos
+  una inconsistencia (resultado.EsValido == false), por lo que
+  pnlAcciones quedó visible con el botón "Recalcular dígitos
+  verificadores".
+end note
+
+WM -> PAGE : clic en "Recalcular dígitos verificadores" (btnRecalcular_Click)
+activate PAGE
+PAGE -> BLL : RecalcularTodasLasTablas()
+activate BLL
+
+note over BLL
+  Invoca 9 métodos explícitos y secuenciales:
+  RecalcularUsuario(), RecalcularBitacora(), RecalcularMateria(),
+  RecalcularCorrelativa(), RecalcularAlumnoMateria(),
+  RecalcularEventoAcademico(), RecalcularPeriodoAcademico(),
+  RecalcularInscripcion(), RecalcularInscripcionDetalle()
+  Cada uno delega en el motor genérico RecalcularTabla(...).
+end note
+
+loop por cada una de las 9 tablas de negocio
+    BLL -> DAL : ListarParaIntegridad(tabla)
+    activate DAL
+    DAL -> DB : EXEC {TABLA}_LISTAR_PARA_INTEGRIDAD
+    DB --> DAL : DataTable
+    DAL --> BLL : DataTable
+    deactivate DAL
+
+    loop por cada fila
+        BLL -> BLL : dvh = BE.CalculadorDVH.Calcular(atributos)
+        BLL -> DAL : ActualizarDVH(tabla, id, dvh)
+        activate DAL
+        DAL -> DB : EXEC {TABLA}_ACTUALIZAR_DVH
+        deactivate DAL
+    end
+
+    loop por cada columna
+        BLL -> BLL : dvv = BE.CalculadorDVH.CalcularVertical(todasFilas, c)
+        BLL -> DAL : ActualizarDVV(tabla, columna, dvv)
+        activate DAL
+        DAL -> DB : EXEC DVV_ACTUALIZAR
+        deactivate DAL
+    end
+
+    BLL -> BLL : GuardarSnapshot(tabla, datos, extraerAtributos)
+    note right of BLL
+        Serializa la lista de filas (Id + Atributos) a JSON
+        (JavaScriptSerializer) — este es "el último estado
+        válido conocido" a partir de ahora.
+    end note
+    BLL -> DAL : GuardarSnapshot(tabla, json)
+    activate DAL
+    DAL -> DB : EXEC SNAPSHOT_GUARDAR
+    deactivate DAL
+end
+
+BLL --> PAGE : (retorna, void)
+deactivate BLL
+
+PAGE -> BLL : VerificarTodasLasTablas()
+note over PAGE, BLL
+  btnRecalcular_Click llama a VerificarTodasLasTablas() justo
+  después de recalcular (mismo flujo interno que CU14) para
+  volver a mostrar el resultado — por definición debería dar
+  EsValido = true, ya que lo recién recalculado es consistente
+  consigo mismo.
+end note
+activate BLL
+BLL --> PAGE : ResultadoIntegridad (EsValido = true esperado)
+deactivate BLL
+
+PAGE -> PAGE : MostrarResultado(resultado)
+PAGE --> WM : alert-success "Integridad verificada correctamente en las 9 tablas de negocio."
+deactivate PAGE
+
+@enduml

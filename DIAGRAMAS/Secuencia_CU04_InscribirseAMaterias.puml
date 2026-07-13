@@ -1,0 +1,157 @@
+@startuml Secuencia_CU04_InscribirseAMaterias
+title CU04 — Inscribirse a Materias
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Alumno as A
+participant "Inscripcion.aspx" as PAGE <<Page>>
+participant "InscripcionBLL" as BLL <<BLL>>
+participant "PeriodoDAL" as PERDAL <<DAL>>
+participant "AlumnoMateriaDAL" as AMDAL <<DAL>>
+participant "MateriaDAL" as MATDAL <<DAL>>
+participant "InscripcionDAL" as INSDAL <<DAL>>
+participant "BitacoraBLL" as BITBLL <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+A -> PAGE : ingresa a Inscripcion.aspx
+activate PAGE
+PAGE -> BLL : ObtenerPeriodoActual()
+activate BLL
+BLL -> PERDAL : ObtenerActual()
+activate PERDAL
+PERDAL -> DB : EXEC PERIODO_OBTENER_ACTUAL
+DB --> PERDAL
+PERDAL --> BLL : periodo
+deactivate PERDAL
+BLL --> PAGE : periodo
+deactivate BLL
+
+alt periodo == null (no hay período activo)
+  PAGE --> A : muestra "no hay período activo",\nno habilita inscripción (pnlSinPeriodo)
+else periodo activo
+
+  PAGE -> BLL : ClasificarMaterias(idUsuario)
+  activate BLL
+  BLL -> AMDAL : Listar(idUsuario)
+  activate AMDAL
+  AMDAL -> DB : EXEC ALUMNO_MATERIA_LISTAR
+  DB --> AMDAL
+  AMDAL --> BLL : cursadas (aprobadas / en curso)
+  deactivate AMDAL
+
+  BLL -> MATDAL : Listar()
+  activate MATDAL
+  MATDAL -> DB : EXEC MATERIA_LISTAR
+  DB --> MATDAL
+  MATDAL --> BLL : todas las materias
+  deactivate MATDAL
+
+  loop por cada materia no cursada
+    BLL -> MATDAL : ListarCorrelativas(idMateria)
+    activate MATDAL
+    MATDAL -> DB : EXEC CORRELATIVA_LISTAR
+    DB --> MATDAL
+    MATDAL --> BLL : correlativas
+    deactivate MATDAL
+    BLL -> BLL : clasifica en disponibles\n(todas las correlativas aprobadas)\no noDisponibles
+  end
+  BLL --> PAGE : (disponibles, noDisponibles)
+  deactivate BLL
+  PAGE --> A : muestra materias disponibles\ny no disponibles (con correlativas faltantes)
+
+  A -> PAGE : selecciona materias, confirma\n(btnInscribir_Click)
+  PAGE -> BLL : Inscribir(idUsuario, idPeriodo, idsMaterias, usuarioAccion)
+  activate BLL
+
+  BLL -> AMDAL : Listar(idUsuario)
+  activate AMDAL
+  AMDAL -> DB : EXEC ALUMNO_MATERIA_LISTAR
+  DB --> AMDAL
+  AMDAL --> BLL : aprobadas
+  deactivate AMDAL
+
+  BLL -> MATDAL : Listar()
+  activate MATDAL
+  MATDAL -> DB : EXEC MATERIA_LISTAR
+  DB --> MATDAL
+  MATDAL --> BLL : todas las materias
+  deactivate MATDAL
+
+  loop por cada materia seleccionada
+    BLL -> MATDAL : ListarCorrelativas(idMateria)
+    activate MATDAL
+    MATDAL -> DB : EXEC CORRELATIVA_LISTAR
+    DB --> MATDAL
+    MATDAL --> BLL : correlativas
+    deactivate MATDAL
+
+    alt correlativas pendientes (no todas aprobadas)
+      BLL --> PAGE : (false, "No podés inscribirte a '<materia>':\ntenés correlativas pendientes", 0)
+      PAGE --> A : muestra error, cancela inscripción
+      note right of BLL
+        corta el flujo en la primera materia
+        que no cumple correlativas
+      end note
+    end
+  end
+
+  BLL -> INSDAL : ObtenerIdPorPeriodo(idUsuario, idPeriodo)
+  activate INSDAL
+  INSDAL -> DB : EXEC INSCRIPCION_OBTENER_ID
+  DB --> INSDAL
+  INSDAL --> BLL : idInscripcion
+  deactivate INSDAL
+
+  alt idInscripcion <= 0 (no existe cabecera para el período)
+    BLL -> INSDAL : InsertarCabecera(idUsuario, idPeriodo)
+    activate INSDAL
+    INSDAL -> DB : EXEC INSCRIPCION_INSERTAR
+    DB --> INSDAL
+    INSDAL --> BLL : idInscripcion (SCOPE_IDENTITY)
+    deactivate INSDAL
+  else ya existe cabecera en el período
+    note right of BLL
+      reutiliza la cabecera existente:
+      el alumno puede agregar más materias
+      a una inscripción ya creada, no se
+      bloquea la re-inscripción
+    end note
+  end
+
+  loop por cada materia seleccionada
+    BLL -> INSDAL : InsertarDetalle(idInscripcion, idMateria)
+    activate INSDAL
+    INSDAL -> DB : EXEC INSCRIPCION_DETALLE_INSERTAR
+    deactivate INSDAL
+    BLL -> AMDAL : Insertar(ALUMNO_MATERIA {Estado="Cursando"})
+    activate AMDAL
+    AMDAL -> DB : EXEC ALUMNO_MATERIA_INSERTAR
+    deactivate AMDAL
+  end
+
+  note over BLL
+    también invoca IntegridadBLL
+    (RecalcularAlumnoMateria / Inscripcion /
+    InscripcionDetalle) antes de la bitácora;
+    omitido del diagrama por foco en CU04
+  end note
+
+  BLL -> BITBLL : RegistrarAccion(usuarioAccion,\n"INSCRIPCION_CUATRIMESTRAL:PERIODO_x:N_MATERIAS")
+  activate BITBLL
+  BITBLL -> DB : EXEC BITACORA_INSERTAR
+  deactivate BITBLL
+
+  BLL --> PAGE : (true, mensaje, cantidad)
+  deactivate BLL
+  PAGE --> A : confirma inscripción,\nactualiza resumen e historial
+end
+
+deactivate PAGE
+
+@enduml

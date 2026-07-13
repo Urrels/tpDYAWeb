@@ -1,0 +1,135 @@
+@startuml Secuencia_CU16_RestaurarDatos
+title CU16 — Restaurar Datos
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Webmaster as WM
+participant "Integridad.aspx" as PAGE <<Page>>
+participant "IntegridadBLL" as BLL <<BLL>>
+participant "IntegridadDAL" as DAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+note over WM
+  Acción irreversible. Confirmación en cliente
+  (Integridad.aspx, btnRestaurar):
+  OnClientClick="return confirm('¿Restaurar la base de datos
+  al último estado válido conocido? Se perderán los cambios
+  posteriores.');"
+end note
+
+WM -> PAGE : clic en "Restaurar base de datos" (confirmado en cliente)
+activate PAGE
+PAGE -> BLL : RestaurarTodasLasTablas()
+activate BLL
+
+note over BLL
+  LIMITACIÓN CONOCIDA Y ACEPTADA (comentario XML doc de
+  RestaurarTodasLasTablas(), IntegridadBLL.cs):
+  "cada llamada a DAL.IntegridadDAL abre y cierra su propia
+  conexión (patrón Acceso actual: abrir → ejecutar → cerrar en
+  finally, por llamada). No hay una única transacción SQL que
+  envuelva las 9 tablas de punta a punta — hacerlo sería un
+  cambio arquitectural mayor, fuera de alcance de esta entrega.
+  Si una tabla falla a mitad del restore, las tablas ya
+  procesadas quedan restauradas y las restantes no: la base
+  puede quedar parcialmente restaurada. No se resuelve ni se
+  oculta acá; queda documentado como limitación conocida."
+end note
+
+== Fase 1: borrado de filas agregadas externamente — orden hijo → padre ==
+
+note right of BLL
+  Orden real y literal del código (BorrarAgregadosExternamente,
+  9 llamadas explícitas):
+  INSCRIPCION_DETALLE, INSCRIPCION, EVENTO_ACADEMICO,
+  ALUMNO_MATERIA, CORRELATIVA, BITACORA, PERIODO_ACADEMICO,
+  MATERIA, USUARIO
+end note
+
+loop por cada una de las 9 tablas (en el orden hijo → padre de arriba)
+    BLL -> DAL : ObtenerSnapshot(tabla)
+    activate DAL
+    DAL -> DB : EXEC SNAPSHOT_OBTENER
+    DB --> DAL : DATOS_JSON
+    DAL --> BLL : json
+    deactivate DAL
+    BLL -> BLL : deserializa json -> IDs conocidos en el snapshot
+
+    BLL -> DAL : ListarParaIntegridad(tabla)
+    activate DAL
+    DAL -> DB : EXEC {TABLA}_LISTAR_PARA_INTEGRIDAD
+    DB --> DAL : DataTable (filas actuales)
+    DAL --> BLL : DataTable
+    deactivate DAL
+
+    loop por cada fila actual cuyo ID no está en el snapshot
+        BLL -> DAL : EliminarPorId(tabla, id)
+        activate DAL
+        DAL -> DB : EXEC {TABLA}_ELIMINAR_POR_ID
+        deactivate DAL
+    end
+end
+
+== Fase 2: upsert de modificados + eliminados que vuelven — orden padre → hijo ==
+
+note right of BLL
+  Orden real y literal del código (RestaurarUpsertX(), 9 llamadas
+  explícitas): USUARIO, MATERIA, PERIODO_ACADEMICO, BITACORA,
+  CORRELATIVA, ALUMNO_MATERIA, EVENTO_ACADEMICO, INSCRIPCION,
+  INSCRIPCION_DETALLE
+end note
+
+loop por cada una de las 9 tablas (en el orden padre → hijo de arriba)
+    BLL -> DAL : ObtenerSnapshot(tabla)
+    activate DAL
+    DAL -> DB : EXEC SNAPSHOT_OBTENER
+    DB --> DAL : DATOS_JSON
+    DAL --> BLL : json
+    deactivate DAL
+
+    loop por cada fila del snapshot
+        BLL -> BLL : Rehidratar{Tabla}(atributos)
+        note right of BLL
+            Convierte cada string del snapshot de vuelta a su tipo
+            real (ParseInt/ParseDecNullable/ParseFechaNullable/
+            ParseBit/ParseBase64) antes de pasarlo como SqlParameter.
+        end note
+        BLL -> DAL : RestaurarFila{Tabla}(id, ...)
+        activate DAL
+        DAL -> DB : EXEC {TABLA}_RESTAURAR_FILA
+        deactivate DAL
+    end
+end
+
+== Recalcular al final ==
+
+BLL -> BLL : RecalcularTodasLasTablas()
+note over BLL
+  Mismo flujo interno que CU15 (Recalcular Integridad), aplicado
+  a las 9 tablas ya restauradas: recalcula DVH/DVV y regenera el
+  snapshot para que quede consistente con el estado restaurado.
+end note
+
+BLL --> PAGE : (retorna, void)
+deactivate BLL
+
+PAGE -> BLL : VerificarTodasLasTablas()
+note over PAGE, BLL
+  btnRestaurar_Click llama a VerificarTodasLasTablas() justo
+  después de restaurar (mismo flujo interno que CU14).
+end note
+activate BLL
+BLL --> PAGE : ResultadoIntegridad
+deactivate BLL
+
+PAGE -> PAGE : MostrarResultado(resultado)
+PAGE --> WM : muestra resultado
+deactivate PAGE
+
+@enduml
