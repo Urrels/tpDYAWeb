@@ -172,6 +172,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +ObtenerPorNombre() : USUARIO
     +CambiarContrasena() : bool
     +ActualizarDireccion() : bool
+    +ListarAlumnos() : List<USUARIO>
     +EstaBloqueado(usuario) : bool
     +IncrementarIntentos(usuario) : bool
     +ResetearIntentos(usuario)
@@ -274,6 +275,7 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     +ActualizarDireccion() : bool
     +Desbloquear(usuario, admin)
     +ListarBloqueados() : List<USUARIO>
+    +ListarAlumnos() : List<USUARIO>
   }
 
   class MateriaBLL {
@@ -439,6 +441,11 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
     +MateriaBLL
   }
 
+  class Notas <<Page · Admin>> {
+    +AlumnoMateriaBLL
+    +UsuarioBLL
+  }
+
   class Bitacora <<Page · Admin>> {
     +BitacoraBLL
   }
@@ -467,6 +474,8 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
   CambiarContrasena --> UsuarioBLL
   ExportarPDF       --> AlumnoMateriaBLL
   Materias          --> MateriaBLL
+  Notas             --> AlumnoMateriaBLL
+  Notas             --> UsuarioBLL
   Bitacora          --> BitacoraBLL
   UsuariosBloqueados --> UsuarioBLL
   Integridad        --> IntegridadBLL
@@ -481,7 +490,8 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
   Perfil             -[hidden]right-> CambiarContrasena
   CambiarContrasena  -[hidden]right-> ExportarPDF
   ExportarPDF        -[hidden]right-> Materias
-  Materias           -[hidden]right-> Bitacora
+  Materias           -[hidden]right-> Notas
+  Notas              -[hidden]right-> Bitacora
   Bitacora           -[hidden]right-> UsuariosBloqueados
   UsuariosBloqueados -[hidden]right-> Integridad
 }
@@ -508,6 +518,7 @@ Perfil             -[hidden]down-> PeriodoBLL
 CambiarContrasena  -[hidden]down-> BitacoraBLL
 ExportarPDF        -[hidden]down-> FeriadosBLL
 Materias           -[hidden]down-> IntegridadBLL
+Notas              -[hidden]down-> MateriaBLL
 Bitacora           -[hidden]down-> LoginBLL
 UsuariosBloqueados -[hidden]down-> UsuarioBLL
 Integridad         -[hidden]down-> IntegridadBLL

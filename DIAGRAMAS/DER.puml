@@ -19,6 +19,9 @@ entity "USUARIO" as USUARIO {
   *PASS : VARCHAR(64)
   DIRECCION : VARBINARY(256)
   *ROL : VARCHAR(10)
+  *DVH : INT
+  *INTENTOS_FALLIDOS : INT
+  *BLOQUEADO : BIT
 }
 
 entity "BITACORA" as BITACORA {
@@ -27,6 +30,8 @@ entity "BITACORA" as BITACORA {
   *USUARIO : VARCHAR(50)
   *ACCION : VARCHAR(100)
   *FECHA : DATETIME
+  *DVH : INT
+  *CRITICIDAD : VARCHAR(10)
 }
 
 entity "MATERIA" as MATERIA {
@@ -37,11 +42,15 @@ entity "MATERIA" as MATERIA {
   *MODALIDAD : VARCHAR(20)
   *PESO : INT
   *ACTIVA : BIT
+  *DVH : INT
 }
 
 entity "CORRELATIVA" as CORRELATIVA {
   *ID_MATERIA : INT <<PK, FK>>
   *ID_CORRELATIVA : INT <<PK, FK>>
+  --
+  ID : INT <<IDENTITY>>
+  *DVH : INT
 }
 
 entity "ALUMNO_MATERIA" as ALUMNO_MATERIA {
@@ -56,14 +65,7 @@ entity "ALUMNO_MATERIA" as ALUMNO_MATERIA {
   NOTA_FINAL : DECIMAL(4,2)
   FECHA_FINAL : DATETIME
   FECHA_RECUPERATORIO : DATETIME
-  DVH : INT
-}
-
-entity "DVV_NOTAS" as DVV_NOTAS {
-  *ID_USUARIO : INT <<PK, FK>>
-  --
-  *DVV : INT
-  *FECHA : DATETIME
+  *DVH : INT
 }
 
 entity "EVENTO_ACADEMICO" as EVENTO_ACADEMICO {
@@ -75,6 +77,7 @@ entity "EVENTO_ACADEMICO" as EVENTO_ACADEMICO {
   DESCRIPCION : VARCHAR(200)
   *FECHA : DATETIME
   *PESO : INT
+  *DVH : INT
 }
 
 entity "PERIODO_ACADEMICO" as PERIODO_ACADEMICO {
@@ -85,6 +88,7 @@ entity "PERIODO_ACADEMICO" as PERIODO_ACADEMICO {
   DESCRIPCION : VARCHAR(100)
   FECHA_INICIO : DATE
   FECHA_FIN : DATE
+  *DVH : INT
 }
 
 entity "INSCRIPCION" as INSCRIPCION {
@@ -93,6 +97,7 @@ entity "INSCRIPCION" as INSCRIPCION {
   *ID_USUARIO : INT <<FK>>
   *ID_PERIODO : INT <<FK>>
   *FECHA_INSCRIPCION : DATETIME
+  *DVH : INT
 }
 
 entity "INSCRIPCION_DETALLE" as INSCRIPCION_DETALLE {
@@ -100,7 +105,39 @@ entity "INSCRIPCION_DETALLE" as INSCRIPCION_DETALLE {
   --
   *ID_INSCRIPCION : INT <<FK>>
   *ID_MATERIA : INT <<FK>>
+  *DVH : INT
 }
+
+entity "DIGITO_VERIFICADOR_VERTICAL" as DVV {
+  *TABLA : VARCHAR(50) <<PK>>
+  *COLUMNA : VARCHAR(50) <<PK>>
+  --
+  *DVV : INT
+}
+
+entity "SNAPSHOT_INTEGRIDAD" as SNAPSHOT {
+  *TABLA : VARCHAR(50) <<PK>>
+  --
+  *DATOS_JSON : NVARCHAR(MAX)
+  *FECHA : DATETIME
+}
+
+note bottom of DVV
+  Motor genérico de integridad: un registro
+  por (TABLA, COLUMNA) de las 9 tablas de negocio
+  (USUARIO, BITACORA, MATERIA, CORRELATIVA,
+  ALUMNO_MATERIA, EVENTO_ACADEMICO,
+  PERIODO_ACADEMICO, INSCRIPCION,
+  INSCRIPCION_DETALLE). TABLA/COLUMNA son
+  referencias lógicas (string), no FK físicas.
+end note
+
+note bottom of SNAPSHOT
+  Un registro por tabla con el último
+  estado válido conocido (JSON), usado
+  para diagnóstico y restauración.
+  TABLA es referencia lógica, no FK física.
+end note
 
 ' ============================================================
 ' RELACIONES
@@ -108,8 +145,6 @@ entity "INSCRIPCION_DETALLE" as INSCRIPCION_DETALLE {
 
 USUARIO         ||--o{    ALUMNO_MATERIA      : "cursa"
 MATERIA         ||--o{    ALUMNO_MATERIA      : "es cursada por"
-
-USUARIO         ||--o|    DVV_NOTAS           : "tiene"
 
 USUARIO         ||--o{    EVENTO_ACADEMICO    : "genera"
 MATERIA         ||--o{    EVENTO_ACADEMICO    : "pertenece a"
@@ -126,9 +161,8 @@ MATERIA         ||--o{    INSCRIPCION_DETALLE : "aparece en"
 ' ============================================================
 ' FLECHAS OCULTAS — controlan posición de tablas
 ' ============================================================
-' Columna izquierda: USUARIO, DVV_NOTAS, BITACORA
-USUARIO    -[hidden]down-> DVV_NOTAS
-DVV_NOTAS  -[hidden]down-> BITACORA
+' Columna izquierda: USUARIO, BITACORA
+USUARIO    -[hidden]down-> BITACORA
 
 ' USUARIO a la izquierda de MATERIA
 USUARIO    -[hidden]right-> MATERIA
@@ -142,5 +176,9 @@ MATERIA              -[hidden]right-> EVENTO_ACADEMICO
 EVENTO_ACADEMICO     -[hidden]down-> INSCRIPCION
 INSCRIPCION          -[hidden]down-> INSCRIPCION_DETALLE
 INSCRIPCION_DETALLE  -[hidden]down-> PERIODO_ACADEMICO
+
+' Columna de tablas genericas de integridad, debajo de BITACORA
+BITACORA   -[hidden]down-> DVV
+DVV        -[hidden]down-> SNAPSHOT
 
 @enduml

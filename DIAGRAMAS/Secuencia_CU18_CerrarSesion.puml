@@ -1,0 +1,59 @@
+@startuml Secuencia_CU18_CerrarSesion
+title CU18 — Cerrar Sesión
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor "Alumno / Administrador / Webmaster" as A
+participant "Site.Master" as MASTER <<Page>>
+participant "BE.SessionRegistry" as SR
+participant "Global.asax\n(Session_End)" as GLOBAL
+participant "BitacoraBLL" as BIT <<BLL>>
+participant "BitacoraDAL" as DAL <<DAL>>
+participant "IntegridadBLL" as INT <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+A -> MASTER : hace clic en "Cerrar sesión" (btnCerrarSesion_Click)
+activate MASTER
+MASTER -> SR : BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario)
+note right of SR
+  Llamada directa WEB -> BE:
+  Site.Master.cs invoca a BE.SessionRegistry
+  sin pasar por ninguna clase BLL.
+end note
+activate SR
+SR --> MASTER
+deactivate SR
+
+MASTER -> MASTER : Session.Abandon()
+note right of MASTER
+  Session.Abandon() dispara Session_End
+  (modo InProc), donde se centraliza
+  el registro de logout en bitácora.
+end note
+MASTER --> A : redirige a Login.aspx
+deactivate MASTER
+
+== Session_End (evento del framework, disparado por Session.Abandon) ==
+activate GLOBAL
+GLOBAL -> SR : BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario)
+note right of SR : operación idempotente,\nel usuario ya no está registrado
+GLOBAL -> BIT : RegistrarLogout(u.Usuario)
+activate BIT
+BIT -> DAL : Registrar(usuario, "LOGOUT", "Baja")
+activate DAL
+DAL -> DB : SP BITACORA_INSERTAR
+deactivate DAL
+BIT -> INT : RecalcularBitacora()
+activate INT
+INT -> DB : SP BITACORA_ACTUALIZAR_DVH (recalcula DVH/DVV de BITACORA)
+deactivate INT
+deactivate BIT
+deactivate GLOBAL
+
+@enduml

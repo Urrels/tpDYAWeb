@@ -1,0 +1,52 @@
+@startuml Secuencia_CU07_VerDashboard
+title CU07 — Ver Dashboard Academico
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Alumno as A
+participant "Dashboard.aspx" as PAGE <<Page>>
+participant "AlumnoMateriaBLL" as BLL <<BLL>>
+participant "AlumnoMateriaDAL" as DAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+A -> PAGE : ingresa al Dashboard (Page_Load)
+activate PAGE
+PAGE -> PAGE : valida Session["Usuario"]\n(redirige si null / EsWebmaster / EsAdmin)
+PAGE -> PAGE : CargarDashboard()
+PAGE -> BLL : Listar(u.Id)
+activate BLL
+BLL -> DAL : Listar(idUsuario)
+activate DAL
+DAL -> DAL : Abrir()
+DAL -> DB : EXEC ALUMNO_MATERIA_LISTAR @id_usuario
+activate DB
+note right of DB
+  Stored procedure real: ALUMNO_MATERIA_LISTAR
+  (patron ENTIDAD_ACCION, via Acceso.cs)
+end note
+DB --> DAL : DataTable (filas de cursadas)
+deactivate DB
+DAL -> DAL : Cerrar()
+DAL --> BLL : List<BE.ALUMNO_MATERIA> cursadas
+deactivate DAL
+BLL --> PAGE : cursadas
+deactivate BLL
+PAGE -> PAGE : calcula contadores por Estado\n(Total, Aprobadas, Cursando, FinalPendiente) via LINQ
+PAGE -> PAGE : serializa datosNotas\n(labels, parcial1, parcial2, final) -> hfDatosNotas
+PAGE -> PAGE : serializa datosEstados -> hfDatosEstados
+PAGE --> A : renderiza Dashboard\n(graficos client-side leen los hidden fields)
+deactivate PAGE
+
+alt alumno sin cursadas (lista vacia)
+  BLL --> PAGE : cursadas = lista vacia
+  PAGE -> PAGE : contadores en 0, arrays vacios en\nhfDatosNotas / hfDatosEstados
+  PAGE --> A : dashboard muestra "0" en todos los\nindicadores y graficos sin datos
+end
+
+@enduml

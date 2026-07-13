@@ -1,0 +1,85 @@
+@startuml Secuencia_CU13_DesbloquearUsuarios
+title CU13 — Desbloquear Usuarios
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "UsuariosBloqueados.aspx" as PAGE <<Page>>
+participant "UsuarioBLL" as BLL <<BLL>>
+participant "IntegridadBLL" as INTEG <<BLL>>
+participant "BitacoraBLL" as BITBLL <<BLL>>
+participant "UsuarioDAL" as DAL <<DAL>>
+participant "BitacoraDAL" as BITDAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : ingresa a UsuariosBloqueados.aspx
+activate PAGE
+PAGE -> BLL : ListarBloqueados()
+activate BLL
+BLL -> DAL : ListarBloqueados()
+activate DAL
+DAL -> DB : Leer("USUARIO_LISTAR_BLOQUEADOS")
+note right of DB : SP: USUARIO_LISTAR_BLOQUEADOS\n(SELECT ... WHERE BLOQUEADO = 1)
+DB --> DAL : filas (usuario + intentos fallidos)
+DAL --> BLL : List<BE.USUARIO>
+deactivate DAL
+BLL --> PAGE : List<BE.USUARIO>
+deactivate BLL
+PAGE --> ADM : rptBloqueados con la lista (lblSinBloqueados si viene vacía)
+deactivate PAGE
+
+ADM -> PAGE : click "Desbloquear" sobre un usuario bloqueado
+activate PAGE
+PAGE -> BLL : Desbloquear(usuarioBloqueado, admin.Usuario)
+activate BLL
+
+BLL -> DAL : Desbloquear(usuario)
+activate DAL
+DAL -> DB : Escribir("USUARIO_DESBLOQUEAR", params)
+note right of DB
+  SP: USUARIO_DESBLOQUEAR
+  UPDATE USUARIO SET BLOQUEADO = 0, INTENTOS_FALLIDOS = 0
+  WHERE USUARIO = @usuario
+  El contador de intentos fallidos se resetea en el
+  MISMO UPDATE del SP de desbloqueo. No existe una
+  llamada separada a UsuarioDAL.ResetearIntentos() /
+  SP USUARIO_RESETEAR_INTENTOS: ese método solo lo usa
+  LoginBLL.AutenticarUsuario() tras un login exitoso
+  (BLL/LoginBLL.cs:37), no el flujo de desbloqueo.
+end note
+deactivate DAL
+
+BLL -> BITBLL : RegistrarAccion(admin.Usuario, "DESBLOQUEO_USUARIO:" + usuario)
+activate BITBLL
+BITBLL -> BITDAL : Registrar(admin, accion, criticidad)
+BITDAL -> DB : Escribir("BITACORA_INSERTAR", params)
+deactivate BITBLL
+
+BLL -> INTEG : RecalcularUsuario()
+note right of INTEG
+  Sí recalcula integridad: RecalcularUsuario()
+  recorre la tabla USUARIO completa, recalcula
+  DVH por fila y DVV por columna vía IntegridadDAL
+  (BLL/LoginBLL.cs:113, método UsuarioBLL.Desbloquear).
+end note
+
+BLL --> PAGE : (void)
+deactivate BLL
+PAGE --> ADM : "Usuario '{usuario}' desbloqueado correctamente.", recarga rptBloqueados
+deactivate PAGE
+
+note over BLL
+  UsuarioBLL.Desbloquear(usuario, admin) es void:
+  no devuelve ningún resultado. La página muestra
+  siempre el mensaje de éxito sin verificar si la
+  operación realmente tuvo efecto
+  (WebApplication12/UsuariosBloqueados.aspx.cs:33-37).
+end note
+
+@enduml

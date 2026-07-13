@@ -1,0 +1,80 @@
+@startuml Secuencia_CU06_ActualizarNotas
+title CU06 — Actualizar Notas
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "Notas.aspx" as PAGE <<Page>>
+participant "AlumnoMateriaBLL" as BLL <<BLL>>
+participant "IntegridadBLL" as INTEG <<BLL>>
+participant "BitacoraBLL" as BITBLL <<BLL>>
+participant "AlumnoMateriaDAL" as DAL <<DAL>>
+participant "BitacoraDAL" as BITDAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : elige alumno (ddlAlumno), elige cursada (gvCursadas), edita notas, click "Guardar"
+activate PAGE
+
+PAGE -> BLL : ActualizarNotas(am, admin.Usuario)
+activate BLL
+
+BLL -> INTEG : CalcularDVHAlumnoMateria(am)
+activate INTEG
+INTEG --> BLL : dvh (int)
+deactivate INTEG
+note right of BLL
+  am.DVH = dvh
+  (AlumnoMateriaBLL.cs:23)
+end note
+
+BLL -> DAL : Actualizar(am)
+activate DAL
+DAL -> DB : EscribirConRetorno("ALUMNO_MATERIA_ACTUALIZAR", params)
+note right of DB : SP: ALUMNO_MATERIA_ACTUALIZAR
+DB --> DAL : filas afectadas
+DAL --> BLL : bool ok
+deactivate DAL
+
+alt ok == true
+  BLL -> BITBLL : RegistrarAccion(usuarioAccion, "ACTUALIZACION_NOTAS:{IdMateria}")
+  activate BITBLL
+  BITBLL -> BITDAL : Registrar(usuario, accion, criticidad)
+  activate BITDAL
+  BITDAL -> DB : Escribir("BITACORA_INSERTAR", params)
+  note right of DB : SP: BITACORA_INSERTAR
+  deactivate BITDAL
+  BITBLL -> INTEG : RecalcularBitacora()
+  note right of INTEG
+    internamente recalcula DVH/DVV
+    de la tabla BITACORA
+    (BitacoraBLL.cs:31)
+  end note
+  deactivate BITBLL
+
+  BLL -> INTEG : RecalcularAlumnoMateria()
+  activate INTEG
+  note right of INTEG
+    internamente: ListarParaIntegridad("ALUMNO_MATERIA"),
+    recalcula DVH por fila y DVV por columna
+    vía IntegridadDAL (AlumnoMateriaBLL.cs:29)
+  end note
+  deactivate INTEG
+end
+
+BLL --> PAGE : bool ok
+deactivate BLL
+
+PAGE --> ADM : muestra "Notas actualizadas" / "Error", recarga grilla
+deactivate PAGE
+
+alt alumno seleccionado no tiene cursadas
+  PAGE --> ADM : gvCursadas queda vacía, no hay nada para editar
+end
+
+@enduml

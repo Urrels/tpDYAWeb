@@ -1,0 +1,84 @@
+@startuml Secuencia_CU12_ConsultarBitacora
+title CU12 — Consultar Bitácora
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "Bitacora.aspx" as PAGE <<Page>>
+participant "BitacoraBLL" as BLL <<BLL>>
+participant "BitacoraDAL" as DAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : ingresa a Bitacora.aspx
+activate PAGE
+
+PAGE -> BLL : ListarUsuariosDistinct()
+activate BLL
+BLL -> DAL : ListarUsuariosDistinct()
+activate DAL
+DAL -> DB : Leer("BITACORA_LISTAR_USUARIOS_DISTINCT")
+DB --> DAL : lista de usuarios distintos
+DAL --> BLL : List<string>
+deactivate DAL
+BLL --> PAGE : List<string>
+deactivate BLL
+PAGE --> ADM : llena ddlUsuario ("Todos" + usuarios)
+
+PAGE -> BLL : ListarPaginado(null, null, null, null, 1, 50)
+activate BLL
+BLL -> DAL : ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta, pagina, tamanio)
+activate DAL
+DAL -> DB : Leer("BITACORA_LISTAR_PAGINADO", params)
+note right of DB : SP: BITACORA_LISTAR_PAGINADO
+DB --> DAL : filas de la página + TOTAL_FILAS
+DAL --> BLL : BE.BitacoraPaginaResultado
+deactivate DAL
+BLL --> PAGE : BitacoraPaginaResultado
+deactivate BLL
+PAGE --> ADM : gvBitacora + "Página 1 de N (total registros)"
+deactivate PAGE
+
+ADM -> PAGE : elige usuario/criticidad, ingresa fecha desde/hasta, click "Filtrar"
+activate PAGE
+PAGE -> BLL : ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta+1día, 1, 50)
+activate BLL
+note right of PAGE
+  fechaHasta se corre +1 día antes de llamar
+  al BLL porque el SP usa límite exclusivo
+  (FECHA < @fecha_hasta) — Bitacora.aspx.cs:50
+end note
+BLL -> DAL : ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta, pagina, tamanio)
+activate DAL
+DAL -> DB : Leer("BITACORA_LISTAR_PAGINADO", params)
+DB --> DAL : filas + TOTAL_FILAS
+DAL --> BLL : BE.BitacoraPaginaResultado
+deactivate DAL
+BLL --> PAGE : BitacoraPaginaResultado
+deactivate BLL
+PAGE --> ADM : gvBitacora actualizada + paginado recalculado
+deactivate PAGE
+
+alt no hay registros que coincidan con los filtros
+  ADM -> PAGE : filtra por una combinación sin coincidencias, click "Filtrar"
+  activate PAGE
+  PAGE -> BLL : ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta, 1, 50)
+  activate BLL
+  BLL -> DAL : ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta, pagina, tamanio)
+  activate DAL
+  DAL -> DB : Leer("BITACORA_LISTAR_PAGINADO", params)
+  DB --> DAL : sin filas (TOTAL_FILAS = 0)
+  DAL --> BLL : BitacoraPaginaResultado (Filas vacío)
+  deactivate DAL
+  BLL --> PAGE : BitacoraPaginaResultado (Filas vacío, TotalFilas = 0)
+  deactivate BLL
+  PAGE --> ADM : gvBitacora vacía, "Página 1 de 1 (0 registros)",\nbtnAnterior y btnSiguiente deshabilitados
+  deactivate PAGE
+end
+
+@enduml

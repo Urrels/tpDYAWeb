@@ -1,0 +1,132 @@
+@startuml Secuencia_CU10_GestionarPlanEstudios
+title CU10 — Gestionar Plan de Estudios
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "Materias.aspx" as PAGE <<Page>>
+participant "MateriaBLL" as BLL <<BLL>>
+participant "IntegridadBLL" as INTEG <<BLL>>
+participant "BitacoraBLL" as BITBLL <<BLL>>
+participant "MateriaDAL" as DAL <<DAL>>
+participant "BitacoraDAL" as BITDAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : click "Nueva Materia", completa nombre/código/modalidad/peso, "Guardar"
+activate PAGE
+
+PAGE -> BLL : Insertar(m, usuario)
+activate BLL
+BLL -> DAL : Insertar(m)
+activate DAL
+DAL -> DB : EscribirConRetorno("MATERIA_INSERTAR", params)
+note right of DB : SP: MATERIA_INSERTAR\nCODIGO tiene constraint UNIQUE en la tabla MATERIA
+DB --> DAL : id (SCOPE_IDENTITY)
+DAL --> BLL : int id
+deactivate DAL
+
+alt id > 0 (alta exitosa)
+  BLL -> BITBLL : RegistrarAccion(usuario, "ALTA_MATERIA:{Nombre}")
+  activate BITBLL
+  BITBLL -> BITDAL : Registrar(usuario, accion, criticidad)
+  BITDAL -> DB : Escribir("BITACORA_INSERTAR", params)
+  deactivate BITBLL
+  BLL -> INTEG : RecalcularMateria()
+end
+
+BLL --> PAGE : int id
+deactivate BLL
+PAGE --> ADM : "Guardado." / "Error al guardar.", recarga grilla
+deactivate PAGE
+
+alt el código de materia ya existe
+  ADM -> PAGE : completa formulario con un CODIGO ya usado por otra materia, "Guardar"
+  activate PAGE
+  PAGE -> BLL : Insertar(m, usuario)
+  activate BLL
+  BLL -> DAL : Insertar(m)
+  activate DAL
+  DAL -> DB : EscribirConRetorno("MATERIA_INSERTAR", params)
+  DB --> DAL : SqlException (violación de constraint UNIQUE en CODIGO)
+  note right of DB
+    MATERIA_INSERTAR no valida duplicados
+    explícitamente: la falla la produce el
+    constraint UNIQUE de la columna CODIGO.
+    Ninguna capa (DAL/BLL/Page) captura esta
+    excepción -> no llega al bloque
+    "if (id > 0)" ni muestra el alert-danger
+    de la UI; se propaga como excepción no
+    manejada (BD_Universidad.sql:44, DAL/MateriaDAL.cs:23,
+    BLL/MateriaBLL.cs:14).
+  end note
+  DAL --x BLL : excepción no capturada
+  deactivate DAL
+  BLL --x PAGE : excepción no capturada
+  deactivate BLL
+  PAGE --x ADM : excepción no manejada (no hay try/catch en ningún nivel)
+  deactivate PAGE
+end
+
+alt modificación de materia existente
+  ADM -> PAGE : click "Editar" en la grilla, modifica datos, "Guardar"
+  activate PAGE
+  PAGE -> BLL : Actualizar(m, usuario)
+  activate BLL
+  BLL -> DAL : Actualizar(m)
+  activate DAL
+  DAL -> DB : EscribirConRetorno("MATERIA_ACTUALIZAR", params)
+  DB --> DAL : filas afectadas
+  DAL --> BLL : bool ok
+  deactivate DAL
+  alt ok == true
+    BLL -> BITBLL : RegistrarAccion(usuario, "EDICION_MATERIA:{Nombre}")
+    activate BITBLL
+    BITBLL -> BITDAL : Registrar(usuario, accion, criticidad)
+    BITDAL -> DB : Escribir("BITACORA_INSERTAR", params)
+    deactivate BITBLL
+    BLL -> INTEG : RecalcularMateria()
+  end
+  BLL --> PAGE : bool ok
+  deactivate BLL
+  PAGE --> ADM : "Guardado." / "Error al guardar.", recarga grilla
+  deactivate PAGE
+end
+
+alt baja de materia
+  ADM -> PAGE : click "Eliminar" en la grilla
+  activate PAGE
+  PAGE -> BLL : Eliminar(id, usuario)
+  activate BLL
+  BLL -> DAL : Obtener(id)
+  activate DAL
+  DAL -> DB : Leer("MATERIA_OBTENER", params)
+  DB --> DAL : datos de la materia
+  DAL --> BLL : BE.MATERIA m
+  deactivate DAL
+  BLL -> DAL : Eliminar(id)
+  activate DAL
+  DAL -> DB : EscribirConRetorno("MATERIA_ELIMINAR", params)
+  DB --> DAL : filas afectadas
+  DAL --> BLL : bool ok
+  deactivate DAL
+  alt ok == true
+    BLL -> BITBLL : RegistrarAccion(usuario, "BAJA_MATERIA:{m?.Nombre}")
+    activate BITBLL
+    BITBLL -> BITDAL : Registrar(usuario, accion, criticidad)
+    BITDAL -> DB : Escribir("BITACORA_INSERTAR", params)
+    deactivate BITBLL
+    BLL -> INTEG : RecalcularMateria()
+  end
+  BLL --> PAGE : bool ok
+  deactivate BLL
+  PAGE --> ADM : "Materia dada de baja." / "Error.", recarga grilla
+  deactivate PAGE
+end
+
+@enduml

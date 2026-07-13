@@ -1,0 +1,185 @@
+@startuml Secuencia_CU09_GestionarEventos
+title CU09 — Gestionar Eventos del Calendario
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Alumno as A
+participant "Calendario.aspx" as PAGE <<Page>>
+participant "EventoBLL" as BLL <<BLL>>
+participant "BitacoraBLL" as BIT <<BLL>>
+participant "IntegridadBLL" as INT <<BLL>>
+participant "EventoDAL" as DAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+note over DAL
+  EventoDAL está definido dentro de
+  DAL/AlumnoMateriaDAL.cs (líneas 82-186),
+  no en un archivo propio EventoDAL.cs
+end note
+
+== Carga del calendario del mes ==
+
+A -> PAGE : abre Calendario.aspx (mes actual, !IsPostBack)
+activate PAGE
+PAGE -> PAGE : RenderizarCalendario()
+activate PAGE
+PAGE -> BLL : ListarPorMes(idUsuario, Anio, Mes)
+activate BLL
+BLL -> DAL : ListarPorMes(idUsuario, anio, mes)
+activate DAL
+DAL -> DB : EVENTO_LISTAR_MES
+activate DB
+DB --> DAL : filas de eventos
+deactivate DB
+DAL --> BLL : List<EVENTO_ACADEMICO>
+deactivate DAL
+BLL -> BLL : AplicarMapaDeCalor(eventos)
+note right of BLL
+  Agrupa por semana ISO (lunes),
+  suma Peso por semana y clasifica
+  ColorCalor: <=5 Verde, <=10 Amarillo, sino Rojo
+end note
+BLL --> PAGE : eventos con ColorCalor
+deactivate BLL
+PAGE -> PAGE : arma tabla HTML con celdas coloreadas según ColorCalor
+deactivate PAGE
+
+PAGE -> PAGE : CargarGrillaEventos()
+activate PAGE
+PAGE -> BLL : ListarPorMes(idUsuario, Anio, Mes)
+activate BLL
+BLL -> DAL : ListarPorMes(idUsuario, anio, mes)
+activate DAL
+DAL -> DB : EVENTO_LISTAR_MES
+DAL --> BLL : List<EVENTO_ACADEMICO>
+deactivate DAL
+BLL -> BLL : AplicarMapaDeCalor(eventos)
+BLL --> PAGE : eventos con ColorCalor
+deactivate BLL
+PAGE -> PAGE : bindea gvEventos (grilla textual)
+deactivate PAGE
+note over PAGE
+  Llamada real y redundante: ListarPorMes(...)
+  se invoca dos veces en la carga inicial
+  (RenderizarCalendario y CargarGrillaEventos)
+end note
+PAGE --> A : muestra calendario + grilla con mapa de calor
+deactivate PAGE
+
+== Alta de evento ==
+
+A -> PAGE : click "Nuevo Evento"
+activate PAGE
+PAGE -> PAGE : LimpiarForm(); muestra pnlFormEvento
+PAGE --> A : formulario vacío
+deactivate PAGE
+
+A -> PAGE : completa datos y click "Guardar" (esNuevo = true)
+activate PAGE
+PAGE -> BLL : Insertar(ev, u.Usuario)
+activate BLL
+BLL -> DAL : Insertar(e)
+activate DAL
+DAL -> DB : EVENTO_INSERTAR
+activate DB
+note right of DB
+  Termina en SELECT SCOPE_IDENTITY();
+  se lee con EscribirConRetorno (ExecuteScalar)
+  porque con SET NOCOUNT ON el ExecuteNonQuery()
+  no reporta de forma confiable filas afectadas
+end note
+DB --> DAL : SCOPE_IDENTITY()
+deactivate DB
+DAL --> BLL : true/false
+deactivate DAL
+alt ok
+  BLL -> BIT : RegistrarAccion(u.Usuario, "ALTA_EVENTO:Tipo:Fecha")
+  BLL -> INT : RecalcularEventoAcademico()
+end
+BLL --> PAGE : ok
+deactivate BLL
+PAGE -> PAGE : RenderizarCalendario(); CargarGrillaEventos()
+PAGE --> A : "✔ Evento creado."
+deactivate PAGE
+
+== Edición de evento ==
+
+A -> PAGE : click "Editar" en fila de la grilla
+activate PAGE
+PAGE -> BLL : ListarPorUsuario(u.Id)
+activate BLL
+BLL -> DAL : ListarPorUsuario(idUsuario)
+activate DAL
+DAL -> DB : EVENTO_LISTAR_USUARIO
+DAL --> BLL : List<EVENTO_ACADEMICO>
+deactivate DAL
+BLL --> PAGE : eventos del usuario
+deactivate BLL
+PAGE -> PAGE : FirstOrDefault(x => x.Id == id); precarga formulario
+PAGE --> A : formulario con datos del evento
+deactivate PAGE
+
+A -> PAGE : modifica datos y click "Guardar" (esNuevo = false)
+activate PAGE
+PAGE -> BLL : Actualizar(ev, u.Usuario)
+activate BLL
+BLL -> DAL : Actualizar(e)
+activate DAL
+DAL -> DB : EVENTO_ACTUALIZAR
+DAL --> BLL : true/false
+deactivate DAL
+alt ok
+  BLL -> BIT : RegistrarAccion(u.Usuario, "EDICION_EVENTO:Id")
+  BLL -> INT : RecalcularEventoAcademico()
+end
+BLL --> PAGE : ok
+deactivate BLL
+PAGE -> PAGE : RenderizarCalendario(); CargarGrillaEventos()
+PAGE --> A : "✔ Evento actualizado."
+deactivate PAGE
+
+== Baja de evento ==
+
+A -> PAGE : click "Eliminar" en fila de la grilla (CommandName=EliminarEvento)
+activate PAGE
+PAGE -> BLL : Eliminar(id, u.Usuario)
+activate BLL
+BLL -> DAL : Eliminar(id)
+activate DAL
+DAL -> DB : EVENTO_ELIMINAR
+DAL --> BLL : true/false
+deactivate DAL
+alt ok
+  BLL -> BIT : RegistrarAccion(u.Usuario, "BAJA_EVENTO:id")
+  BLL -> INT : RecalcularEventoAcademico()
+end
+BLL --> PAGE : ok
+deactivate BLL
+PAGE -> PAGE : RenderizarCalendario(); CargarGrillaEventos()
+PAGE --> A : "✔ Evento eliminado."
+deactivate PAGE
+
+== Alternativo: el alumno solo consulta el calendario ==
+
+alt alumno solo consulta, sin agregar/editar/eliminar eventos
+  A -> PAGE : navega meses (btnAnterior / btnSiguiente / btnHoy)
+  activate PAGE
+  PAGE -> PAGE : RenderizarCalendario(); CargarGrillaEventos()
+  note right of PAGE
+    Mismo flujo de listado + mapa de calor
+    de la sección "Carga del calendario del mes",
+    sin ninguna llamada de escritura
+    (no se invoca Insertar/Actualizar/Eliminar
+    ni BitacoraBLL.RegistrarAccion)
+  end note
+  PAGE --> A : muestra calendario del mes navegado, sin cambios
+  deactivate PAGE
+end
+
+@enduml
