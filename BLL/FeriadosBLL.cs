@@ -50,12 +50,6 @@ namespace BLL
             }
         }
 
-        public Feriado ObtenerFeriado(int anio, int mes, int dia)
-        {
-            var feriados = ObtenerFeriados(anio);
-            return feriados.Find(f => f.Mes == mes && f.Dia == dia);
-        }
-
         private List<Feriado> FeriadosFijos(int anio)
         {
             return new List<Feriado>

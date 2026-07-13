@@ -17,10 +17,14 @@ package "BE — Entidades" as BE #DBEAFE {
   class USUARIO {
     +Id : int
     +Usuario : string
-    +Rol : string
+    +Contrasena : string
+    +DireccionEncriptada : string
     +DireccionVisible : string
+    +Rol : string
+    +IntentosFallidos : int
     --
     +EsAdmin : bool
+    +EsWebmaster : bool
   }
 
   class MATERIA {
@@ -36,12 +40,21 @@ package "BE — Entidades" as BE #DBEAFE {
     +Id : int
     +IdUsuario : int
     +IdMateria : int
+    +NombreMateria : string
+    +CodigoMateria : string
+    +Modalidad : string
+    +PesoMateria : int
     +Estado : string
-    +NotaParcial1..NotaFinal : decimal?
+    +NotaParcial1, NotaParcial2, NotaRecuperatorio, NotaFinal : decimal?
+    +FechaFinal, FechaRecuperatorio : DateTime?
     +DVH : int
     +NivelRiesgo : string
+    +MensajeRiesgo : string
     --
     +AproboAmbosPariales : bool
+    +NecesitaRecuperatorio : bool
+    +TieneFinal : bool
+    +TieneRecuperatorio : bool
   }
 
   class INSCRIPCION {
@@ -81,6 +94,12 @@ package "BE — Entidades" as BE #DBEAFE {
     +Usuario : string
     +Accion : string
     +Fecha : DateTime
+    +Criticidad : string
+  }
+
+  class BitacoraPaginaResultado {
+    +Filas : List<BITACORA>
+    +TotalFilas : int
   }
 
   class AESHelper <<static>> {
@@ -92,26 +111,42 @@ package "BE — Entidades" as BE #DBEAFE {
     +HashSHA256(texto) : string
   }
 
+  class CalculadorDVH <<static>> {
+    +Calcular(atributos) : int
+    +CalcularVertical(filas, colIdx) : int
+  }
+
   class SessionManager <<singleton>> {
-    +getInstance() : SessionManager
+    +getInstane() : SessionManager
     +getUsuario() : USUARIO
-    +setUsuario(u)
+    +setUsuario(u) : int
     +cerrarSesion()
+  }
+
+  class SessionRegistry <<singleton>> {
+    +Instancia : SessionRegistry {static}
+    +TieneSesionActiva(usuario) : bool
+    +RegistrarSesion(usuario, sessionId)
+    +CerrarSesion(usuario)
   }
 
   MATERIA "0..*" o-- "0..*" MATERIA : correlativas
   INSCRIPCION *-- "0..*" MATERIA
+  BitacoraPaginaResultado *-- "0..*" BITACORA : Filas
   SessionManager --> USUARIO
 
-  USUARIO          -[hidden]right-> MATERIA
-  MATERIA          -[hidden]right-> ALUMNO_MATERIA
-  ALUMNO_MATERIA   -[hidden]right-> INSCRIPCION
-  INSCRIPCION      -[hidden]right-> PERIODO_ACADEMICO
-  PERIODO_ACADEMICO -[hidden]right-> EVENTO_ACADEMICO
-  EVENTO_ACADEMICO -[hidden]right-> BITACORA
-  BITACORA         -[hidden]right-> AESHelper
-  AESHelper        -[hidden]right-> HashHelper
-  HashHelper       -[hidden]right-> SessionManager
+  USUARIO               -[hidden]right-> MATERIA
+  MATERIA                -[hidden]right-> ALUMNO_MATERIA
+  ALUMNO_MATERIA         -[hidden]right-> INSCRIPCION
+  INSCRIPCION            -[hidden]right-> PERIODO_ACADEMICO
+  PERIODO_ACADEMICO      -[hidden]right-> EVENTO_ACADEMICO
+  EVENTO_ACADEMICO       -[hidden]right-> BITACORA
+  BITACORA               -[hidden]right-> BitacoraPaginaResultado
+  BitacoraPaginaResultado -[hidden]right-> AESHelper
+  AESHelper              -[hidden]right-> HashHelper
+  HashHelper             -[hidden]right-> CalculadorDVH
+  CalculadorDVH          -[hidden]right-> SessionManager
+  SessionManager         -[hidden]right-> SessionRegistry
 }
 
 ' ============================================================
@@ -125,6 +160,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +Escribir(sp) : int
     +EscribirConRetorno(sp) : object
     +IniciarTx() / ConfirmarTX() / DeshacerTX()
+    +CrearParametro(nombre, valor) : SqlParameter
   }
 
   class DBInicializador <<static>> {
@@ -136,20 +172,24 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +ObtenerPorNombre() : USUARIO
     +CambiarContrasena() : bool
     +ActualizarDireccion() : bool
-    +ListarAlumnos() : List<USUARIO>
+    +EstaBloqueado(usuario) : bool
+    +IncrementarIntentos(usuario) : bool
+    +ResetearIntentos(usuario)
+    +Desbloquear(usuario)
+    +ListarBloqueados() : List<USUARIO>
   }
 
   class MateriaDAL {
     +Insertar() : int
     +Actualizar() / Eliminar() : bool
     +Listar() : List<MATERIA>
+    +Obtener(id) : MATERIA
     +ListarCorrelativas() : List<MATERIA>
   }
 
   class AlumnoMateriaDAL {
     +Insertar() / Actualizar() : bool
     +Listar() : List<ALUMNO_MATERIA>
-    +GuardarDVV() / ObtenerDVV() : int
   }
 
   class InscripcionDAL {
@@ -168,14 +208,27 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
   }
 
   class BitacoraDAL {
-    +Registrar(usuario, accion)
+    +Registrar(usuario, accion, criticidad)
     +Listar() : List<BITACORA>
+    +ListarUsuariosDistinct() : List<string>
+    +ListarPaginado(...) : BitacoraPaginaResultado
   }
 
   class EventoDAL {
     +Insertar() / Actualizar() / Eliminar() : bool
     +ListarPorUsuario() : List<EVENTO_ACADEMICO>
     +ListarPorMes() : List<EVENTO_ACADEMICO>
+  }
+
+  class IntegridadDAL {
+    +ListarParaIntegridad(tabla) : DataTable
+    +ActualizarDVH(tabla, id, dvh)
+    +ObtenerDVV(tabla) : Dictionary<string,int>
+    +ActualizarDVV(tabla, columna, dvv)
+    +ObtenerSnapshot(tabla) : string
+    +GuardarSnapshot(tabla, json)
+    +EliminarPorId(tabla, id)
+    +RestaurarFila{Usuario,Materia,PeriodoAcademico,Bitacora,Correlativa,AlumnoMateria,EventoAcademico,Inscripcion,InscripcionDetalle}(...)
   }
 
   UsuarioDAL       --> Acceso
@@ -185,6 +238,17 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
   PeriodoDAL       --> Acceso
   BitacoraDAL      --> Acceso
   EventoDAL        --> Acceso
+  IntegridadDAL    --> Acceso
+
+  Acceso           -[hidden]right-> DBInicializador
+  DBInicializador  -[hidden]right-> UsuarioDAL
+  UsuarioDAL       -[hidden]right-> MateriaDAL
+  MateriaDAL       -[hidden]right-> AlumnoMateriaDAL
+  AlumnoMateriaDAL -[hidden]right-> InscripcionDAL
+  InscripcionDAL   -[hidden]right-> PeriodoDAL
+  PeriodoDAL       -[hidden]right-> BitacoraDAL
+  BitacoraDAL      -[hidden]right-> EventoDAL
+  EventoDAL        -[hidden]right-> IntegridadDAL
 }
 
 ' ============================================================
@@ -192,8 +256,15 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
 ' ============================================================
 package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
 
+  enum LoginResultado {
+    Exito
+    CredencialesInvalidas
+    UsuarioBloqueado
+    SesionYaActiva
+  }
+
   class LoginBLL {
-    +AutenticarUsuario() : bool
+    +AutenticarUsuario(usuario, contrasena, sessionId) : LoginResultado
   }
 
   class UsuarioBLL {
@@ -201,27 +272,28 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     +CambiarContrasena() : bool
     +ObtenerPerfil() : USUARIO
     +ActualizarDireccion() : bool
+    +Desbloquear(usuario, admin)
+    +ListarBloqueados() : List<USUARIO>
   }
 
   class MateriaBLL {
     +Insertar() / Actualizar() / Eliminar()
     +Listar() : List<MATERIA>
-    +RecomendarMaterias() : List<MATERIA>
+    +Obtener(id) : MATERIA
+    +ListarCorrelativas(idMateria) : List<MATERIA>
   }
 
   class AlumnoMateriaBLL {
+    +Listar(idUsuario) : List<ALUMNO_MATERIA>
     +ActualizarNotas() : bool
-    +CalcularDVH() : int
-    +ActualizarDVV() / VerificarIntegridad() : bool
-    +VerificarTodos() : List<ResultadoIntegridad>
     +ListarConRiesgo() : List<ALUMNO_MATERIA>
     +CalcularPromedioPonderado() : (decimal, string)
   }
 
   class ResultadoIntegridad {
-    +IdUsuario : int
-    +NombreUsuario : string
-    +Ok : bool
+    +EsValido : bool
+    +Errores : List<string>
+    +IdsUsuariosAfectados : List<int>
   }
 
   class InscripcionBLL {
@@ -234,7 +306,6 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
 
   class PeriodoBLL {
     +Listar() : List<PERIODO_ACADEMICO>
-    +ObtenerActual() : PERIODO_ACADEMICO
     +Insertar() : int
     +Actualizar() : bool
   }
@@ -242,7 +313,8 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   class BitacoraBLL {
     +RegistrarLogin() / RegistrarLogout()
     +RegistrarAccion(usuario, accion)
-    +Listar() : List<BITACORA>
+    +ListarPaginado(...) : BitacoraPaginaResultado
+    +ListarUsuariosDistinct() : List<string>
   }
 
   class EventoBLL {
@@ -254,30 +326,59 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
 
   class FeriadosBLL {
     +ObtenerFeriados(anio) : List<Feriado>
-    +ObtenerFeriado(anio, mes, dia) : Feriado
   }
 
-  AlumnoMateriaBLL ..> ResultadoIntegridad
+  class IntegridadBLL {
+    +Verificar{Usuario,Bitacora,Materia,Correlativa,AlumnoMateria,EventoAcademico,PeriodoAcademico,Inscripcion,InscripcionDetalle}() : ResultadoIntegridad
+    +Recalcular{Usuario,Bitacora,Materia,Correlativa,AlumnoMateria,EventoAcademico,PeriodoAcademico,Inscripcion,InscripcionDetalle}()
+    +VerificarTodasLasTablas() : ResultadoIntegridad
+    +RecalcularTodasLasTablas()
+    +CalcularDVHAlumnoMateria(am) : int
+    +RestaurarTodasLasTablas()
+  }
+
+  LoginBLL         ..> LoginResultado
+  IntegridadBLL    ..> ResultadoIntegridad
 
   LoginBLL         --> UsuarioDAL
   LoginBLL         --> BitacoraBLL
+  LoginBLL         --> IntegridadBLL
   UsuarioBLL       --> UsuarioDAL
   UsuarioBLL       --> BitacoraBLL
+  UsuarioBLL       --> IntegridadBLL
   MateriaBLL       --> MateriaDAL
   MateriaBLL       --> BitacoraBLL
+  MateriaBLL       --> IntegridadBLL
   AlumnoMateriaBLL --> AlumnoMateriaDAL
   AlumnoMateriaBLL --> BitacoraBLL
-  AlumnoMateriaBLL --> UsuarioDAL
+  AlumnoMateriaBLL --> IntegridadBLL
   InscripcionBLL   --> InscripcionDAL
   InscripcionBLL   --> PeriodoDAL
   InscripcionBLL   --> AlumnoMateriaDAL
   InscripcionBLL   --> MateriaDAL
   InscripcionBLL   --> BitacoraBLL
+  InscripcionBLL   --> IntegridadBLL
   PeriodoBLL       --> PeriodoDAL
   PeriodoBLL       --> BitacoraBLL
+  PeriodoBLL       --> IntegridadBLL
   BitacoraBLL      --> BitacoraDAL
+  BitacoraBLL      --> IntegridadBLL
   EventoBLL        --> EventoDAL
   EventoBLL        --> BitacoraBLL
+  EventoBLL        --> IntegridadBLL
+  IntegridadBLL    --> IntegridadDAL
+
+  LoginBLL         -[hidden]right-> LoginResultado
+  LoginResultado   -[hidden]right-> UsuarioBLL
+  UsuarioBLL       -[hidden]right-> MateriaBLL
+  MateriaBLL       -[hidden]right-> AlumnoMateriaBLL
+  AlumnoMateriaBLL -[hidden]right-> ResultadoIntegridad
+  ResultadoIntegridad -[hidden]right-> InscripcionBLL
+  InscripcionBLL   -[hidden]right-> PeriodoBLL
+  PeriodoBLL       -[hidden]right-> BitacoraBLL
+  BitacoraBLL      -[hidden]right-> EventoBLL
+  EventoBLL        -[hidden]right-> FeriadosBLL
+  FeriadosBLL      -[hidden]right-> IntegridadBLL
 }
 
 ' ============================================================
@@ -285,14 +386,16 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
 ' ============================================================
 package "WebForms — Presentación" as WEB #FCE7F3 {
 
-  class SiteMaster <<Master>> {
-    +phNavAdmin / phNavAlumno
+  class Site <<Master>> {
+    +phNavAdmin / phNavAlumno / phNavWebmaster
+    +lnkInicio / lblUsuarioNav
     --
     +btnCerrarSesion_Click()
   }
 
   class Login <<Page>> {
     +LoginBLL
+    +IntegridadBLL
   }
 
   class Menu <<Page>> {
@@ -312,12 +415,12 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
 
   class Dashboard <<Page>> {
     +AlumnoMateriaBLL
-    +MateriaBLL
   }
 
   class Calendario <<Page>> {
     +EventoBLL
     +FeriadosBLL
+    +AlumnoMateriaBLL
   }
 
   class Perfil <<Page>> {
@@ -326,11 +429,6 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
 
   class CambiarContrasena <<Page>> {
     +UsuarioBLL
-  }
-
-  class Eventos <<Page>> {
-    +EventoBLL
-    +MateriaBLL
   }
 
   class ExportarPDF <<Page>> {
@@ -345,62 +443,99 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
     +BitacoraBLL
   }
 
-  class Integridad <<Page · Admin>> {
-    +AlumnoMateriaBLL
+  class UsuariosBloqueados <<Page · Admin>> {
+    +UsuarioBLL
+  }
+
+  class Integridad <<Page · Webmaster>> {
+    +IntegridadBLL
   }
 
   Login             --> LoginBLL
+  Login             --> IntegridadBLL
   Menu              --> AlumnoMateriaBLL
   Menu              --> EventoBLL
   Inscripcion       --> InscripcionBLL
   Inscripcion       --> PeriodoBLL
   MisCursadas       --> AlumnoMateriaBLL
+  MisCursadas       --> EventoBLL
   Dashboard         --> AlumnoMateriaBLL
   Calendario        --> EventoBLL
   Calendario        --> FeriadosBLL
+  Calendario        --> AlumnoMateriaBLL
   Perfil            --> UsuarioBLL
   CambiarContrasena --> UsuarioBLL
-  Eventos           --> EventoBLL
   ExportarPDF       --> AlumnoMateriaBLL
   Materias          --> MateriaBLL
   Bitacora          --> BitacoraBLL
-  Integridad        --> AlumnoMateriaBLL
+  UsuariosBloqueados --> UsuarioBLL
+  Integridad        --> IntegridadBLL
+
+  Site               -[hidden]right-> Login
+  Login              -[hidden]right-> Menu
+  Menu               -[hidden]right-> Inscripcion
+  Inscripcion        -[hidden]right-> MisCursadas
+  MisCursadas        -[hidden]right-> Dashboard
+  Dashboard          -[hidden]right-> Calendario
+  Calendario         -[hidden]right-> Perfil
+  Perfil             -[hidden]right-> CambiarContrasena
+  CambiarContrasena  -[hidden]right-> ExportarPDF
+  ExportarPDF        -[hidden]right-> Materias
+  Materias           -[hidden]right-> Bitacora
+  Bitacora           -[hidden]right-> UsuariosBloqueados
+  UsuariosBloqueados -[hidden]right-> Integridad
 }
+
+' ============================================================
+' RELACIÓN DIRECTA WEB → BE (fuera del patrón de capas)
+' Site.Master.cs cierra sesión llamando directamente a
+' BE.SessionRegistry.Instancia.CerrarSesion(), sin pasar por BLL.
+' ============================================================
+Site --> SessionRegistry
 
 ' ============================================================
 ' FLECHAS OCULTAS — fuerzan layout vertical: WEB → BLL → DAL → BE
 ' ============================================================
 ' WEB sobre BLL
-SiteMaster       -[hidden]down-> LoginBLL
-Login            -[hidden]down-> UsuarioBLL
-Dashboard        -[hidden]down-> MateriaBLL
-Eventos          -[hidden]down-> AlumnoMateriaBLL
-Calendario       -[hidden]down-> InscripcionBLL
-ExportarPDF      -[hidden]down-> PeriodoBLL
-Bitacora         -[hidden]down-> BitacoraBLL
-Integridad       -[hidden]down-> EventoBLL
-MisCursadas      -[hidden]down-> FeriadosBLL
+Site               -[hidden]down-> LoginBLL
+Login              -[hidden]down-> LoginResultado
+Menu               -[hidden]down-> UsuarioBLL
+Inscripcion        -[hidden]down-> MateriaBLL
+MisCursadas        -[hidden]down-> AlumnoMateriaBLL
+Dashboard          -[hidden]down-> ResultadoIntegridad
+Calendario         -[hidden]down-> InscripcionBLL
+Perfil             -[hidden]down-> PeriodoBLL
+CambiarContrasena  -[hidden]down-> BitacoraBLL
+ExportarPDF        -[hidden]down-> FeriadosBLL
+Materias           -[hidden]down-> IntegridadBLL
+Bitacora           -[hidden]down-> LoginBLL
+UsuariosBloqueados -[hidden]down-> UsuarioBLL
+Integridad         -[hidden]down-> IntegridadBLL
 
 ' BLL sobre DAL
-LoginBLL         -[hidden]down-> Acceso
-UsuarioBLL       -[hidden]down-> UsuarioDAL
-MateriaBLL       -[hidden]down-> MateriaDAL
-AlumnoMateriaBLL -[hidden]down-> AlumnoMateriaDAL
-InscripcionBLL   -[hidden]down-> InscripcionDAL
-PeriodoBLL       -[hidden]down-> PeriodoDAL
-BitacoraBLL      -[hidden]down-> BitacoraDAL
-EventoBLL        -[hidden]down-> EventoDAL
-FeriadosBLL      -[hidden]down-> DBInicializador
+LoginBLL         -[hidden]down-> UsuarioDAL
+LoginResultado   -[hidden]down-> Acceso
+UsuarioBLL       -[hidden]down-> MateriaDAL
+MateriaBLL       -[hidden]down-> AlumnoMateriaDAL
+AlumnoMateriaBLL -[hidden]down-> InscripcionDAL
+ResultadoIntegridad -[hidden]down-> PeriodoDAL
+InscripcionBLL   -[hidden]down-> BitacoraDAL
+PeriodoBLL       -[hidden]down-> EventoDAL
+BitacoraBLL      -[hidden]down-> IntegridadDAL
+EventoBLL        -[hidden]down-> DBInicializador
+FeriadosBLL      -[hidden]down-> UsuarioDAL
+IntegridadBLL    -[hidden]down-> IntegridadDAL
 
 ' DAL sobre BE
 Acceso           -[hidden]down-> USUARIO
-UsuarioDAL       -[hidden]down-> MATERIA
-MateriaDAL       -[hidden]down-> ALUMNO_MATERIA
-AlumnoMateriaDAL -[hidden]down-> INSCRIPCION
-InscripcionDAL   -[hidden]down-> PERIODO_ACADEMICO
-PeriodoDAL       -[hidden]down-> EVENTO_ACADEMICO
-BitacoraDAL      -[hidden]down-> BITACORA
+DBInicializador  -[hidden]down-> MATERIA
+UsuarioDAL       -[hidden]down-> ALUMNO_MATERIA
+MateriaDAL       -[hidden]down-> INSCRIPCION
+AlumnoMateriaDAL -[hidden]down-> PERIODO_ACADEMICO
+InscripcionDAL   -[hidden]down-> EVENTO_ACADEMICO
+PeriodoDAL       -[hidden]down-> BITACORA
+BitacoraDAL      -[hidden]down-> BitacoraPaginaResultado
 EventoDAL        -[hidden]down-> AESHelper
-DBInicializador  -[hidden]down-> HashHelper
+IntegridadDAL    -[hidden]down-> HashHelper
 
 @enduml

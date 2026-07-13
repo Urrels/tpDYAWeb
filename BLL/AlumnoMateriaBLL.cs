@@ -12,13 +12,6 @@ namespace BLL
 
         public List<BE.ALUMNO_MATERIA> Listar(int idUsuario) => _dal.Listar(idUsuario);
 
-        public bool Inscribir(BE.ALUMNO_MATERIA am, string usuarioAccion)
-        {
-            bool ok = _dal.Insertar(am);
-            if (ok) _bitacora.RegistrarAccion(usuarioAccion, $"INSCRIPCION_MATERIA:{am.IdMateria}");
-            return ok;
-        }
-
         // El DVH/DVV de ALUMNO_MATERIA ahora se calcula con el mecanismo
         // genérico de integridad (BE.CalculadorDVH + IntegridadBLL), con el
         // mismo orden canónico de columnas usado por

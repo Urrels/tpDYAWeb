@@ -11,8 +11,6 @@ namespace BLL
 
         public List<BE.PERIODO_ACADEMICO> Listar() => _dal.Listar();
 
-        public BE.PERIODO_ACADEMICO ObtenerActual() => _dal.ObtenerActual();
-
         public int Insertar(BE.PERIODO_ACADEMICO p, string usuarioAccion)
         {
             int id = _dal.Insertar(p);
