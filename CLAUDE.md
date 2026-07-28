@@ -10,7 +10,7 @@ The app starts at `Login.aspx` (configured as default document in `Web.config`).
 
 ## Database Setup
 
-Run `WebApplication12/BD_Universidad.sql` once against SQL Server to create the database `BDUNIVERSIDAD`, all tables, all stored procedures, the admin user, and the full plan de estudios (51 materias, 43 correlativas).
+Run `DAL/BD_Universidad.sql` once against SQL Server to create the database `BDUNIVERSIDAD`, all tables, all stored procedures, the admin user, and the full plan de estudios (51 materias, 43 correlativas).
 
 The connection string is hardcoded in `DAL/Acceso.cs`:
 ```
