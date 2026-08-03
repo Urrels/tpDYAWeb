@@ -4,8 +4,8 @@
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4><i class="bi bi-shield-lock-fill me-2"></i>Integridad de Datos</h4>
-        <asp:Button ID="btnVerificar" runat="server" Text="Verificar todos"
-                    CssClass="btn btn-primary btn-sm" OnClick="btnVerificar_Click"/>
+        <asp:Button ID="btnBackup" runat="server" Text="Backup" CausesValidation="false"
+                    CssClass="btn btn-outline-secondary btn-sm" OnClick="btnBackup_Click"/>
     </div>
 
     <asp:Label ID="lblMsg" runat="server" CssClass="alert d-block mb-3" Visible="false"/>
@@ -47,8 +47,6 @@
                                 CssClass="btn btn-outline-secondary btn-sm me-2" OnClick="btnCancelar_Click"/>
                     <asp:Button ID="btnRecalcular" runat="server" Text="Recalcular dígitos verificadores"
                                 CssClass="btn btn-warning btn-sm me-2" OnClick="btnRecalcular_Click"/>
-                    <asp:Button ID="btnBackup" runat="server" Text="Backup" CausesValidation="false"
-                                CssClass="btn btn-outline-secondary btn-sm me-2" OnClick="btnBackup_Click"/>
                     <asp:Button ID="btnRestaurar" runat="server" Text="Restaurar base de datos"
                                 CssClass="btn btn-danger btn-sm"
                                 OnClientClick="return confirm('¿Restaurar la base de datos al último estado válido conocido? Se perderán los cambios posteriores.');"

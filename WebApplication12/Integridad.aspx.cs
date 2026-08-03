@@ -15,11 +15,9 @@ namespace CAPAS_Web
             {
                 Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
             }
-        }
 
-        protected void btnVerificar_Click(object sender, EventArgs e)
-        {
-            MostrarResultado(_bll.VerificarTodasLasTablas());
+            if (!IsPostBack)
+                MostrarResultado(_bll.VerificarTodasLasTablas());
         }
 
         /// <summary>

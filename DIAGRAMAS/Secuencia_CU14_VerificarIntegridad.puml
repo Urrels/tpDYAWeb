@@ -15,8 +15,9 @@ participant "IntegridadBLL" as BLL <<BLL>>
 participant "IntegridadDAL" as DAL <<DAL>>
 database "SQL Server" as DB <<BD>>
 
-WM -> PAGE : clic en "Verificar todos" (btnVerificar_Click)
+WM -> PAGE : ingresa a Integridad.aspx
 activate PAGE
+PAGE -> PAGE : Page_Load (!IsPostBack)
 PAGE -> BLL : VerificarTodasLasTablas()
 activate BLL
 
@@ -86,5 +87,10 @@ end note
 
 PAGE --> WM : muestra resultado por tabla
 deactivate PAGE
+
+note over PAGE
+  El botón "Backup" (ExportarBackupJson) está siempre visible/habilitado,
+  independientemente de EsValido — no depende de este flujo de verificación.
+end note
 
 @enduml
