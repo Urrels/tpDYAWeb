@@ -4,8 +4,8 @@
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4><i class="bi bi-shield-lock-fill me-2"></i>Integridad de Datos</h4>
-        <asp:Button ID="btnVerificar" runat="server" Text="Verificar todos"
-                    CssClass="btn btn-primary btn-sm" OnClick="btnVerificar_Click"/>
+        <asp:Button ID="btnBackup" runat="server" Text="Backup" CausesValidation="false"
+                    CssClass="btn btn-outline-secondary btn-sm" OnClick="btnBackup_Click"/>
     </div>
 
     <asp:Label ID="lblMsg" runat="server" CssClass="alert d-block mb-3" Visible="false"/>
@@ -51,6 +51,19 @@
                                 CssClass="btn btn-danger btn-sm"
                                 OnClientClick="return confirm('¿Restaurar la base de datos al último estado válido conocido? Se perderán los cambios posteriores.');"
                                 OnClick="btnRestaurar_Click"/>
+
+                    <div class="mt-3 pt-3 border-top">
+                        <p class="text-muted small mb-2">
+                            O restaurar usando un archivo de backup (.json) descargado previamente,
+                            en vez del último estado guardado internamente:
+                        </p>
+                        <asp:FileUpload ID="fileBackup" runat="server"
+                                         CssClass="form-control form-control-sm d-inline-block me-2" style="width:auto;"/>
+                        <asp:Button ID="btnRestaurarDesdeBackup" runat="server" Text="Restaurar desde backup"
+                                    CausesValidation="false" CssClass="btn btn-outline-danger btn-sm"
+                                    OnClientClick="return confirm('¿Restaurar la base de datos usando el archivo de backup seleccionado? Se perderán los cambios posteriores a ese backup.');"
+                                    OnClick="btnRestaurarDesdeBackup_Click"/>
+                    </div>
                 </asp:Panel>
             </div>
         </div>

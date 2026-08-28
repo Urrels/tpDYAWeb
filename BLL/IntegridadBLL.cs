@@ -519,6 +519,79 @@ namespace BLL
         }
 
         // =====================================================
+        // Backup — exporta a JSON el snapshot actual de las 9 tablas
+        // (el mismo que usa Restaurar), como respaldo externo descargable.
+        // No modifica nada en la base.
+        // =====================================================
+
+        public string ExportarBackupJson()
+        {
+            var tablas = new[]
+            {
+                "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
+                "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE"
+            };
+
+            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var tablasData = new Dictionary<string, object>();
+
+            foreach (var tabla in tablas)
+            {
+                string json = _dal.ObtenerSnapshot(tabla);
+                tablasData[tabla] = string.IsNullOrEmpty(json)
+                    ? new object[0]
+                    : serializer.DeserializeObject(json);
+            }
+
+            var backup = new Dictionary<string, object>
+            {
+                { "FechaBackup", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
+                { "Tablas", tablasData }
+            };
+
+            return serializer.Serialize(backup);
+        }
+
+        /// <summary>
+        /// Restaura las 9 tablas usando un backup externo (el .json generado
+        /// por <see cref="ExportarBackupJson"/>) en vez del snapshot interno
+        /// de la base. Sirve para el caso que el snapshot interno no cubre:
+        /// si SNAPSHOT_INTEGRIDAD también se corrompió o se perdió junto con
+        /// los datos.
+        ///
+        /// Estrategia: sobreescribe SNAPSHOT_INTEGRIDAD con el contenido del
+        /// backup subido (tabla por tabla) y después reutiliza el mecanismo
+        /// de <see cref="RestaurarTodasLasTablas"/> ya existente y probado,
+        /// en vez de duplicar la lógica de borrado/upsert.
+        /// </summary>
+        public void RestaurarDesdeBackupJson(string backupJson)
+        {
+            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var backup = (Dictionary<string, object>)serializer.DeserializeObject(backupJson);
+
+            if (!backup.TryGetValue("Tablas", out object tablasObj))
+                throw new ArgumentException("El archivo no tiene el formato de backup esperado (falta 'Tablas').");
+
+            var tablasData = (Dictionary<string, object>)tablasObj;
+            var tablas = new[]
+            {
+                "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
+                "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE"
+            };
+
+            foreach (var tabla in tablas)
+            {
+                if (!tablasData.TryGetValue(tabla, out object filas))
+                    throw new ArgumentException($"El backup no contiene datos para la tabla {tabla}.");
+
+                string jsonTabla = serializer.Serialize(filas);
+                _dal.GuardarSnapshot(tabla, jsonTabla);
+            }
+
+            RestaurarTodasLasTablas();
+        }
+
+        // =====================================================
         // Restore — devuelve las 9 tablas al último estado guardado en
         // SNAPSHOT_INTEGRIDAD. Dos fases (ver detalle en cada método) para
         // no violar ninguna Foreign Key entre tablas.

@@ -15,11 +15,9 @@ namespace CAPAS_Web
             {
                 Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
             }
-        }
 
-        protected void btnVerificar_Click(object sender, EventArgs e)
-        {
-            MostrarResultado(_bll.VerificarTodasLasTablas());
+            if (!IsPostBack)
+                MostrarResultado(_bll.VerificarTodasLasTablas());
         }
 
         /// <summary>
@@ -36,6 +34,23 @@ namespace CAPAS_Web
         }
 
         /// <summary>
+        /// No modifica la base: descarga como .json el snapshot actual de
+        /// las 9 tablas (el mismo que usaría Restaurar), para tener un
+        /// respaldo externo antes de aplicar una acción irreversible.
+        /// </summary>
+        protected void btnBackup_Click(object sender, EventArgs e)
+        {
+            string json = _bll.ExportarBackupJson();
+            string nombreArchivo = $"backup_integridad_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+
+            Response.Clear();
+            Response.ContentType = "application/json";
+            Response.AddHeader("Content-Disposition", $"attachment; filename={nombreArchivo}");
+            Response.Write(json);
+            Response.End();
+        }
+
+        /// <summary>
         /// Acción destructiva/irreversible: devuelve las 9 tablas al último
         /// estado guardado en el snapshot (confirmación ya pedida en el
         /// cliente vía OnClientClick antes de llegar a este postback).
@@ -43,6 +58,39 @@ namespace CAPAS_Web
         protected void btnRestaurar_Click(object sender, EventArgs e)
         {
             _bll.RestaurarTodasLasTablas();
+            MostrarResultado(_bll.VerificarTodasLasTablas());
+        }
+
+        /// <summary>
+        /// Restaura usando el .json subido por el usuario (generado antes con
+        /// "Backup") en vez del snapshot interno de la base — cubre el caso
+        /// en que el snapshot interno también se perdió o corrompió junto
+        /// con los datos.
+        /// </summary>
+        protected void btnRestaurarDesdeBackup_Click(object sender, EventArgs e)
+        {
+            if (!fileBackup.HasFile)
+            {
+                MostrarMsg("alert-warning",
+                    "<i class='bi bi-exclamation-triangle me-2'></i>Elegí un archivo de backup (.json) antes de restaurar.");
+                return;
+            }
+
+            string json;
+            using (var reader = new System.IO.StreamReader(fileBackup.FileContent))
+                json = reader.ReadToEnd();
+
+            try
+            {
+                _bll.RestaurarDesdeBackupJson(json);
+            }
+            catch (Exception ex)
+            {
+                MostrarMsg("alert-danger",
+                    "<i class='bi bi-exclamation-triangle me-2'></i>No se pudo restaurar desde el backup: " + ex.Message);
+                return;
+            }
+
             MostrarResultado(_bll.VerificarTodasLasTablas());
         }
 
