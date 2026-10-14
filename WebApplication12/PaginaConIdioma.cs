@@ -29,7 +29,8 @@ namespace CAPAS_Web
             IdiomaWeb.Fachada.AplicarPredeterminadoSiHaceFalta();
 
             GuardarDefaults(Controls);
-            if (!string.IsNullOrWhiteSpace(Title))
+            // Page.Title lanza una excepción si el <head> no es runat="server" (como en Login.aspx).
+            if (Header != null && !string.IsNullOrWhiteSpace(Title))
             {
                 _claveTitulo = GetType().BaseType.Name;
                 _tituloDefault = Title;
