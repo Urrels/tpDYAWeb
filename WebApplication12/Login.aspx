@@ -52,7 +52,7 @@
                         </div>
                         <div class="modal-body text-center py-4">
                             <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3rem;"></i>
-                            <p class="mt-3 mb-0">El sistema no se encuentra disponible en este momento, intente más tarde.</p>
+                            <p class="mt-3 mb-0"><%: CAPAS_Web.PaginaBase.MensajeSistemaNoDisponible %></p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary"
