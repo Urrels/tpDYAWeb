@@ -1661,6 +1661,11 @@ GO
 -- migra cada usuario según su USUARIO.ROL y elimina esa columna.
 -- Después de ejecutarlo la aplicación recalcula DVH/DVV de las tablas
 -- nuevas la primera vez que arranca (ver Global.asax.cs).
+--
+-- REGLA: todo seed idempotente que inserta filas en una tabla con integridad
+-- (DVH/DVV) descarta el DVV y el snapshot de esa tabla solo si insertó algo
+-- (@@ROWCOUNT > 0). Así el arranque de la aplicación la recalcula; de lo
+-- contrario la verificación vería las filas nuevas como alteraciones.
 -- =============================================
 
 USE BDUNIVERSIDAD
@@ -1746,6 +1751,12 @@ FROM (VALUES
     ('Cambiar contrasena')
 ) v(NOMBRE)
 WHERE NOT EXISTS (SELECT 1 FROM PERMISO p WHERE p.NOMBRE = v.NOMBRE)
+
+IF @@ROWCOUNT > 0
+BEGIN
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'PERMISO';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'PERMISO';
+END
 GO
 
 -- ---------------------------------------------
@@ -1760,6 +1771,12 @@ FROM (VALUES
     ('Alumno',        0)
 ) v(NOMBRE, PROTEGIDO)
 WHERE NOT EXISTS (SELECT 1 FROM ROL r WHERE r.NOMBRE = v.NOMBRE)
+
+IF @@ROWCOUNT > 0
+BEGIN
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'ROL';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'ROL';
+END
 GO
 
 -- Permisos de cada perfil base. Solo se siembran para un perfil que todavía
@@ -1791,6 +1808,12 @@ FROM (VALUES
 JOIN ROL     r ON r.NOMBRE = m.ROL
 JOIN PERMISO p ON p.NOMBRE = m.PERMISO
 WHERE NOT EXISTS (SELECT 1 FROM ROL_PERMISO x WHERE x.ROL_ID = r.ID)
+
+IF @@ROWCOUNT > 0
+BEGIN
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'ROL_PERMISO';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'ROL_PERMISO';
+END
 GO
 
 -- ---------------------------------------------
@@ -1826,6 +1849,8 @@ BEGIN
     -- había quedan obsoletos y se regeneran al recalcular la integridad.
     DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
     DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO';
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO_PERFIL';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO_PERFIL';
 END
 GO
 
@@ -1836,13 +1861,21 @@ GO
 -- ---------------------------------------------
 
 IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'admin')
+BEGIN
     INSERT INTO USUARIO (USUARIO, PASS)
     VALUES ('admin', '3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2');
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO';
+END
 GO
 
 IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'webmaster')
+BEGIN
     INSERT INTO USUARIO (USUARIO, PASS)
     VALUES ('webmaster', '407c21d8ba9449b1f2e7ef81db1cbca0e1a702998de688e42dd468f2079d31f8');
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO';
+END
 GO
 
 -- Solo se asigna el perfil a un usuario que todavía no tiene ninguno.
@@ -1852,6 +1885,12 @@ FROM (VALUES ('admin', 'Administrador'), ('webmaster', 'Webmaster')) m(USUARIO, 
 JOIN USUARIO u ON u.USUARIO = m.USUARIO
 JOIN ROL     r ON r.NOMBRE  = m.ROL
 WHERE NOT EXISTS (SELECT 1 FROM USUARIO_PERFIL up WHERE up.USUARIO_ID = u.ID)
+
+IF @@ROWCOUNT > 0
+BEGIN
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO_PERFIL';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO_PERFIL';
+END
 GO
 
 -- ---------------------------------------------
@@ -2272,6 +2311,12 @@ GO
 INSERT INTO PERMISO (NOMBRE)
 SELECT 'Gestionar usuarios'
 WHERE NOT EXISTS (SELECT 1 FROM PERMISO WHERE NOMBRE = 'Gestionar usuarios')
+
+IF @@ROWCOUNT > 0
+BEGIN
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'PERMISO';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'PERMISO';
+END
 GO
 
 -- Administrador es un perfil protegido (solo lectura desde la aplicación):
@@ -2282,6 +2327,12 @@ FROM ROL r
 JOIN PERMISO p ON p.NOMBRE = 'Gestionar usuarios'
 WHERE r.NOMBRE = 'Administrador'
   AND NOT EXISTS (SELECT 1 FROM ROL_PERMISO x WHERE x.ROL_ID = r.ID AND x.PERMISO_ID = p.ID)
+
+IF @@ROWCOUNT > 0
+BEGIN
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'ROL_PERMISO';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'ROL_PERMISO';
+END
 GO
 
 IF OBJECT_ID('USUARIO_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE USUARIO_INSERTAR
