@@ -230,6 +230,10 @@
     <Compile Include="Materias.aspx.designer.cs">
       <DependentUpon>Materias.aspx</DependentUpon>
     </Compile>
+    <Compile Include="MateriasService.asmx.cs">
+      <DependentUpon>MateriasService.asmx</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Menu.aspx.cs">
       <DependentUpon>Menu.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -286,6 +290,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Materias.aspx" />
+    <Content Include="MateriasService.asmx" />
     <Content Include="Notas.aspx" />
     <Content Include="MisCursadas.aspx" />
     <Content Include="Calendario.aspx" />
