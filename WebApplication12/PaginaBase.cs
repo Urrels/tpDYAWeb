@@ -53,7 +53,13 @@ namespace CAPAS_Web
             }
 
             // Si algún perfil cambió desde que se calcularon los permisos de la sesión, se recalculan.
-            new BLL.PerfilBLL().RefrescarPermisosSiHaceFalta(usuario);
+            if (!new BLL.PerfilBLL().RefrescarPermisosSiHaceFalta(usuario))
+            {
+                // El usuario fue dado de baja mientras tenía la sesión abierta.
+                Session.Abandon();
+                Response.Redirect("~/Login.aspx", true);
+                return;
+            }
 
             if (!TieneAcceso(usuario))
             {

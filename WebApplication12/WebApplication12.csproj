@@ -132,6 +132,7 @@
     <Content Include="UsuariosBloqueados.aspx" />
     <Content Include="Perfiles.aspx" />
     <Content Include="AsignarPerfiles.aspx" />
+    <Content Include="Usuarios.aspx" />
     <Content Include="Dashboard.aspx" />
     <Content Include="Inscripcion.aspx" />
     <Content Include="Global.asax" />
@@ -175,6 +176,13 @@
     </Compile>
     <Compile Include="AsignarPerfiles.aspx.designer.cs">
       <DependentUpon>AsignarPerfiles.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Usuarios.aspx.cs">
+      <DependentUpon>Usuarios.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Usuarios.aspx.designer.cs">
+      <DependentUpon>Usuarios.aspx</DependentUpon>
     </Compile>
     <Compile Include="Calendario.aspx.cs">
       <DependentUpon>Calendario.aspx</DependentUpon>

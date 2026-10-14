@@ -64,6 +64,12 @@ namespace CAPAS_Web
                 BE.SessionManager.getInstane().cerrarSesion();
                 Response.Redirect(inicio);
             }
+            else if (resultado == BLL.LoginResultado.UsuarioInactivo)
+            {
+                lblError.Text = "Tu cuenta fue dada de baja. Contactá a un administrador.";
+                lblError.Visible = true;
+                txtContrasena.Text = "";
+            }
             else if (resultado == BLL.LoginResultado.UsuarioBloqueado)
             {
                 lblError.Text = "Tu cuenta fue bloqueada por demasiados intentos fallidos. Contactá a un administrador para desbloquearla.";

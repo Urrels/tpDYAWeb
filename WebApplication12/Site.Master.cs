@@ -28,6 +28,7 @@ namespace CAPAS_Web
             phNavPeriodos.Visible    = u.TienePermiso(BE.Permisos.GestionarPeriodos);
             phNavBitacora.Visible    = u.TienePermiso(BE.Permisos.VerBitacora);
             phNavBloqueados.Visible  = u.TienePermiso(BE.Permisos.DesbloquearUsuarios);
+            phNavUsuarios.Visible    = u.TienePermiso(BE.Permisos.GestionarUsuarios);
             phNavPerfiles.Visible    = u.TienePermiso(BE.Permisos.GestionarPerfiles);
             phNavAsignarPerfiles.Visible = phNavPerfiles.Visible;
             phNavInscripcion.Visible = u.TienePermiso(BE.Permisos.Inscribirse);
@@ -40,7 +41,8 @@ namespace CAPAS_Web
 
             // Cada sección solo se muestra si alguno de sus enlaces es visible.
             phSeccionGestion.Visible       = phNavMaterias.Visible || phNavNotas.Visible || phNavPeriodos.Visible
-                                             || phNavBitacora.Visible || phNavBloqueados.Visible || phNavPerfiles.Visible;
+                                             || phNavBitacora.Visible || phNavBloqueados.Visible || phNavPerfiles.Visible
+                                             || phNavUsuarios.Visible;
             phSeccionAcademico.Visible     = phNavInscripcion.Visible || phNavMisCursadas.Visible || phNavCalendario.Visible;
             phSeccionHerramientas.Visible  = phNavDashboard.Visible;
             phSeccionMantenimiento.Visible = phNavIntegridad.Visible;
