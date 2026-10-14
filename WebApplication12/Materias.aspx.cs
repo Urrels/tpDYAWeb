@@ -16,9 +16,14 @@ namespace CAPAS_Web
 
         private void CargarGrilla()
         {
-            gvMaterias.DataSource = _bll.Listar();
+            // La BLL ajusta la página a la última real (p. ej. tras dar de baja la única fila de la última).
+            var resultado = _bll.ListarPaginado(paginador.PaginaActual, paginador.TamanioPagina);
+            gvMaterias.DataSource = resultado.Filas;
             gvMaterias.DataBind();
+            paginador.Establecer(resultado);
         }
+
+        protected void paginador_CambioPagina(object sender, EventArgs e) => CargarGrilla();
 
         protected void btnNueva_Click(object sender, EventArgs e)
         {
@@ -45,6 +50,9 @@ namespace CAPAS_Web
             MostrarMsg(ok ? "alert-success" : "alert-danger",
                        ok ? "✔ Guardado." : "✖ Error al guardar.");
             pnlForm.Visible = false;
+            // Una materia nueva queda al final (ORDER BY ID): se salta a la página donde caería con una fila más.
+            if (ok && m.Id == 0)
+                paginador.PaginaActual = (paginador.TotalFilas + paginador.TamanioPagina) / paginador.TamanioPagina;
             CargarGrilla();
         }
 

@@ -1,5 +1,6 @@
 <%@ Page Title="Bitácora" Language="C#" MasterPageFile="~/Site.Master"
          AutoEventWireup="true" CodeBehind="Bitacora.aspx.cs" Inherits="CAPAS_Web.Bitacora" %>
+<%@ Register Src="~/Paginador.ascx" TagPrefix="uc" TagName="Paginador" %>
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
     <h4 class="mb-4"><i class="bi bi-clipboard-data me-2"></i>Bitácora del Sistema</h4>
@@ -62,11 +63,5 @@
         </asp:GridView>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mt-3">
-        <asp:Button ID="btnAnterior" runat="server" Text="Anterior" CausesValidation="false"
-                    CssClass="btn btn-outline-secondary btn-sm" OnClick="btnAnterior_Click"/>
-        <asp:Label ID="lblPagina" runat="server" CssClass="text-muted small"/>
-        <asp:Button ID="btnSiguiente" runat="server" Text="Siguiente" CausesValidation="false"
-                    CssClass="btn btn-outline-secondary btn-sm" OnClick="btnSiguiente_Click"/>
-    </div>
+    <uc:Paginador ID="paginador" runat="server" TamanioPagina="50" OnCambioPagina="paginador_CambioPagina"/>
 </asp:Content>

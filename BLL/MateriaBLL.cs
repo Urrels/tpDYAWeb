@@ -45,6 +45,9 @@ namespace BLL
 
         public List<BE.MATERIA> Listar() => _dal.Listar();
 
+        public BE.PaginaResultado<BE.MATERIA> ListarPaginado(int pagina, int tamanio) =>
+            Paginacion.ConsultarAjustando(pagina, p => _dal.ListarPaginado(p, tamanio));
+
         public BE.MATERIA Obtener(int id)
         {
             var m = _dal.Obtener(id);

@@ -97,9 +97,12 @@ package "BE — Entidades" as BE #DBEAFE {
     +Criticidad : string
   }
 
-  class BitacoraPaginaResultado {
-    +Filas : List<BITACORA>
+  class "PaginaResultado<T>" as PaginaResultado {
+    +Filas : List<T>
     +TotalFilas : int
+    +Pagina : int
+    +Tamanio : int
+    +TotalPaginas : int
   }
 
   class AESHelper <<static>> {
@@ -132,7 +135,7 @@ package "BE — Entidades" as BE #DBEAFE {
 
   MATERIA "0..*" o-- "0..*" MATERIA : correlativas
   INSCRIPCION *-- "0..*" MATERIA
-  BitacoraPaginaResultado *-- "0..*" BITACORA : Filas
+  PaginaResultado *-- "0..*" BITACORA : Filas (T)
   SessionManager --> USUARIO
 
   USUARIO               -[hidden]right-> MATERIA
@@ -141,8 +144,8 @@ package "BE — Entidades" as BE #DBEAFE {
   INSCRIPCION            -[hidden]right-> PERIODO_ACADEMICO
   PERIODO_ACADEMICO      -[hidden]right-> EVENTO_ACADEMICO
   EVENTO_ACADEMICO       -[hidden]right-> BITACORA
-  BITACORA               -[hidden]right-> BitacoraPaginaResultado
-  BitacoraPaginaResultado -[hidden]right-> AESHelper
+  BITACORA               -[hidden]right-> PaginaResultado
+  PaginaResultado -[hidden]right-> AESHelper
   AESHelper              -[hidden]right-> HashHelper
   HashHelper             -[hidden]right-> CalculadorDVH
   CalculadorDVH          -[hidden]right-> SessionManager
@@ -186,6 +189,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +Insertar() : int
     +Actualizar() / Eliminar() : bool
     +Listar() : List<MATERIA>
+    +ListarPaginado(pagina, tamanio) : PaginaResultado<MATERIA>
     +Obtener(id) : MATERIA
     +ListarCorrelativas() : List<MATERIA>
   }
@@ -214,7 +218,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +Registrar(usuario, accion, criticidad)
     +Listar() : List<BITACORA>
     +ListarUsuariosDistinct() : List<string>
-    +ListarPaginado(...) : BitacoraPaginaResultado
+    +ListarPaginado(...) : PaginaResultado<BITACORA>
   }
 
   class EventoDAL {
@@ -284,6 +288,7 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   class MateriaBLL {
     +Insertar() / Actualizar() / Eliminar()
     +Listar() : List<MATERIA>
+    +ListarPaginado(pagina, tamanio) : PaginaResultado<MATERIA>
     +Obtener(id) : MATERIA
     +ListarCorrelativas(idMateria) : List<MATERIA>
   }
@@ -318,7 +323,7 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   class BitacoraBLL {
     +RegistrarLogin() / RegistrarLogout()
     +RegistrarAccion(usuario, accion)
-    +ListarPaginado(...) : BitacoraPaginaResultado
+    +ListarPaginado(...) : PaginaResultado<BITACORA>
     +ListarUsuariosDistinct() : List<string>
   }
 
@@ -340,6 +345,15 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     +RecalcularTodasLasTablas()
     +CalcularDVHAlumnoMateria(am) : int
     +RestaurarTodasLasTablas()
+  }
+
+  class PerfilBLL {
+    +ListarUsuariosVisiblesPor(actor) : List<USUARIO>
+    +ListarUsuariosVisiblesPor(actor, pagina, tamanio) : PaginaResultado<USUARIO>
+  }
+
+  class Paginacion <<static>> {
+    +ConsultarAjustando(pagina, consulta) : PaginaResultado<T>
   }
 
   LoginBLL         ..> LoginResultado
@@ -372,6 +386,9 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   EventoBLL        --> BitacoraBLL
   EventoBLL        --> IntegridadBLL
   IntegridadBLL    --> IntegridadDAL
+  MateriaBLL       --> Paginacion
+  BitacoraBLL      --> Paginacion
+  PerfilBLL        --> Paginacion
 
   LoginBLL         -[hidden]right-> LoginResultado
   LoginResultado   -[hidden]right-> UsuarioBLL
@@ -384,6 +401,8 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   BitacoraBLL      -[hidden]right-> EventoBLL
   EventoBLL        -[hidden]right-> FeriadosBLL
   FeriadosBLL      -[hidden]right-> IntegridadBLL
+  IntegridadBLL    -[hidden]right-> PerfilBLL
+  PerfilBLL        -[hidden]right-> Paginacion
 }
 
 ' ============================================================
@@ -453,6 +472,21 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
     +BitacoraBLL
   }
 
+  class Usuarios <<Page · Admin>> {
+    +PerfilBLL
+    +Paginador
+  }
+
+  class Paginador <<UserControl>> {
+    +PaginaActual : int
+    +TotalFilas : int
+    +TamanioPagina : int
+    +TotalPaginas : int
+    +CambioPagina : event
+    --
+    +Establecer(resultado : PaginaResultado<T>)
+  }
+
   class UsuariosBloqueados <<Page · Admin>> {
     +UsuarioBLL
   }
@@ -480,6 +514,10 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
   Notas             --> AlumnoMateriaBLL
   Notas             --> UsuarioBLL
   Bitacora          --> BitacoraBLL
+  Bitacora          --> Paginador
+  Materias          --> Paginador
+  Usuarios          --> PerfilBLL
+  Usuarios          --> Paginador
   UsuariosBloqueados --> UsuarioBLL
   Integridad        --> IntegridadBLL
 
@@ -497,6 +535,8 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
   Notas              -[hidden]right-> Bitacora
   Bitacora           -[hidden]right-> UsuariosBloqueados
   UsuariosBloqueados -[hidden]right-> Integridad
+  Integridad         -[hidden]right-> Usuarios
+  Usuarios           -[hidden]right-> Paginador
 }
 
 ' ============================================================
@@ -548,7 +588,7 @@ MateriaDAL       -[hidden]down-> INSCRIPCION
 AlumnoMateriaDAL -[hidden]down-> PERIODO_ACADEMICO
 InscripcionDAL   -[hidden]down-> EVENTO_ACADEMICO
 PeriodoDAL       -[hidden]down-> BITACORA
-BitacoraDAL      -[hidden]down-> BitacoraPaginaResultado
+BitacoraDAL      -[hidden]down-> PaginaResultado
 EventoDAL        -[hidden]down-> AESHelper
 IntegridadDAL    -[hidden]down-> HashHelper
 

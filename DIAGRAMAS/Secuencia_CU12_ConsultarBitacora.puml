@@ -37,9 +37,9 @@ activate DAL
 DAL -> DB : Leer("BITACORA_LISTAR_PAGINADO", params)
 note right of DB : SP: BITACORA_LISTAR_PAGINADO
 DB --> DAL : filas de la página + TOTAL_FILAS
-DAL --> BLL : BE.BitacoraPaginaResultado
+DAL --> BLL : BE.PaginaResultado<BITACORA>
 deactivate DAL
-BLL --> PAGE : BitacoraPaginaResultado
+BLL --> PAGE : PaginaResultado<BITACORA>
 deactivate BLL
 PAGE --> ADM : gvBitacora + "Página 1 de N (total registros)"
 deactivate PAGE
@@ -51,15 +51,15 @@ activate BLL
 note right of PAGE
   fechaHasta se corre +1 día antes de llamar
   al BLL porque el SP usa límite exclusivo
-  (FECHA < @fecha_hasta) — Bitacora.aspx.cs:50
+  (FECHA < @fecha_hasta) — Bitacora.aspx.cs:48
 end note
 BLL -> DAL : ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta, pagina, tamanio)
 activate DAL
 DAL -> DB : Leer("BITACORA_LISTAR_PAGINADO", params)
 DB --> DAL : filas + TOTAL_FILAS
-DAL --> BLL : BE.BitacoraPaginaResultado
+DAL --> BLL : BE.PaginaResultado<BITACORA>
 deactivate DAL
-BLL --> PAGE : BitacoraPaginaResultado
+BLL --> PAGE : PaginaResultado<BITACORA>
 deactivate BLL
 PAGE --> ADM : gvBitacora actualizada + paginado recalculado
 deactivate PAGE
@@ -73,11 +73,11 @@ alt no hay registros que coincidan con los filtros
   activate DAL
   DAL -> DB : Leer("BITACORA_LISTAR_PAGINADO", params)
   DB --> DAL : sin filas (TOTAL_FILAS = 0)
-  DAL --> BLL : BitacoraPaginaResultado (Filas vacío)
+  DAL --> BLL : PaginaResultado<BITACORA> (Filas vacío)
   deactivate DAL
-  BLL --> PAGE : BitacoraPaginaResultado (Filas vacío, TotalFilas = 0)
+  BLL --> PAGE : PaginaResultado<BITACORA> (Filas vacío, TotalFilas = 0)
   deactivate BLL
-  PAGE --> ADM : gvBitacora vacía, "Página 1 de 1 (0 registros)",\nbtnAnterior y btnSiguiente deshabilitados
+  PAGE --> ADM : gvBitacora vacía, Paginador con "Sin registros",\ny botones deshabilitados
   deactivate PAGE
 end
 

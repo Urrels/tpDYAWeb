@@ -53,7 +53,7 @@ namespace DAL
             return lista;
         }
 
-        public BE.BitacoraPaginaResultado ListarPaginado(string usuario, string criticidad, System.DateTime? fechaDesde, System.DateTime? fechaHasta, int pagina, int tamanio)
+        public BE.PaginaResultado<BE.BITACORA> ListarPaginado(string usuario, string criticidad, System.DateTime? fechaDesde, System.DateTime? fechaHasta, int pagina, int tamanio)
         {
             var p = new List<SqlParameter>
             {
@@ -64,7 +64,7 @@ namespace DAL
                 _acceso.CrearParametro("@pagina", pagina),
                 _acceso.CrearParametro("@tamanio", tamanio)
             };
-            var resultado = new BE.BitacoraPaginaResultado { Filas = new List<BE.BITACORA>() };
+            var resultado = new BE.PaginaResultado<BE.BITACORA> { Pagina = pagina, Tamanio = tamanio };
             try
             {
                 _acceso.Abrir();

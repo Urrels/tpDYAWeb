@@ -40,9 +40,14 @@ namespace CAPAS_Web
         private void CargarGrilla()
         {
             _actuables = _bll.ListarUsuariosActuablesPor(UsuarioActual);
-            gvUsuarios.DataSource = _bll.ListarUsuariosVisiblesPor(UsuarioActual);
+            // La BLL filtra por visibilidad, ordena y recién ahí pagina (ajustando la página a la última real).
+            var resultado = _bll.ListarUsuariosVisiblesPor(UsuarioActual, paginador.PaginaActual, paginador.TamanioPagina);
+            gvUsuarios.DataSource = resultado.Filas;
             gvUsuarios.DataBind();
+            paginador.Establecer(resultado);
         }
+
+        protected void paginador_CambioPagina(object sender, EventArgs e) => CargarGrilla();
 
         // Muestra "Dar de baja" o "Reactivar" según el estado del usuario de la fila.
         protected void gvUsuarios_RowDataBound(object sender, GridViewRowEventArgs e)

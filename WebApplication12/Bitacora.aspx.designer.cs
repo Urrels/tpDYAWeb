@@ -13,8 +13,6 @@ namespace CAPAS_Web
         protected global::System.Web.UI.WebControls.Button btnFiltrar;
         protected global::System.Web.UI.WebControls.Button btnLimpiar;
         protected global::System.Web.UI.WebControls.GridView gvBitacora;
-        protected global::System.Web.UI.WebControls.Button btnAnterior;
-        protected global::System.Web.UI.WebControls.Label lblPagina;
-        protected global::System.Web.UI.WebControls.Button btnSiguiente;
+        protected global::CAPAS_Web.Paginador paginador;
     }
 }
