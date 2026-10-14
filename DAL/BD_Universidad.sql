@@ -1791,7 +1791,6 @@ FROM (VALUES
     ('Administrador', 'Desbloquear usuarios'),
     ('Administrador', 'Gestionar periodos e inscripciones'),
     ('Administrador', 'Gestionar perfiles'),
-    ('Administrador', 'Ingresar con integridad invalida'),
     ('Administrador', 'Editar perfil'),
     ('Administrador', 'Cambiar contrasena'),
     ('Webmaster',     'Verificar integridad'),
@@ -2327,6 +2326,22 @@ FROM ROL r
 JOIN PERMISO p ON p.NOMBRE = 'Gestionar usuarios'
 WHERE r.NOMBRE = 'Administrador'
   AND NOT EXISTS (SELECT 1 FROM ROL_PERMISO x WHERE x.ROL_ID = r.ID AND x.PERMISO_ID = p.ID)
+
+IF @@ROWCOUNT > 0
+BEGIN
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'ROL_PERMISO';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'ROL_PERMISO';
+END
+GO
+
+-- Con la integridad inválida solo el Webmaster puede ingresar: se le quita el permiso
+-- "Ingresar con integridad invalida" al Administrador en bases que lo tenían sembrado.
+-- El permiso sigue existiendo (un perfil propio puede recibirlo).
+DELETE rp
+FROM ROL_PERMISO rp
+JOIN ROL     r ON r.ID = rp.ROL_ID
+JOIN PERMISO p ON p.ID = rp.PERMISO_ID
+WHERE r.NOMBRE = 'Administrador' AND p.NOMBRE = 'Ingresar con integridad invalida'
 
 IF @@ROWCOUNT > 0
 BEGIN
