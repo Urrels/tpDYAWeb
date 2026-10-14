@@ -32,12 +32,12 @@ namespace CAPAS_Web
             {
                 _bll.DesbloquearUsuario(usuarioBloqueado, UsuarioActual);
                 lblMsg.CssClass = "alert alert-success d-block mb-3";
-                lblMsg.Text = $"Usuario '{System.Web.HttpUtility.HtmlEncode(usuarioBloqueado)}' desbloqueado correctamente.";
+                lblMsg.Text = Textos.TH("UsuariosBloqueados.msgDesbloqueado", "Usuario '{0}' desbloqueado correctamente.", usuarioBloqueado);
             }
             catch (InvalidOperationException ex)
             {
                 lblMsg.CssClass = "alert alert-danger d-block mb-3";
-                lblMsg.Text = System.Web.HttpUtility.HtmlEncode(ex.Message);
+                lblMsg.Text = Textos.MH(ex.Message);
             }
             lblMsg.Visible = true;
 

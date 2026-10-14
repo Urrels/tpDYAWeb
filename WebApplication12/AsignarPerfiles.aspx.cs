@@ -44,13 +44,13 @@ namespace CAPAS_Web
                 blEfectivos.Items.Clear();
                 List<string> permisos = _bll.ObtenerPermisosEfectivosPor(usuarioId, UsuarioActual);
                 foreach (string nombre in permisos.OrderBy(n => n))
-                    blEfectivos.Items.Add(nombre);
+                    blEfectivos.Items.Add(Textos.Valor(nombre));
                 lblSinPermisos.Visible = permisos.Count == 0;
             }
             catch (InvalidOperationException ex)
             {
                 lblMsg.CssClass = "alert alert-danger d-block mb-3";
-                lblMsg.Text = HttpUtility.HtmlEncode(ex.Message);
+                lblMsg.Text = Textos.MH(ex.Message);
                 lblMsg.Visible = true;
                 blEfectivos.Items.Clear();
                 lblSinPermisos.Visible = false;
@@ -83,17 +83,17 @@ namespace CAPAS_Web
             {
                 _bll.AsignarPerfilesAUsuario(usuarioId, rolIds, UsuarioActual);
                 lblMsg.CssClass = "alert alert-success d-block mb-3";
-                lblMsg.Text = "Asignación guardada.";
+                lblMsg.Text = Textos.TH("AsignarPerfiles.msgGuardada", "Asignación guardada.");
             }
             catch (InvalidOperationException ex)
             {
                 lblMsg.CssClass = "alert alert-danger d-block mb-3";
-                lblMsg.Text = HttpUtility.HtmlEncode(ex.Message);
+                lblMsg.Text = Textos.MH(ex.Message);
             }
             catch (Exception)
             {
                 lblMsg.CssClass = "alert alert-danger d-block mb-3";
-                lblMsg.Text = "Ocurrió un error inesperado al guardar. Revisá el estado y volvé a intentar.";
+                lblMsg.Text = Textos.TH("AsignarPerfiles.msgInesperado", "Ocurrió un error inesperado al guardar. Revisá el estado y volvé a intentar.");
                 try { new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "ERROR_GESTION_PERFILES"); }
                 catch { }
             }

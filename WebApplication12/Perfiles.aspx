@@ -2,7 +2,7 @@
          AutoEventWireup="true" CodeBehind="Perfiles.aspx.cs" Inherits="CAPAS_Web.Perfiles" %>
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
-    <h4 class="mb-4"><i class="bi bi-diagram-3-fill me-2"></i>Perfiles y permisos</h4>
+    <h4 class="mb-4"><i class="bi bi-diagram-3-fill me-2"></i><asp:Literal ID="litPerfilesYPermisos" runat="server" Text="Perfiles y permisos"/></h4>
 
     <asp:Label ID="lblMsg" runat="server" CssClass="alert d-block mb-3" Visible="false"/>
 
@@ -10,13 +10,12 @@
         <div class="col-lg-5">
             <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <h6 class="mb-3">Árbol de perfiles</h6>
+                    <h6 class="mb-3"><asp:Literal ID="litArbolDePerfiles" runat="server" Text="Árbol de perfiles"/></h6>
                     <p class="text-muted small">
                         <i class="bi bi-diagram-3"></i> Perfil &nbsp;·&nbsp;
-                        <i class="bi bi-key"></i> Permiso propio del perfil.
-                        Un perfil incluye también los permisos de los perfiles que contiene.
+                        <i class="bi bi-key"></i> <asp:Literal ID="litPermisoPropioDelPerfil" runat="server" Text="Permiso propio del perfil. Un perfil incluye también los permisos de los perfiles que contiene."/>
                     </p>
-                    <asp:TreeView ID="tvPerfiles" runat="server" ShowLines="true" ExpandDepth="FullyExpand"
+                    <asp:TreeView ID="tvPerfiles" runat="server" SkipLinkText="" ShowLines="true" ExpandDepth="FullyExpand"
                                   OnSelectedNodeChanged="tvPerfiles_SelectedNodeChanged">
                         <SelectedNodeStyle Font-Bold="true" BackColor="#e7f1ff"/>
                     </asp:TreeView>
@@ -25,7 +24,7 @@
 
             <div class="card shadow-sm border-0 mt-3">
                 <div class="card-body">
-                    <h6 class="mb-3">Nuevo perfil</h6>
+                    <h6 class="mb-3"><asp:Literal ID="litNuevoPerfil" runat="server" Text="Nuevo perfil"/></h6>
                     <asp:TextBox ID="txtNuevoNombre" runat="server" CssClass="form-control mb-2"
                                  MaxLength="100" placeholder="Nombre del perfil"/>
                     <asp:Button ID="btnCrearRaiz" runat="server" Text="Crear en la raíz"
@@ -37,8 +36,9 @@
         </div>
 
         <div class="col-lg-7">
-            <asp:Label ID="lblSinSeleccion" runat="server"
-                       Text="<p class='text-muted'>Seleccioná un perfil del árbol para editarlo.</p>"/>
+            <asp:Panel ID="lblSinSeleccion" runat="server">
+                <p class="text-muted"><asp:Literal ID="litSeleccionaUnPerfil" runat="server" Text="Seleccioná un perfil del árbol para editarlo."/></p>
+            </asp:Panel>
 
             <asp:Panel ID="pnlRol" runat="server" Visible="false">
                 <div class="card shadow-sm border-0">
@@ -67,14 +67,14 @@
                             </div>
                         </div>
 
-                        <h6>Permisos propios</h6>
+                        <h6><asp:Literal ID="litPermisosPropios" runat="server" Text="Permisos propios"/></h6>
                         <asp:CheckBoxList ID="cblPermisos" runat="server" CssClass="mb-2"
                                           RepeatColumns="1" CellPadding="2"/>
                         <asp:Button ID="btnGuardarPermisos" runat="server" Text="Guardar permisos"
                                     CssClass="btn btn-primary btn-sm" OnClick="btnGuardarPermisos_Click"/>
 
                         <hr/>
-                        <h6>Permisos efectivos <span class="text-muted small">(propios + heredados de los perfiles que contiene)</span></h6>
+                        <h6><asp:Literal ID="litPermisosEfectivos" runat="server" Text="Permisos efectivos"/> <span class="text-muted small"><asp:Literal ID="litPropiosHeredadosDeLos" runat="server" Text="(propios + heredados de los perfiles que contiene)"/></span></h6>
                         <asp:BulletedList ID="blEfectivos" runat="server" CssClass="small"/>
 
                         <hr/>

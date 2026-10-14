@@ -2,7 +2,7 @@
 
 namespace CAPAS_Web
 {
-    public partial class Login : System.Web.UI.Page
+    public partial class Login : PaginaConIdioma
     {
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -21,7 +21,7 @@ namespace CAPAS_Web
 
             if (string.IsNullOrEmpty(usuario) || string.IsNullOrEmpty(contrasena))
             {
-                lblError.Text = "Completá usuario y contraseña.";
+                lblError.Text = Textos.TH("Login.msgCompletar", "Completá usuario y contraseña.");
                 lblError.Visible = true;
                 return;
             }
@@ -54,37 +54,39 @@ namespace CAPAS_Web
                     // El usuario no tiene ningún permiso que le dé una página de inicio.
                     BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario, Session.SessionID);
                     BE.SessionManager.getInstane().cerrarSesion();
-                    lblError.Text = "Tu cuenta no tiene permisos asignados. Contactá a un administrador.";
+                    lblError.Text = Textos.TH("Login.msgSinPermisos", "Tu cuenta no tiene permisos asignados. Contactá a un administrador.");
                     lblError.Visible = true;
                     txtContrasena.Text = "";
                     return;
                 }
 
                 Session["Usuario"] = u;
+                // Si el usuario eligió un idioma en una sesión anterior, se lo vuelve a aplicar.
+                IdiomaWeb.Fachada.AplicarPreferencia(u.Id);
                 BE.SessionManager.getInstane().cerrarSesion();
                 Response.Redirect(inicio);
             }
             else if (resultado == BLL.LoginResultado.UsuarioInactivo)
             {
-                lblError.Text = "Tu cuenta fue dada de baja. Contactá a un administrador.";
+                lblError.Text = Textos.TH("Login.msgInactivo", "Tu cuenta fue dada de baja. Contactá a un administrador.");
                 lblError.Visible = true;
                 txtContrasena.Text = "";
             }
             else if (resultado == BLL.LoginResultado.UsuarioBloqueado)
             {
-                lblError.Text = "Tu cuenta fue bloqueada por demasiados intentos fallidos. Contactá a un administrador para desbloquearla.";
+                lblError.Text = Textos.TH("Login.msgBloqueado", "Tu cuenta fue bloqueada por demasiados intentos fallidos. Contactá a un administrador para desbloquearla.");
                 lblError.Visible = true;
                 txtContrasena.Text = "";
             }
             else if (resultado == BLL.LoginResultado.SesionYaActiva)
             {
-                lblError.Text = "Ya hay una sesión activa con este usuario. Cerrá la sesión anterior antes de volver a ingresar.";
+                lblError.Text = Textos.TH("Login.msgSesionActiva", "Ya hay una sesión activa con este usuario. Cerrá la sesión anterior antes de volver a ingresar.");
                 lblError.Visible = true;
                 txtContrasena.Text = "";
             }
             else // CredencialesInvalidas
             {
-                lblError.Text = "Usuario o contraseña incorrectos.";
+                lblError.Text = Textos.TH("Login.msgCredenciales", "Usuario o contraseña incorrectos.");
                 lblError.Visible = true;
                 txtContrasena.Text = "";
             }

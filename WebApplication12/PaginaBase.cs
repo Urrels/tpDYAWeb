@@ -8,7 +8,7 @@ namespace CAPAS_Web
     /// permiso que exige y la base se ocupa de redirigir a quien no inició
     /// sesión o no lo tiene.
     /// </summary>
-    public class PaginaBase : System.Web.UI.Page
+    public class PaginaBase : PaginaConIdioma
     {
         // Orden de prioridad para elegir la página de inicio de un usuario
         // según sus permisos.

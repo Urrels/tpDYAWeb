@@ -111,7 +111,7 @@ namespace CAPAS_Web
 
             bool ok = _amBll.ActualizarNotas(am, admin.Usuario);
             MostrarMsg(ok ? "alert-success" : "alert-danger",
-                       ok ? "✔ Notas actualizadas." : "✖ Error.");
+                       ok ? Textos.TH("Notas.msgActualizadas", "✔ Notas actualizadas.") : Textos.TH("Notas.msgError", "✖ Error."));
             pnlNotas.Visible = false;
             CargarGrilla();
         }

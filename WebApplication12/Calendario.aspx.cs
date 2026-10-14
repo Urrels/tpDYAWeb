@@ -27,9 +27,16 @@ namespace CAPAS_Web
             if (!IsPostBack)
             {
                 CargarMateriasDesplegable();
-                RenderizarCalendario();
-                CargarGrillaEventos();
             }
+        }
+
+        // El calendario y la grilla se arman al final del pedido: así reflejan los cambios hechos por el evento
+        // y salen en el idioma vigente (las filas de una tabla creada por código no sobreviven a un postback).
+        protected override void OnPreRender(EventArgs e)
+        {
+            RenderizarCalendario();
+            CargarGrillaEventos();
+            base.OnPreRender(e);
         }
 
         private void CargarMateriasDesplegable()
@@ -52,23 +59,17 @@ namespace CAPAS_Web
         protected void btnAnterior_Click(object sender, EventArgs e)
         {
             if (Mes == 1) { Mes = 12; Anio--; } else Mes--;
-            RenderizarCalendario();
-            CargarGrillaEventos();
         }
 
         protected void btnSiguiente_Click(object sender, EventArgs e)
         {
             if (Mes == 12) { Mes = 1; Anio++; } else Mes++;
-            RenderizarCalendario();
-            CargarGrillaEventos();
         }
 
         protected void btnHoy_Click(object sender, EventArgs e)
         {
             Anio = DateTime.Today.Year;
             Mes  = DateTime.Today.Month;
-            RenderizarCalendario();
-            CargarGrillaEventos();
         }
 
         protected void btnNuevoEvento_Click(object sender, EventArgs e)
@@ -113,14 +114,12 @@ namespace CAPAS_Web
                 : _eventoBll.Actualizar(ev, u.Usuario);
 
             MostrarMsg(ok ? "alert-success" : "alert-danger",
-                ok ? (esNuevo ? "✔ Evento creado." : "✔ Evento actualizado.")
-                   : "✖ Error al guardar el evento.");
+                ok ? (esNuevo ? Textos.TH("Calendario.msgCreado", "✔ Evento creado.") : Textos.TH("Calendario.msgActualizado", "✔ Evento actualizado."))
+                   : Textos.TH("Calendario.msgErrorGuardar", "✖ Error al guardar el evento."));
 
             if (ok)
             {
                 pnlFormEvento.Visible = false;
-                RenderizarCalendario();
-                CargarGrillaEventos();
             }
         }
 
@@ -133,9 +132,7 @@ namespace CAPAS_Web
             {
                 bool ok = _eventoBll.Eliminar(id, u.Usuario);
                 MostrarMsg(ok ? "alert-success" : "alert-danger",
-                    ok ? "✔ Evento eliminado." : "✖ Error al eliminar.");
-                RenderizarCalendario();
-                CargarGrillaEventos();
+                    ok ? Textos.TH("Calendario.msgEliminado", "✔ Evento eliminado.") : Textos.TH("Calendario.msgErrorEliminar", "✖ Error al eliminar."));
                 return;
             }
 
@@ -146,7 +143,7 @@ namespace CAPAS_Web
                 if (ev == null) return;
 
                 hfIdEvento.Value          = ev.Id.ToString();
-                lblTituloForm.Text        = "Editar Evento";
+                lblTituloForm.Text        = Textos.TH("Calendario.tituloEditar", "Editar Evento");
                 txtFechaEvento.Text       = ev.Fecha.ToString("yyyy-MM-ddTHH:mm");
                 ddlTipoEvento.SelectedValue  = ev.Tipo;
                 ddlPesoEvento.SelectedValue  = ev.Peso.ToString();
@@ -162,7 +159,7 @@ namespace CAPAS_Web
         private void LimpiarForm()
         {
             hfIdEvento.Value             = "0";
-            lblTituloForm.Text           = "Nuevo Evento";
+            lblTituloForm.Text           = Textos.TH("Calendario.tituloNuevo", "Nuevo Evento");
             txtFechaEvento.Text          = "";
             txtDescripcionEvento.Text    = "";
             ddlTipoEvento.SelectedIndex  = 0;
@@ -185,7 +182,7 @@ namespace CAPAS_Web
             var rowHead = new TableRow();
             string[] dias = { "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo" };
             foreach (string dia in dias)
-                rowHead.Cells.Add(new TableHeaderCell { Text = dia });
+                rowHead.Cells.Add(new TableHeaderCell { Text = Textos.ValorH(dia) });
             tblCalendario.Rows.Add(rowHead);
 
             DateTime primero  = new DateTime(Anio, Mes, 1);
@@ -221,7 +218,7 @@ namespace CAPAS_Web
                 {
                     string cssF  = esNoLaborable ? "cal-feriado-nombre text-muted" : "cal-feriado-nombre";
                     string icono = esNoLaborable ? "🚫" : "🎌";
-                    html += $"<span class='{cssF}'>{icono} {feriado.Motivo}</span>";
+                    html += $"<span class='{cssF}'>{icono} {System.Web.HttpUtility.HtmlEncode(Textos.Valor(feriado.Motivo))}</span>";
                 }
 
                 foreach (var ev in evsDia)
@@ -232,7 +229,8 @@ namespace CAPAS_Web
                     string icono = ev.Tipo == "Parcial" ? "📝"
                                  : ev.Tipo == "Final"   ? "🎓"
                                  : "📋";
-                    html += $"<span class='{cssEv}'>{icono} <strong>{ev.Fecha:HH:mm}</strong> {ev.Tipo}: {ev.NombreMateria}</span>";
+                    string tipoTexto = Textos.ValorH(ev.Tipo);
+                    html += $"<span class='{cssEv}'>{icono} <strong>{ev.Fecha:HH:mm}</strong> {tipoTexto}: {System.Web.HttpUtility.HtmlEncode(ev.NombreMateria)}</span>";
                 }
 
                 fila.Cells.Add(new TableCell { CssClass = css, Text = html });
@@ -257,7 +255,7 @@ namespace CAPAS_Web
         {
             string[] meses = { "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
                 "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
-            return meses[mes];
+            return Textos.Valor(meses[mes]);
         }
 
         private void MostrarMsg(string css, string texto)

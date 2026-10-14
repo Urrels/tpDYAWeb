@@ -72,7 +72,7 @@ namespace CAPAS_Web
                 else
                     nodo.ChildNodes.Add(new TreeNode
                     {
-                        Text = "<i class='bi bi-key'></i> <span class='text-muted'>" + HttpUtility.HtmlEncode(hijo.Nombre) + "</span>",
+                        Text = "<i class='bi bi-key'></i> <span class='text-muted'>" + HttpUtility.HtmlEncode(Textos.Valor(hijo.Nombre)) + "</span>",
                         Value = "P:" + rol.Id + ":" + hijo.Nombre,
                         SelectAction = TreeNodeSelectAction.None
                     });
@@ -105,7 +105,7 @@ namespace CAPAS_Web
             // Padres posibles: cualquier perfil gestionable que no genere un ciclo (no él mismo ni sus descendientes).
             List<BE.Rol> todos = _bll.ListarRolesGestionablesPor(UsuarioActual);
             ddlPadre.Items.Clear();
-            ddlPadre.Items.Add(new ListItem("(raíz — sin padre)", ""));
+            ddlPadre.Items.Add(new ListItem(Textos.T("Perfiles.sinPadre", "(raíz — sin padre)"), ""));
             foreach (BE.Rol r in todos.OrderBy(x => x.Nombre))
                 if (!BLL.PerfilBLL.GenerariaCiclo(rol.Id, r.Id, todos))
                     ddlPadre.Items.Add(new ListItem(r.Nombre, r.Id.ToString()));
@@ -114,7 +114,7 @@ namespace CAPAS_Web
             List<int> propios = _bll.ObtenerIdsPermisosDirectosPor(rol.Id, UsuarioActual);
             cblPermisos.Items.Clear();
             foreach (BE.Permiso p in _bll.ListarPermisosOtorgablesPor(UsuarioActual))
-                cblPermisos.Items.Add(new ListItem(p.Nombre, p.Id.ToString()) { Selected = propios.Contains(p.Id) });
+                cblPermisos.Items.Add(new ListItem(Textos.Valor(p.Nombre), p.Id.ToString()) { Selected = propios.Contains(p.Id) });
 
             blEfectivos.Items.Clear();
             foreach (string nombre in rol.ObtenerPermisos().OrderBy(n => n))
@@ -191,15 +191,15 @@ namespace CAPAS_Web
             {
                 operacion();
                 alExito?.Invoke();
-                MostrarMsg("alert-success", mensajeExito);
+                MostrarMsg("alert-success", Textos.MH(mensajeExito));
             }
             catch (InvalidOperationException ex)
             {
-                MostrarMsg("alert-danger", HttpUtility.HtmlEncode(ex.Message));
+                MostrarMsg("alert-danger", Textos.MH(ex.Message));
             }
             catch (Exception)
             {
-                MostrarMsg("alert-danger", "Ocurrió un error inesperado al guardar. Revisá el estado y volvé a intentar.");
+                MostrarMsg("alert-danger", Textos.TH("Msg.errorInesperado", "Ocurrió un error inesperado al guardar. Revisá el estado y volvé a intentar."));
                 RegistrarErrorInesperado();
             }
             Recargar();

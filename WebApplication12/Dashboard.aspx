@@ -7,7 +7,7 @@
 </asp:Content>
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
-    <h4 class="mb-4"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Dashboard Académico</h4>
+    <h4 class="mb-4"><i class="bi bi-bar-chart-fill me-2 text-primary"></i><asp:Literal ID="litTitulo" runat="server" Text="Dashboard académico"/></h4>
 
     <div class="row g-4 mb-4">
         <div class="col-md-3">
@@ -20,7 +20,7 @@
                         <div class="stat-number stat-number--primary">
                             <asp:Label ID="lblTotalMaterias" runat="server" Text="0"/>
                         </div>
-                        <div class="text-muted small mt-1">Total Materias</div>
+                        <div class="text-muted small mt-1"><asp:Literal ID="litTotal" runat="server" Text="Total de materias"/></div>
                     </div>
                 </div>
             </div>
@@ -35,7 +35,7 @@
                         <div class="stat-number stat-number--success">
                             <asp:Label ID="lblAprobadas" runat="server" Text="0"/>
                         </div>
-                        <div class="text-muted small mt-1">Aprobadas</div>
+                        <div class="text-muted small mt-1"><asp:Literal ID="litAprobadas" runat="server" Text="Aprobadas"/></div>
                     </div>
                 </div>
             </div>
@@ -50,7 +50,7 @@
                         <div class="stat-number stat-number--warning">
                             <asp:Label ID="lblCursando" runat="server" Text="0"/>
                         </div>
-                        <div class="text-muted small mt-1">Cursando</div>
+                        <div class="text-muted small mt-1"><asp:Literal ID="litCursando" runat="server" Text="Cursando"/></div>
                     </div>
                 </div>
             </div>
@@ -65,7 +65,7 @@
                         <div class="stat-number stat-number--danger">
                             <asp:Label ID="lblFinalPendiente" runat="server" Text="0"/>
                         </div>
-                        <div class="text-muted small mt-1">Final Pendiente</div>
+                        <div class="text-muted small mt-1"><asp:Literal ID="litFinalPendiente" runat="server" Text="Final pendiente"/></div>
                     </div>
                 </div>
             </div>
@@ -76,7 +76,7 @@
         <div class="col-md-7">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="card-section-title">Notas por Materia</h6>
+                    <h6 class="card-section-title"><asp:Literal ID="litNotas" runat="server" Text="Notas por materia"/></h6>
                     <canvas id="chartNotas" height="250"/>
                 </div>
             </div>
@@ -85,7 +85,7 @@
         <div class="col-md-5">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="card-section-title">Estado de Cursadas</h6>
+                    <h6 class="card-section-title"><asp:Literal ID="litEstados" runat="server" Text="Estado de cursadas"/></h6>
                     <canvas id="chartEstados" height="250"/>
                 </div>
             </div>
@@ -97,8 +97,8 @@
     <div class="card border-0 shadow-sm mt-4">
         <div class="card-body">
             <div class="d-flex align-items-center gap-2 mb-2">
-                <h6 class="card-section-title mb-0 me-3">Resumen vía Web Service</h6>
-                <button type="button" id="btnResumenWs" class="btn btn-outline-secondary btn-sm">Consultar MateriasService</button>
+                <h6 class="card-section-title mb-0 me-3"><asp:Literal ID="litWs" runat="server" Text="Resumen vía Web Service"/></h6>
+                <button type="button" id="btnResumenWs" class="btn btn-outline-secondary btn-sm"><asp:Literal ID="litConsultarMateriasservice" runat="server" Text="Consultar MateriasService"/></button>
             </div>
             <div id="wsResumen" class="small text-muted"></div>
         </div>
@@ -106,7 +106,7 @@
 
     <div class="mt-4 text-end">
         <a href="ExportarPDF.aspx" class="btn btn-danger" target="_blank">
-            <i class="bi bi-file-pdf me-2"></i>Exportar PDF
+            <i class="bi bi-file-pdf me-2"></i><asp:Literal ID="litPdf" runat="server" Text="Exportar PDF"/>
         </a>
     </div>
 </asp:Content>
@@ -116,23 +116,23 @@
         // Consume ObtenerResumenAcademico de MateriasService.asmx (JSON); la cookie de sesión viaja sola.
         document.getElementById('btnResumenWs').addEventListener('click', function () {
             var salida = document.getElementById('wsResumen');
-            salida.textContent = 'Consultando…';
+            salida.textContent = '<%= CAPAS_Web.Textos.Js("Dashboard.jsConsultando", "Consultando…") %>';
             fetch('MateriasService.asmx/ObtenerResumenAcademico', {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json; charset=utf-8' },
                 body: '{}'
             }).then(function (r) {
-                if (!r.ok) throw new Error('El servicio respondió ' + r.status + '.');
+                if (!r.ok) throw new Error('<%= CAPAS_Web.Textos.Js("Dashboard.jsRespondio", "El servicio respondió") %>' + ' ' + r.status + '.');
                 return r.json();
             }).then(function (datos) {
                 var d = datos.d;
-                salida.textContent = 'Total: ' + d.TotalMaterias + ' · Aprobadas: ' + d.Aprobadas +
-                    ' · Cursando: ' + d.Cursando + ' · Final pendiente: ' + d.FinalPendiente +
-                    ' · Promedio ponderado: ' + (d.PromedioPonderado > 0 ? d.PromedioPonderado.toFixed(2) : 'sin datos') +
+                salida.textContent = '<%= CAPAS_Web.Textos.Js("Dashboard.jsTotal", "Total:") %>' + ' ' + d.TotalMaterias + ' · ' + '<%= CAPAS_Web.Textos.Js("Dashboard.jsAprobadas", "Aprobadas:") %>' + ' ' + d.Aprobadas +
+                    ' · ' + '<%= CAPAS_Web.Textos.Js("Dashboard.jsCursando", "Cursando:") %>' + ' ' + d.Cursando + ' · ' + '<%= CAPAS_Web.Textos.Js("Dashboard.jsFinalPendiente", "Final pendiente:") %>' + ' ' + d.FinalPendiente +
+                    ' · ' + '<%= CAPAS_Web.Textos.Js("Dashboard.jsPromedio", "Promedio ponderado:") %>' + ' ' + (d.PromedioPonderado > 0 ? d.PromedioPonderado.toFixed(2) : '<%= CAPAS_Web.Textos.Js("Dashboard.jsSinDatos", "sin datos") %>') +
                     ' (' + d.MensajePromedio + ')';
             }).catch(function (e) {
-                salida.textContent = 'No se pudo consultar el servicio: ' + e.message;
+                salida.textContent = '<%= CAPAS_Web.Textos.Js("Dashboard.jsError", "No se pudo consultar el servicio:") %>' + ' ' + e.message;
             });
         });
     </script>
@@ -145,17 +145,17 @@
                     labels: datosNotas.labels,
                     datasets: [
                         {
-                            label: 'Parcial 1',
+                            label: '<%= CAPAS_Web.Textos.Js("Dashboard.jsParcial1", "Parcial 1") %>',
                             data: datosNotas.parcial1,
                             backgroundColor: 'rgba(13,148,136,0.8)'
                         },
                         {
-                            label: 'Parcial 2',
+                            label: '<%= CAPAS_Web.Textos.Js("Dashboard.jsParcial2", "Parcial 2") %>',
                             data: datosNotas.parcial2,
                             backgroundColor: 'rgba(22,163,74,0.8)'
                         },
                         {
-                            label: 'Final',
+                            label: '<%= CAPAS_Web.Textos.Js("Dashboard.jsFinal", "Final") %>',
                             data: datosNotas.final,
                             backgroundColor: 'rgba(217,119,6,0.8)'
                         }

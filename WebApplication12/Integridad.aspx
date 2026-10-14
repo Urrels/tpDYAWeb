@@ -3,7 +3,7 @@
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4><i class="bi bi-shield-lock-fill me-2"></i>Integridad de Datos</h4>
+        <h4><i class="bi bi-shield-lock-fill me-2"></i><asp:Literal ID="litIntegridadDeDatos" runat="server" Text="Integridad de Datos"/></h4>
         <asp:Button ID="btnBackup" runat="server" Text="Backup" CausesValidation="false"
                     CssClass="btn btn-outline-secondary btn-sm" OnClick="btnBackup_Click"/>
     </div>
@@ -13,20 +13,20 @@
     <asp:Panel ID="pnlResultados" runat="server" Visible="false">
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <h6 class="card-section-title mb-3">Alteraciones detectadas</h6>
+                <h6 class="card-section-title mb-3"><asp:Literal ID="litAlteracionesDetectadas" runat="server" Text="Alteraciones detectadas"/></h6>
                 <asp:Repeater ID="rptResultados" runat="server">
                     <HeaderTemplate>
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Detalle</th>
+                                    <th><asp:Literal ID="litDetalle" runat="server" Text="Detalle"/></th>
                                 </tr>
                             </thead>
                             <tbody>
                     </HeaderTemplate>
                     <ItemTemplate>
                         <tr>
-                            <td><i class="bi bi-exclamation-triangle me-2 text-danger"></i><%# Container.DataItem %></td>
+                            <td><i class="bi bi-exclamation-triangle me-2 text-danger"></i><%# CAPAS_Web.Textos.MH((string)Container.DataItem) %></td>
                         </tr>
                     </ItemTemplate>
                     <FooterTemplate>
@@ -34,14 +34,13 @@
                         </table>
                     </FooterTemplate>
                 </asp:Repeater>
-                <asp:Label ID="lblSinAlumnos" runat="server" Visible="false"
-                           Text="<p class='text-muted small mt-2'>No se detectaron alteraciones en ninguna de las 13 tablas de negocio.</p>"/>
+                <asp:Panel ID="lblSinAlumnos" runat="server" Visible="false">
+                    <p class="text-muted small mt-2"><asp:Literal ID="litSinAlteraciones" runat="server" Text="No se detectaron alteraciones en ninguna de las 13 tablas de negocio."/></p>
+                </asp:Panel>
 
                 <asp:Panel ID="pnlAcciones" runat="server" Visible="false" CssClass="mt-3 pt-3 border-top">
                     <p class="text-muted small mb-2">
-                        Elegí cómo continuar: cancelar sin aplicar ningún cambio, aceptar el estado
-                        actual de los datos (recalcular dígitos verificadores) o volver al último
-                        estado válido conocido (restaurar base de datos).
+                        <asp:Literal ID="litElegiComoContinuarCancel" runat="server" Text="Elegí cómo continuar: cancelar sin aplicar ningún cambio, aceptar el estado actual de los datos (recalcular dígitos verificadores) o volver al último estado válido conocido (restaurar base de datos)."/>
                     </p>
                     <asp:Button ID="btnCancelar" runat="server" Text="Cancelar" CausesValidation="false"
                                 CssClass="btn btn-outline-secondary btn-sm me-2" OnClick="btnCancelar_Click"/>
@@ -54,8 +53,7 @@
 
                     <div class="mt-3 pt-3 border-top">
                         <p class="text-muted small mb-2">
-                            O restaurar usando un archivo de backup (.json) descargado previamente,
-                            en vez del último estado guardado internamente:
+                            <asp:Literal ID="litORestaurarUsandoUn" runat="server" Text="O restaurar usando un archivo de backup (.json) descargado previamente, en vez del último estado guardado internamente:"/>
                         </p>
                         <asp:FileUpload ID="fileBackup" runat="server"
                                          CssClass="form-control form-control-sm d-inline-block me-2" style="width:auto;"/>
