@@ -7,7 +7,7 @@ namespace DAL
 {
     /// <summary>
     /// Capa fina sobre <see cref="Acceso"/> para el mecanismo genérico de
-    /// integridad (DVH por fila / DVV por columna) de las 9 tablas de negocio.
+    /// integridad (DVH por fila / DVV por columna) de las 13 tablas de negocio.
     /// Los nombres de tabla usados como clave (@tabla) son los mismos nombres
     /// físicos de la tabla en SQL Server (USUARIO, ALUMNO_MATERIA, etc.).
     /// </summary>
@@ -25,7 +25,11 @@ namespace DAL
             { "EVENTO_ACADEMICO",     "EVENTO_ACADEMICO_LISTAR_PARA_INTEGRIDAD" },
             { "PERIODO_ACADEMICO",    "PERIODO_ACADEMICO_LISTAR_PARA_INTEGRIDAD" },
             { "INSCRIPCION",          "INSCRIPCION_LISTAR_PARA_INTEGRIDAD" },
-            { "INSCRIPCION_DETALLE",  "INSCRIPCION_DETALLE_LISTAR_PARA_INTEGRIDAD" }
+            { "INSCRIPCION_DETALLE",  "INSCRIPCION_DETALLE_LISTAR_PARA_INTEGRIDAD" },
+            { "ROL",                  "ROL_LISTAR_PARA_INTEGRIDAD" },
+            { "PERMISO",              "PERMISO_LISTAR_PARA_INTEGRIDAD" },
+            { "ROL_PERMISO",          "ROL_PERMISO_LISTAR_PARA_INTEGRIDAD" },
+            { "USUARIO_PERFIL",       "USUARIO_PERFIL_LISTAR_PARA_INTEGRIDAD" }
         };
 
         private static readonly Dictionary<string, string> SpActualizarDvh = new Dictionary<string, string>
@@ -38,7 +42,11 @@ namespace DAL
             { "EVENTO_ACADEMICO",     "EVENTO_ACADEMICO_ACTUALIZAR_DVH" },
             { "PERIODO_ACADEMICO",    "PERIODO_ACADEMICO_ACTUALIZAR_DVH" },
             { "INSCRIPCION",          "INSCRIPCION_ACTUALIZAR_DVH" },
-            { "INSCRIPCION_DETALLE",  "INSCRIPCION_DETALLE_ACTUALIZAR_DVH" }
+            { "INSCRIPCION_DETALLE",  "INSCRIPCION_DETALLE_ACTUALIZAR_DVH" },
+            { "ROL",                  "ROL_ACTUALIZAR_DVH" },
+            { "PERMISO",              "PERMISO_ACTUALIZAR_DVH" },
+            { "ROL_PERMISO",          "ROL_PERMISO_ACTUALIZAR_DVH" },
+            { "USUARIO_PERFIL",       "USUARIO_PERFIL_ACTUALIZAR_DVH" }
         };
 
         private static string SpDe(Dictionary<string, string> mapa, string tabla)
@@ -144,7 +152,11 @@ namespace DAL
             { "EVENTO_ACADEMICO",     "EVENTO_ACADEMICO_ELIMINAR_POR_ID" },
             { "PERIODO_ACADEMICO",    "PERIODO_ACADEMICO_ELIMINAR_POR_ID" },
             { "INSCRIPCION",          "INSCRIPCION_ELIMINAR_POR_ID" },
-            { "INSCRIPCION_DETALLE",  "INSCRIPCION_DETALLE_ELIMINAR_POR_ID" }
+            { "INSCRIPCION_DETALLE",  "INSCRIPCION_DETALLE_ELIMINAR_POR_ID" },
+            { "ROL",                  "ROL_ELIMINAR_POR_ID" },
+            { "PERMISO",              "PERMISO_ELIMINAR_POR_ID" },
+            { "ROL_PERMISO",          "ROL_PERMISO_ELIMINAR_POR_ID" },
+            { "USUARIO_PERFIL",       "USUARIO_PERFIL_ELIMINAR_POR_ID" }
         };
 
         /// <summary>
@@ -160,15 +172,14 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaUsuario(int id, string usuario, string pass, byte[] direccion, string rol)
+        public void RestaurarFilaUsuario(int id, string usuario, string pass, byte[] direccion)
         {
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@id", id),
                 _acceso.CrearParametro("@usuario", usuario),
                 _acceso.CrearParametro("@pass", pass),
-                _acceso.CrearParametro("@direccion", direccion),
-                _acceso.CrearParametro("@rol", rol)
+                _acceso.CrearParametro("@direccion", direccion)
             };
             try { _acceso.Abrir(); _acceso.Escribir("USUARIO_RESTAURAR_FILA", p); }
             finally { _acceso.Cerrar(); }
@@ -278,6 +289,54 @@ namespace DAL
                 _acceso.CrearParametro("@fechaInscripcion", fechaInscripcion)
             };
             try { _acceso.Abrir(); _acceso.Escribir("INSCRIPCION_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaRol(int id, string nombre, int? padreId, bool protegido)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@nombre", nombre),
+                _acceso.CrearParametro("@padreId", padreId),
+                new SqlParameter("@protegido", SqlDbType.Bit) { Value = protegido }
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("ROL_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaPermiso(int id, string nombre)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@nombre", nombre)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("PERMISO_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaRolPermiso(int id, int rolId, int permisoId)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@rolId", rolId),
+                _acceso.CrearParametro("@permisoId", permisoId)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("ROL_PERMISO_RESTAURAR_FILA", p); }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void RestaurarFilaUsuarioPerfil(int id, int usuarioId, int rolId)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@usuarioId", usuarioId),
+                _acceso.CrearParametro("@rolId", rolId)
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("USUARIO_PERFIL_RESTAURAR_FILA", p); }
             finally { _acceso.Cerrar(); }
         }
 

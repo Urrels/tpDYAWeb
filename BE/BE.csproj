@@ -87,6 +87,10 @@
     <Compile Include="INSCRIPCION.cs" />
     <Compile Include="PERIODO_ACADEMICO.cs" />
     <Compile Include="MATERIA.cs" />
+    <Compile Include="NodoPermiso.cs" />
+    <Compile Include="Permiso.cs" />
+    <Compile Include="Permisos.cs" />
+    <Compile Include="Rol.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SessionManager.cs" />
     <Compile Include="SessionRegistry.cs" />

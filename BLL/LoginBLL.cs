@@ -42,6 +42,10 @@ namespace BLL
 
                 BE.SessionRegistry.Instancia.RegistrarSesion(usuario, sessionId);
 
+                // Los permisos efectivos se resuelven una sola vez por sesión,
+                // recorriendo el árbol de perfiles (Composite) en memoria.
+                u.Permisos = new PerfilBLL().ObtenerPermisosEfectivos(u.Id);
+
                 BE.SessionManager.getInstane().setUsuario(u);
                 _bitacora.RegistrarLogin(usuario);
                 return LoginResultado.Exito;
