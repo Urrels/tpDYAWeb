@@ -1,5 +1,6 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true"
          CodeBehind="Login.aspx.cs" Inherits="CAPAS_Web.Login" %>
+<%@ Register Src="~/SelectorIdioma.ascx" TagPrefix="uc" TagName="SelectorIdioma" %>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -13,24 +14,25 @@
 </head>
 <body class="login-bg d-flex align-items-center justify-content-center">
     <form runat="server">
+        <div class="position-absolute top-0 end-0 p-3"><uc:SelectorIdioma ID="selectorIdioma" runat="server"/></div>
         <div class="card login-card">
             <div class="card-body p-5">
                 <div class="text-center mb-4">
                     <i class="bi bi-mortarboard-fill text-primary login-icon"></i>
-                    <h3 class="mt-2 fw-bold">Sistema de Gestión Académica</h3>
-                    <p class="text-muted">Iniciá sesión para continuar</p>
+                    <h3 class="mt-2 fw-bold"><asp:Literal ID="litTitulo" runat="server" Text="Sistema de Gestión Académica"/></h3>
+                    <p class="text-muted"><asp:Literal ID="litSubtitulo" runat="server" Text="Iniciá sesión para continuar"/></p>
                 </div>
                 <asp:Label ID="lblError" runat="server"
                            CssClass="alert alert-danger d-block mb-3" Visible="false"/>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Usuario</label>
+                    <label class="form-label fw-semibold"><asp:Literal ID="litUsuario" runat="server" Text="Usuario"/></label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-person"></i></span>
                         <asp:TextBox ID="txtUsuario" runat="server" CssClass="form-control"/>
                     </div>
                 </div>
                 <div class="mb-4">
-                    <label class="form-label fw-semibold">Contraseña</label>
+                    <label class="form-label fw-semibold"><asp:Literal ID="litContrasena" runat="server" Text="Contraseña"/></label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-lock"></i></span>
                         <asp:TextBox ID="txtContrasena" runat="server"
@@ -48,16 +50,16 @@
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Aviso</h5>
+                            <h5 class="modal-title"><asp:Literal ID="litAviso" runat="server" Text="Aviso"/></h5>
                         </div>
                         <div class="modal-body text-center py-4">
                             <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3rem;"></i>
-                            <p class="mt-3 mb-0">El sistema no se encuentra disponible en este momento, intente más tarde.</p>
+                            <p class="mt-3 mb-0"><asp:Literal ID="litNoDisponible" runat="server" Text="El sistema no se encuentra disponible en este momento, intente más tarde."/></p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary"
                                     onclick="document.getElementById('<%= divModalInconsistencia.ClientID %>').style.display='none'; document.getElementById('<%= divBackdropInconsistencia.ClientID %>').style.display='none';">
-                                Cerrar
+                                <asp:Literal ID="litCerrar" runat="server" Text="Cerrar"/>
                             </button>
                         </div>
                     </div>

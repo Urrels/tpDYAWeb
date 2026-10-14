@@ -4,7 +4,7 @@
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4><i class="bi bi-book-fill me-2"></i>Gestión de Materias</h4>
+        <h4><i class="bi bi-book-fill me-2"></i><asp:Literal ID="litTitulo" runat="server" Text="Gestión de materias"/></h4>
         <asp:Button ID="btnNueva" runat="server" Text="+ Nueva Materia"
                     CssClass="btn btn-primary btn-sm" OnClick="btnNueva_Click"/>
     </div>
@@ -13,7 +13,7 @@
 
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-3 d-flex flex-wrap align-items-center gap-2">
-            <h6 class="card-section-title mb-0 me-3">Plan de estudios en XML</h6>
+            <h6 class="card-section-title mb-0 me-3"><asp:Literal ID="litXml" runat="server" Text="Plan de estudios en XML"/></h6>
             <asp:Button ID="btnExportarXml" runat="server" Text="Exportar XML"
                         CssClass="btn btn-outline-primary btn-sm" OnClick="btnExportarXml_Click"/>
             <asp:FileUpload ID="fileXml" runat="server" CssClass="form-control form-control-sm w-auto" accept=".xml"/>
@@ -29,22 +29,22 @@
             <asp:HiddenField ID="hfIdMateria" runat="server" Value="0"/>
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">Nombre</label>
+                    <label class="form-label"><asp:Literal ID="litNombre" runat="server" Text="Nombre"/></label>
                     <asp:TextBox ID="txtNombre" runat="server" CssClass="form-control"/>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Código</label>
+                    <label class="form-label"><asp:Literal ID="litCodigo" runat="server" Text="Código"/></label>
                     <asp:TextBox ID="txtCodigo" runat="server" CssClass="form-control"/>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Modalidad</label>
+                    <label class="form-label"><asp:Literal ID="litModalidad" runat="server" Text="Modalidad"/></label>
                     <asp:DropDownList ID="ddlModalidad" runat="server" CssClass="form-select">
                         <asp:ListItem Value="Presencial">Presencial</asp:ListItem>
                         <asp:ListItem Value="Virtual">Virtual</asp:ListItem>
                     </asp:DropDownList>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Peso (complejidad 1-5)</label>
+                    <label class="form-label"><asp:Literal ID="litPeso" runat="server" Text="Peso (complejidad 1-5)"/></label>
                     <asp:DropDownList ID="ddlPeso" runat="server" CssClass="form-select">
                         <asp:ListItem Value="1">1 - Muy baja</asp:ListItem>
                         <asp:ListItem Value="2">2 - Baja</asp:ListItem>
@@ -66,7 +66,7 @@
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-3">
             <div class="d-flex align-items-center gap-2 mb-2">
-                <h6 class="card-section-title mb-0 me-3">Plan de estudios vía Web Service</h6>
+                <h6 class="card-section-title mb-0 me-3"><asp:Literal ID="litWs" runat="server" Text="Plan de estudios vía Web Service"/></h6>
                 <button type="button" id="btnConsultarWs" class="btn btn-outline-secondary btn-sm">Consultar MateriasService</button>
             </div>
             <div id="wsEstado" class="small text-muted"></div>

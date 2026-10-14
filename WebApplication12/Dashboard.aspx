@@ -7,7 +7,7 @@
 </asp:Content>
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
-    <h4 class="mb-4"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Dashboard Académico</h4>
+    <h4 class="mb-4"><i class="bi bi-bar-chart-fill me-2 text-primary"></i><asp:Literal ID="litTitulo" runat="server" Text="Dashboard académico"/></h4>
 
     <div class="row g-4 mb-4">
         <div class="col-md-3">
@@ -20,7 +20,7 @@
                         <div class="stat-number stat-number--primary">
                             <asp:Label ID="lblTotalMaterias" runat="server" Text="0"/>
                         </div>
-                        <div class="text-muted small mt-1">Total Materias</div>
+                        <div class="text-muted small mt-1"><asp:Literal ID="litTotal" runat="server" Text="Total de materias"/></div>
                     </div>
                 </div>
             </div>
@@ -35,7 +35,7 @@
                         <div class="stat-number stat-number--success">
                             <asp:Label ID="lblAprobadas" runat="server" Text="0"/>
                         </div>
-                        <div class="text-muted small mt-1">Aprobadas</div>
+                        <div class="text-muted small mt-1"><asp:Literal ID="litAprobadas" runat="server" Text="Aprobadas"/></div>
                     </div>
                 </div>
             </div>
@@ -50,7 +50,7 @@
                         <div class="stat-number stat-number--warning">
                             <asp:Label ID="lblCursando" runat="server" Text="0"/>
                         </div>
-                        <div class="text-muted small mt-1">Cursando</div>
+                        <div class="text-muted small mt-1"><asp:Literal ID="litCursando" runat="server" Text="Cursando"/></div>
                     </div>
                 </div>
             </div>
@@ -65,7 +65,7 @@
                         <div class="stat-number stat-number--danger">
                             <asp:Label ID="lblFinalPendiente" runat="server" Text="0"/>
                         </div>
-                        <div class="text-muted small mt-1">Final Pendiente</div>
+                        <div class="text-muted small mt-1"><asp:Literal ID="litFinalPendiente" runat="server" Text="Final pendiente"/></div>
                     </div>
                 </div>
             </div>
@@ -76,7 +76,7 @@
         <div class="col-md-7">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="card-section-title">Notas por Materia</h6>
+                    <h6 class="card-section-title"><asp:Literal ID="litNotas" runat="server" Text="Notas por materia"/></h6>
                     <canvas id="chartNotas" height="250"/>
                 </div>
             </div>
@@ -85,7 +85,7 @@
         <div class="col-md-5">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="card-section-title">Estado de Cursadas</h6>
+                    <h6 class="card-section-title"><asp:Literal ID="litEstados" runat="server" Text="Estado de cursadas"/></h6>
                     <canvas id="chartEstados" height="250"/>
                 </div>
             </div>
@@ -97,7 +97,7 @@
     <div class="card border-0 shadow-sm mt-4">
         <div class="card-body">
             <div class="d-flex align-items-center gap-2 mb-2">
-                <h6 class="card-section-title mb-0 me-3">Resumen vía Web Service</h6>
+                <h6 class="card-section-title mb-0 me-3"><asp:Literal ID="litWs" runat="server" Text="Resumen vía Web Service"/></h6>
                 <button type="button" id="btnResumenWs" class="btn btn-outline-secondary btn-sm">Consultar MateriasService</button>
             </div>
             <div id="wsResumen" class="small text-muted"></div>
@@ -106,7 +106,7 @@
 
     <div class="mt-4 text-end">
         <a href="ExportarPDF.aspx" class="btn btn-danger" target="_blank">
-            <i class="bi bi-file-pdf me-2"></i>Exportar PDF
+            <i class="bi bi-file-pdf me-2"></i><asp:Literal ID="litPdf" runat="server" Text="Exportar PDF"/>
         </a>
     </div>
 </asp:Content>

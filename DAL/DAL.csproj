@@ -82,6 +82,7 @@
     <Compile Include="DBInicializador.cs" />
     <Compile Include="IntegridadDAL.cs" />
     <Compile Include="InscripcionDAL.cs" />
+    <Compile Include="IdiomaDAL.cs" />
     <Compile Include="MateriaDAL.cs" />
     <Compile Include="PerfilDAL.cs" />
     <Compile Include="SiembraDAL.cs" />

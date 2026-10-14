@@ -84,6 +84,10 @@
     <Compile Include="CalculadorDVH.cs" />
     <Compile Include="EVENTO_ACADEMICO.cs" />
     <Compile Include="HashHelper.cs" />
+    <Compile Include="CONTROL_IDIOMA.cs" />
+    <Compile Include="IDIOMA.cs" />
+    <Compile Include="IdiomaManager.cs" />
+    <Compile Include="IObservadorIdioma.cs" />
     <Compile Include="INSCRIPCION.cs" />
     <Compile Include="PERIODO_ACADEMICO.cs" />
     <Compile Include="MATERIA.cs" />

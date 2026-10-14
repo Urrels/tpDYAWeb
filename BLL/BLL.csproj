@@ -87,6 +87,8 @@
     <Compile Include="FeriadosBLL.cs" />
     <Compile Include="IntegridadBLL.cs" />
     <Compile Include="LoginBLL.cs" />
+    <Compile Include="FachadaIdioma.cs" />
+    <Compile Include="IdiomaBLL.cs" />
     <Compile Include="MateriaBLL.cs" />
     <Compile Include="MateriaXmlBLL.cs" />
     <Compile Include="Paginacion.cs" />

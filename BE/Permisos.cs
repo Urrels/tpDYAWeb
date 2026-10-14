@@ -25,6 +25,7 @@ namespace BE
         public const string VerCalendario = "Ver calendario";
         public const string EditarPerfil = "Editar perfil";
         public const string CambiarContrasena = "Cambiar contrasena";
+        public const string GestionarIdiomas = "Gestionar idiomas";
 
         /// <summary>
         /// Permisos de seguridad y administración. Quien tiene "Gestionar perfiles" puede

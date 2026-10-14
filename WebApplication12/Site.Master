@@ -1,5 +1,6 @@
 ﻿<%@ Master Language="C#" AutoEventWireup="true"
            CodeBehind="Site.Master.cs" Inherits="CAPAS_Web.Site" %>
+<%@ Register Src="~/SelectorIdioma.ascx" TagPrefix="uc" TagName="SelectorIdioma" %>
 <!DOCTYPE html>
 <html lang="es">
 <head runat="server">
@@ -17,15 +18,16 @@
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <div class="container-fluid">
                 <a class="navbar-brand fw-bold" href="Menu.aspx">
-                    <i class="bi bi-mortarboard-fill me-2 text-primary"></i>Sistema de Gestión Académico
+                    <i class="bi bi-mortarboard-fill me-2 text-primary"></i><asp:Literal ID="litMarca" runat="server" Text="Sistema de Gestión Académico"/>
                 </a>
                 <div class="navbar-nav ms-auto align-items-center flex-row gap-3">
                     <span class="navbar-text text-white">
                         <i class="bi bi-person-circle me-1"></i>
                         <asp:Label ID="lblUsuarioNav" runat="server"/>
                     </span>
+                    <uc:SelectorIdioma ID="selectorIdioma" runat="server"/>
                     <asp:Button ID="btnCerrarSesion" runat="server"
-                                Text="Cerrar Sesión"
+                                Text="Cerrar sesión"
                                 CssClass="btn btn-outline-light btn-sm"
                                 OnClick="btnCerrarSesion_Click"/>
                 </div>
@@ -38,101 +40,106 @@
                         <li class="nav-item mb-1">
                             <asp:HyperLink ID="lnkInicio" runat="server"
                                            CssClass="nav-link">
-                                <i class="bi bi-house-fill"></i> Inicio
+                                <i class="bi bi-house-fill"></i> <asp:Literal ID="litNavInicio" runat="server" Text="Inicio"/>
                             </asp:HyperLink>
                         </li>
 
                         <asp:PlaceHolder ID="phSeccionGestion" runat="server">
-                            <li class="nav-section-label">Gestión</li>
+                            <li class="nav-section-label"><asp:Literal ID="litSecGestion" runat="server" Text="Gestión"/></li>
                             <asp:PlaceHolder ID="phNavMaterias" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Materias.aspx"><i class="bi bi-book-fill"></i> Materias</a>
+                                    <a class="nav-link" href="Materias.aspx"><i class="bi bi-book-fill"></i> <asp:Literal ID="litNavMaterias" runat="server" Text="Materias"/></a>
                                 </li>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNavNotas" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Notas.aspx"><i class="bi bi-journal-text"></i> Notas</a>
+                                    <a class="nav-link" href="Notas.aspx"><i class="bi bi-journal-text"></i> <asp:Literal ID="litNavNotas" runat="server" Text="Notas"/></a>
                                 </li>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNavPeriodos" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Inscripcion.aspx"><i class="bi bi-pencil-square"></i> Períodos</a>
+                                    <a class="nav-link" href="Inscripcion.aspx"><i class="bi bi-pencil-square"></i> <asp:Literal ID="litNavPeriodos" runat="server" Text="Períodos"/></a>
                                 </li>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNavBitacora" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Bitacora.aspx"><i class="bi bi-clipboard-data"></i> Bitácora</a>
+                                    <a class="nav-link" href="Bitacora.aspx"><i class="bi bi-clipboard-data"></i> <asp:Literal ID="litNavBitacora" runat="server" Text="Bitácora"/></a>
                                 </li>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNavBloqueados" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="UsuariosBloqueados.aspx"><i class="bi bi-unlock-fill"></i> Usuarios Bloqueados</a>
+                                    <a class="nav-link" href="UsuariosBloqueados.aspx"><i class="bi bi-unlock-fill"></i> <asp:Literal ID="litNavBloqueados" runat="server" Text="Usuarios bloqueados"/></a>
                                 </li>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNavUsuarios" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Usuarios.aspx"><i class="bi bi-person-lines-fill"></i> Usuarios</a>
+                                    <a class="nav-link" href="Usuarios.aspx"><i class="bi bi-person-lines-fill"></i> <asp:Literal ID="litNavUsuarios" runat="server" Text="Usuarios"/></a>
                                 </li>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNavPerfiles" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Perfiles.aspx"><i class="bi bi-diagram-3-fill"></i> Perfiles</a>
+                                    <a class="nav-link" href="Perfiles.aspx"><i class="bi bi-diagram-3-fill"></i> <asp:Literal ID="litNavPerfiles" runat="server" Text="Perfiles"/></a>
+                                </li>
+                            </asp:PlaceHolder>
+                            <asp:PlaceHolder ID="phNavIdiomas" runat="server">
+                                <li class="nav-item mb-1">
+                                    <a class="nav-link" href="Idiomas.aspx"><i class="bi bi-translate"></i> <asp:Literal ID="litNavIdiomas" runat="server" Text="Idiomas"/></a>
                                 </li>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNavAsignarPerfiles" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="AsignarPerfiles.aspx"><i class="bi bi-people-fill"></i> Asignar perfiles</a>
+                                    <a class="nav-link" href="AsignarPerfiles.aspx"><i class="bi bi-people-fill"></i> <asp:Literal ID="litNavAsignarPerfiles" runat="server" Text="Asignar perfiles"/></a>
                                 </li>
                             </asp:PlaceHolder>
                         </asp:PlaceHolder>
 
                         <asp:PlaceHolder ID="phSeccionAcademico" runat="server">
-                            <li class="nav-section-label">Académico</li>
+                            <li class="nav-section-label"><asp:Literal ID="litSecAcademico" runat="server" Text="Académico"/></li>
                             <asp:PlaceHolder ID="phNavInscripcion" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Inscripcion.aspx"><i class="bi bi-pencil-square"></i> Inscripción</a>
+                                    <a class="nav-link" href="Inscripcion.aspx"><i class="bi bi-pencil-square"></i> <asp:Literal ID="litNavInscripcion" runat="server" Text="Inscripción"/></a>
                                 </li>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNavMisCursadas" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="MisCursadas.aspx"><i class="bi bi-journal-check"></i> Mis Cursadas</a>
+                                    <a class="nav-link" href="MisCursadas.aspx"><i class="bi bi-journal-check"></i> <asp:Literal ID="litNavMisCursadas" runat="server" Text="Mis cursadas"/></a>
                                 </li>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNavCalendario" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Calendario.aspx"><i class="bi bi-calendar3"></i> Calendario</a>
+                                    <a class="nav-link" href="Calendario.aspx"><i class="bi bi-calendar3"></i> <asp:Literal ID="litNavCalendario" runat="server" Text="Calendario"/></a>
                                 </li>
                             </asp:PlaceHolder>
                         </asp:PlaceHolder>
 
                         <asp:PlaceHolder ID="phSeccionHerramientas" runat="server">
-                            <li class="nav-section-label">Herramientas</li>
+                            <li class="nav-section-label"><asp:Literal ID="litSecHerramientas" runat="server" Text="Herramientas"/></li>
                             <asp:PlaceHolder ID="phNavDashboard" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Dashboard.aspx"><i class="bi bi-bar-chart-fill"></i> Dashboard</a>
+                                    <a class="nav-link" href="Dashboard.aspx"><i class="bi bi-bar-chart-fill"></i> <asp:Literal ID="litNavDashboard" runat="server" Text="Dashboard"/></a>
                                 </li>
                             </asp:PlaceHolder>
                         </asp:PlaceHolder>
 
                         <asp:PlaceHolder ID="phSeccionMantenimiento" runat="server">
-                            <li class="nav-section-label">Mantenimiento</li>
+                            <li class="nav-section-label"><asp:Literal ID="litSecMantenimiento" runat="server" Text="Mantenimiento"/></li>
                             <asp:PlaceHolder ID="phNavIntegridad" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Integridad.aspx"><i class="bi bi-shield-lock-fill"></i> Integridad</a>
+                                    <a class="nav-link" href="Integridad.aspx"><i class="bi bi-shield-lock-fill"></i> <asp:Literal ID="litNavIntegridad" runat="server" Text="Integridad"/></a>
                                 </li>
                             </asp:PlaceHolder>
                         </asp:PlaceHolder>
 
                         <asp:PlaceHolder ID="phSeccionPersonal" runat="server">
-                            <li class="nav-section-label">Personal</li>
+                            <li class="nav-section-label"><asp:Literal ID="litSecPersonal" runat="server" Text="Personal"/></li>
                             <asp:PlaceHolder ID="phNavPerfil" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="Perfil.aspx"><i class="bi bi-person-fill"></i> Mi Perfil</a>
+                                    <a class="nav-link" href="Perfil.aspx"><i class="bi bi-person-fill"></i> <asp:Literal ID="litNavPerfil" runat="server" Text="Mi perfil"/></a>
                                 </li>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNavContrasena" runat="server">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link" href="CambiarContrasena.aspx"><i class="bi bi-key-fill"></i> Contraseña</a>
+                                    <a class="nav-link" href="CambiarContrasena.aspx"><i class="bi bi-key-fill"></i> <asp:Literal ID="litNavContrasena" runat="server" Text="Contraseña"/></a>
                                 </li>
                             </asp:PlaceHolder>
                         </asp:PlaceHolder>

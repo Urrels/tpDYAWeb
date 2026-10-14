@@ -15,6 +15,21 @@ namespace CAPAS_Web
             if (!IsPostBack) CargarGrilla();
         }
 
+        protected override void ActualizarTextosDinamicos()
+        {
+            // Los encabezados de la grilla no son controles con ID: se traducen por código, sobre la fila ya creada.
+            if (gvMaterias.HeaderRow == null) return;
+            string[,] encabezados =
+            {
+                { "Materias.colCodigo", "Código" }, { "Materias.colNombre", "Nombre" },
+                { "Materias.colModalidad", "Modalidad" }, { "Materias.colPeso", "Peso" },
+                { "Materias.colAcciones", "Acciones" }
+            };
+            for (int i = 0; i < encabezados.GetLength(0) && i < gvMaterias.HeaderRow.Cells.Count; i++)
+                gvMaterias.HeaderRow.Cells[i].Text = Textos.T(encabezados[i, 0], encabezados[i, 1]);
+        }
+
+
         private void CargarGrilla()
         {
             // La BLL ajusta la página a la última real (p. ej. tras dar de baja la única fila de la última).
@@ -49,7 +64,7 @@ namespace CAPAS_Web
             string usuario = (Session["Usuario"] as BE.USUARIO).Usuario;
             bool ok = m.Id == 0 ? _bll.Insertar(m, usuario) > 0 : _bll.Actualizar(m, usuario);
             MostrarMsg(ok ? "alert-success" : "alert-danger",
-                       ok ? "✔ Guardado." : "✖ Error al guardar.");
+                       ok ? Textos.TH("Materias.msgGuardado", "✔ Guardado.") : Textos.TH("Materias.msgErrorGuardar", "✖ Error al guardar."));
             pnlForm.Visible = false;
             // Una materia nueva queda al final (ORDER BY ID): se salta a la página donde caería con una fila más.
             if (ok && m.Id == 0)
@@ -79,7 +94,7 @@ namespace CAPAS_Web
             {
                 bool ok = _bll.Eliminar(id, usuario);
                 MostrarMsg(ok ? "alert-success" : "alert-danger",
-                           ok ? "✔ Materia dada de baja." : "✖ Error.");
+                           ok ? Textos.TH("Materias.msgBaja", "✔ Materia dada de baja.") : Textos.TH("Materias.msgError", "✖ Error."));
                 CargarGrilla();
             }
         }
@@ -100,7 +115,7 @@ namespace CAPAS_Web
         {
             if (!fileXml.HasFile)
             {
-                MostrarMsg("alert-warning", "Elegí un archivo .xml para importar.");
+                MostrarMsg("alert-warning", Textos.TH("Materias.msgElegirXml", "Elegí un archivo .xml para importar."));
                 CargarGrilla();
                 return;
             }
@@ -119,11 +134,14 @@ namespace CAPAS_Web
             string usuario = (Session["Usuario"] as BE.USUARIO).Usuario;
             BLL.ResultadoImportacionXml r = new BLL.MateriaXmlBLL().Importar(contenido, usuario);
             if (r.Ok)
-                MostrarMsg("alert-success", $"✔ Importación completa: {r.Creadas} materias nuevas, {r.Actualizadas} actualizadas, {r.CorrelativasAgregadas} correlativas agregadas.");
+                MostrarMsg("alert-success", Textos.TH("Materias.msgImportacionOk",
+                    "✔ Importación completa: {0} materias nuevas, {1} actualizadas, {2} correlativas agregadas.",
+                    r.Creadas, r.Actualizadas, r.CorrelativasAgregadas));
             else
-                MostrarMsg("alert-danger", "✖ No se importó nada:<br/>" +
+                // Los errores los arma la BLL en español y se muestran tal cual (codificados).
+                MostrarMsg("alert-danger", Textos.TH("Materias.msgImportacionError", "✖ No se importó nada:") + "<br/>" +
                     string.Join("<br/>", r.Errores.Take(20).Select(System.Web.HttpUtility.HtmlEncode)) +
-                    (r.Errores.Count > 20 ? $"<br/>… y {r.Errores.Count - 20} errores más." : ""));
+                    (r.Errores.Count > 20 ? "<br/>" + Textos.TH("Materias.msgMasErrores", "… y {0} errores más.", r.Errores.Count - 20) : ""));
             CargarGrilla();
         }
 
