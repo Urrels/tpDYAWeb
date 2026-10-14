@@ -27,6 +27,20 @@ CREATE TABLE USUARIO (
 )
 GO
 
+-- ACTIVO: baja lógica de usuarios (no hay borrado físico por las FK a cursadas y
+-- bitácora). Va acá, antes de los SP de USUARIO, porque USUARIO_LOGIN la lee.
+-- Si la columna se agrega ahora, el orden de columnas de integridad de USUARIO
+-- cambió: se descartan sus DVV y snapshot para que se regeneren.
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'ACTIVO' AND Object_ID = Object_ID('USUARIO'))
+BEGIN
+    ALTER TABLE USUARIO ADD ACTIVO BIT NOT NULL DEFAULT 1;
+    IF OBJECT_ID('DIGITO_VERIFICADOR_VERTICAL', 'U') IS NOT NULL
+        DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
+    IF OBJECT_ID('SNAPSHOT_INTEGRIDAD', 'U') IS NOT NULL
+        DELETE FROM SNAPSHOT_INTEGRIDAD WHERE TABLA = 'USUARIO';
+END
+GO
+
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BITACORA' AND xtype='U')
 CREATE TABLE BITACORA (
     ID      INT IDENTITY(1,1) PRIMARY KEY,
@@ -134,7 +148,7 @@ CREATE PROCEDURE USUARIO_LOGIN
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO
+    SELECT ID, USUARIO, ACTIVO
     FROM   USUARIO
     WHERE  USUARIO = @usuario AND PASS = @pass;
 END
@@ -873,7 +887,7 @@ CREATE PROCEDURE USUARIO_LISTAR_PARA_INTEGRIDAD
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO, PASS, DIRECCION, INTENTOS_FALLIDOS, BLOQUEADO, DVH FROM USUARIO ORDER BY ID;
+    SELECT ID, USUARIO, PASS, DIRECCION, INTENTOS_FALLIDOS, BLOQUEADO, ACTIVO, DVH FROM USUARIO ORDER BY ID;
 END
 GO
 
@@ -1180,18 +1194,19 @@ CREATE PROCEDURE USUARIO_RESTAURAR_FILA
     @id        INT,
     @usuario   VARCHAR(50),
     @pass      VARCHAR(64),
-    @direccion VARBINARY(256)
+    @direccion VARBINARY(256),
+    @activo    BIT = 1
 AS
 BEGIN
     SET NOCOUNT ON;
     IF EXISTS (SELECT 1 FROM USUARIO WHERE ID = @id)
         UPDATE USUARIO
-        SET USUARIO = @usuario, PASS = @pass, DIRECCION = @direccion
+        SET USUARIO = @usuario, PASS = @pass, DIRECCION = @direccion, ACTIVO = @activo
         WHERE ID = @id;
     ELSE
     BEGIN
         SET IDENTITY_INSERT USUARIO ON;
-        INSERT INTO USUARIO (ID, USUARIO, PASS, DIRECCION) VALUES (@id, @usuario, @pass, @direccion);
+        INSERT INTO USUARIO (ID, USUARIO, PASS, DIRECCION, ACTIVO) VALUES (@id, @usuario, @pass, @direccion, @activo);
         SET IDENTITY_INSERT USUARIO OFF;
     END
 END
@@ -2159,7 +2174,7 @@ CREATE PROCEDURE USUARIO_LISTAR_TODOS
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO FROM USUARIO ORDER BY USUARIO;
+    SELECT ID, USUARIO, BLOQUEADO, ACTIVO FROM USUARIO ORDER BY USUARIO;
 END
 GO
 
@@ -2247,6 +2262,51 @@ AS
 BEGIN
     SET NOCOUNT ON;
     DELETE FROM USUARIO_PERFIL WHERE USUARIO_ID = @usuario_id;
+END
+GO
+
+-- ---------------------------------------------
+-- Gestión de usuarios (alta, baja lógica)
+-- ---------------------------------------------
+
+INSERT INTO PERMISO (NOMBRE)
+SELECT 'Gestionar usuarios'
+WHERE NOT EXISTS (SELECT 1 FROM PERMISO WHERE NOMBRE = 'Gestionar usuarios')
+GO
+
+-- Administrador es un perfil protegido (solo lectura desde la aplicación):
+-- el permiso se agrega acá, por script.
+INSERT INTO ROL_PERMISO (ROL_ID, PERMISO_ID)
+SELECT r.ID, p.ID
+FROM ROL r
+JOIN PERMISO p ON p.NOMBRE = 'Gestionar usuarios'
+WHERE r.NOMBRE = 'Administrador'
+  AND NOT EXISTS (SELECT 1 FROM ROL_PERMISO x WHERE x.ROL_ID = r.ID AND x.PERMISO_ID = p.ID)
+GO
+
+IF OBJECT_ID('USUARIO_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE USUARIO_INSERTAR
+GO
+CREATE PROCEDURE USUARIO_INSERTAR
+    @usuario   VARCHAR(50),
+    @pass      VARCHAR(64),
+    @direccion VARBINARY(256) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO USUARIO (USUARIO, PASS, DIRECCION) VALUES (@usuario, @pass, @direccion);
+    SELECT CAST(SCOPE_IDENTITY() AS INT) AS ID;
+END
+GO
+
+IF OBJECT_ID('USUARIO_ACTUALIZAR_ESTADO', 'P') IS NOT NULL DROP PROCEDURE USUARIO_ACTUALIZAR_ESTADO
+GO
+CREATE PROCEDURE USUARIO_ACTUALIZAR_ESTADO
+    @id     INT,
+    @activo BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE USUARIO SET ACTIVO = @activo WHERE ID = @id;
 END
 GO
 
