@@ -26,6 +26,9 @@ namespace BE
         // global (PerfilBLL.VersionPermisos) hay que recalcularlos.
         public int VersionPermisos { get; set; }
 
+        // Época de la sesión (ver PerfilBLL.NuevaEpocaDeSesion): permite revocarla desde el servidor.
+        public long EpocaSesion { get; set; }
+
         public bool TienePermiso(string nombrePermiso)
         {
             return Permisos != null && Permisos.Contains(nombrePermiso);

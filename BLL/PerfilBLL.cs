@@ -173,9 +173,9 @@ namespace BLL
             return estado;
         }
 
-        private static Dictionary<int, HashSet<string>> PermisosEfectivosPorUsuario(EstadoPerfiles estado)
+        // Árbol nuevo a partir del estado: los Roles del estado solo traen datos planos.
+        private static Dictionary<int, Rol> ConstruirMapaDeEstado(EstadoPerfiles estado)
         {
-            // Árbol nuevo a partir del estado: los Roles del estado solo traen datos planos.
             var mapa = estado.Roles.ToDictionary(r => r.Id,
                 r => new Rol { Id = r.Id, Nombre = r.Nombre, PadreId = r.PadreId, Protegido = r.Protegido });
             foreach (Rol r in mapa.Values)
@@ -185,6 +185,12 @@ namespace BLL
                 if (mapa.TryGetValue(par.Key, out Rol dueno))
                     foreach (string nombre in par.Value)
                         dueno.Agregar(new Permiso { Nombre = nombre, PadreId = par.Key });
+            return mapa;
+        }
+
+        private static Dictionary<int, HashSet<string>> PermisosEfectivosPorUsuario(EstadoPerfiles estado)
+        {
+            Dictionary<int, Rol> mapa = ConstruirMapaDeEstado(estado);
 
             var resultado = new Dictionary<int, HashSet<string>>();
             foreach (var asignacion in estado.Asignaciones)
@@ -386,35 +392,154 @@ namespace BLL
             }
         }
 
-        /// <summary>Reemplaza los perfiles del usuario (en una sola transacción).</summary>
-        public void AsignarPerfilesAUsuario(int usuarioId, List<int> rolIds, string actor)
+        /// <summary>
+        /// Reemplaza los perfiles del usuario (en una sola transacción). Es la
+        /// operación de AsignarPerfiles.aspx: exige que quien actúa tenga
+        /// "Gestionar perfiles", comprobado acá y no solo en la página.
+        /// </summary>
+        public void AsignarPerfilesAUsuario(int usuarioId, List<int> rolIds, BE.USUARIO actor)
         {
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
-                var ids = rolIds.Distinct().ToList();
-                if (ids.Any(id => estado.Roles.All(r => r.Id != id)))
-                    throw new InvalidOperationException("Se indicó un perfil que no existe.");
-
-                estado.Asignaciones.RemoveAll(a => a.Key == usuarioId);
-                foreach (int id in ids)
-                    estado.Asignaciones.Add(new KeyValuePair<int, int>(usuarioId, id));
-                ExigirOperadorDePerfiles(estado);
-
-                _dal.ReemplazarPerfilesDeUsuario(usuarioId, ids);
-                PostEscritura(actor, Accion("ASIGNACION_PERFIL", usuarioId + "/" + string.Join(",", ids)),
-                    _integridad.RecalcularUsuarioPerfil);
+                if (!PermisosDelActor(estado, actor).Contains(Permisos.GestionarPerfiles))
+                    throw new InvalidOperationException("No tenés permiso para asignar perfiles.");
+                AsignarPerfilesInterno(estado, usuarioId, rolIds, actor.Usuario);
             }
+        }
+
+        // Escritura de la asignación; el llamador ya tomó el lock y verificó los permisos del actor.
+        private void AsignarPerfilesInterno(EstadoPerfiles estado, int usuarioId, List<int> rolIds, string nombreActor)
+        {
+            var ids = rolIds.Distinct().ToList();
+            if (ids.Any(id => estado.Roles.All(r => r.Id != id)))
+                throw new InvalidOperationException("Se indicó un perfil que no existe.");
+
+            estado.Asignaciones.RemoveAll(a => a.Key == usuarioId);
+            foreach (int id in ids)
+                estado.Asignaciones.Add(new KeyValuePair<int, int>(usuarioId, id));
+            ExigirOperadorDePerfiles(estado);
+
+            _dal.ReemplazarPerfilesDeUsuario(usuarioId, ids);
+            PostEscritura(nombreActor, Accion("ASIGNACION_PERFIL", usuarioId + "/" + string.Join(",", ids)),
+                _integridad.RecalcularUsuarioPerfil);
         }
 
         // =====================================================
         // Usuarios (alta, modificación, baja lógica)
+        //
+        // Regla de escalada: nadie puede otorgar, quitar ni actuar sobre algo que
+        // exceda sus propios permisos. Se comprueba siempre acá (la página solo lo
+        // refleja en pantalla):
+        //  - Asignar o quitar un perfil R: solo con "Gestionar perfiles", o si los
+        //    permisos efectivos de R están contenidos en los del actor.
+        //  - Actuar sobre un usuario (editar, restablecer contraseña, baja o
+        //    reactivación): solo si sus permisos efectivos están contenidos en los
+        //    del actor; quien tiene un perfil protegido solo puede ser objeto de
+        //    acción de quien tiene "Gestionar perfiles".
+        //  - Nadie cambia sus propios perfiles ni su contraseña desde esta gestión.
         // =====================================================
 
         private const string PoliticaContrasena = @"^(?=.*[A-Z])(?=.*\d).{6,}$";
         private const string MensajePoliticaContrasena = "La contraseña debe tener 6+ caracteres, 1 mayúscula y 1 número.";
 
+        // VARBINARY(256) con AES-CBC/PKCS7: el texto cifrado ocupa un múltiplo de 16 bytes.
+        private const int MaxBytesDireccionCifrada = 256;
+        public const int MaxCaracteresDireccion = 100;
+
         private readonly DAL.UsuarioDAL _usuarioDal = new DAL.UsuarioDAL();
+
+        // Épocas de sesión: cada login recibe un número creciente; revocar a un usuario
+        // anota la época actual y toda sesión suya iniciada antes deja de ser válida.
+        private static long _epoca;
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, long> _revocaciones =
+            new System.Collections.Concurrent.ConcurrentDictionary<int, long>();
+
+        /// <summary>Número de época para una sesión que se está iniciando.</summary>
+        public static long NuevaEpocaDeSesion() => Interlocked.Increment(ref _epoca);
+
+        private static void RevocarSesionesDe(int usuarioId, string nombreUsuario)
+        {
+            _revocaciones[usuarioId] = Interlocked.Increment(ref _epoca);
+            BE.SessionRegistry.Instancia.CerrarSesion(nombreUsuario);
+        }
+
+        /// <summary>true si las sesiones de este usuario fueron revocadas después de iniciada la suya.</summary>
+        public static bool SesionRevocada(BE.USUARIO usuario) =>
+            _revocaciones.TryGetValue(usuario.Id, out long revocadaEn) && revocadaEn > usuario.EpocaSesion;
+
+        private static HashSet<string> PermisosDelActor(EstadoPerfiles estado, BE.USUARIO actor)
+        {
+            if (actor == null) throw new InvalidOperationException("No hay un usuario que realice la operación.");
+            return PermisosEfectivosPorUsuario(estado).TryGetValue(actor.Id, out HashSet<string> permisos)
+                ? permisos : new HashSet<string>();
+        }
+
+        // Permisos del actor para las operaciones de gestión de usuarios: además exige "Gestionar usuarios".
+        private static HashSet<string> PermisosDelGestor(EstadoPerfiles estado, BE.USUARIO actor)
+        {
+            HashSet<string> permisos = PermisosDelActor(estado, actor);
+            if (!permisos.Contains(Permisos.GestionarUsuarios))
+                throw new InvalidOperationException("No tenés permiso para gestionar usuarios.");
+            return permisos;
+        }
+
+        private static HashSet<string> PermisosDeUsuario(EstadoPerfiles estado, int usuarioId) =>
+            PermisosEfectivosPorUsuario(estado).TryGetValue(usuarioId, out HashSet<string> permisos)
+                ? permisos : new HashSet<string>();
+
+        // IDs de los perfiles que el actor puede asignar o quitar.
+        private static List<int> RolesAsignables(EstadoPerfiles estado, HashSet<string> permisosActor)
+        {
+            if (permisosActor.Contains(Permisos.GestionarPerfiles))
+                return estado.Roles.Select(r => r.Id).ToList();
+            Dictionary<int, Rol> mapa = ConstruirMapaDeEstado(estado);
+            return mapa.Values.Where(r => permisosActor.IsSupersetOf(r.ObtenerPermisos())).Select(r => r.Id).ToList();
+        }
+
+        private static void ExigirPuedeAsignar(EstadoPerfiles estado, HashSet<string> permisosActor, IEnumerable<int> rolIds)
+        {
+            List<int> permitidos = RolesAsignables(estado, permisosActor);
+            foreach (int rolId in rolIds)
+                if (!permitidos.Contains(rolId))
+                {
+                    Rol rol = estado.Roles.FirstOrDefault(r => r.Id == rolId);
+                    throw new InvalidOperationException(
+                        $"No podés asignar ni quitar el perfil {(rol != null ? rol.Nombre : rolId.ToString())}: " +
+                        "incluye permisos que vos no tenés.");
+                }
+        }
+
+        private static bool PuedeActuarSobre(EstadoPerfiles estado, HashSet<string> permisosActor, int usuarioId)
+        {
+            if (permisosActor.Contains(Permisos.GestionarPerfiles)) return true;
+            bool tienePerfilProtegido = estado.Asignaciones.Where(a => a.Key == usuarioId)
+                .Any(a => estado.Roles.Any(r => r.Id == a.Value && r.Protegido));
+            return !tienePerfilProtegido && permisosActor.IsSupersetOf(PermisosDeUsuario(estado, usuarioId));
+        }
+
+        private static void ExigirPuedeActuarSobre(EstadoPerfiles estado, HashSet<string> permisosActor, int usuarioId)
+        {
+            if (!PuedeActuarSobre(estado, permisosActor, usuarioId))
+                throw new InvalidOperationException(
+                    "No podés operar sobre este usuario: tiene permisos que vos no tenés.");
+        }
+
+        /// <summary>Perfiles que el actor puede asignar (para mostrar solo esos en pantalla).</summary>
+        public List<int> ListarRolesAsignablesPor(BE.USUARIO actor)
+        {
+            EstadoPerfiles estado = CargarEstado();
+            return RolesAsignables(estado, PermisosDelActor(estado, actor));
+        }
+
+        /// <summary>IDs de los usuarios sobre los que el actor puede operar (para mostrar solo esas acciones).</summary>
+        public HashSet<int> ListarUsuariosActuablesPor(BE.USUARIO actor)
+        {
+            EstadoPerfiles estado = CargarEstado();
+            HashSet<string> permisos = PermisosDelActor(estado, actor);
+            return new HashSet<int>(_usuarioDal.ListarTodos().Select(u => u.Id)
+                .Where(id => PuedeActuarSobre(estado, permisos, id)));
+        }
 
         /// <summary>Usuarios para la grilla de gestión, con sus perfiles y estado.</summary>
         public List<BE.USUARIO> ListarUsuariosParaGestion()
@@ -438,6 +563,16 @@ namespace BLL
             if (!Regex.IsMatch(contrasena, PoliticaContrasena)) throw new InvalidOperationException(MensajePoliticaContrasena);
         }
 
+        // La dirección se guarda cifrada en VARBINARY(256): se valida el tamaño real del cifrado.
+        private static void ValidarDireccion(string direccion)
+        {
+            if (string.IsNullOrEmpty(direccion)) return;
+            byte[] cifrada = BE.AESHelper.Encriptar(direccion);
+            if (cifrada != null && cifrada.Length > MaxBytesDireccionCifrada)
+                throw new InvalidOperationException(
+                    $"La dirección es demasiado larga (máximo {MaxCaracteresDireccion} caracteres; los acentos y símbolos ocupan más).");
+        }
+
         private static BE.USUARIO BuscarUsuario(List<BE.USUARIO> usuarios, int usuarioId)
         {
             BE.USUARIO u = usuarios.FirstOrDefault(x => x.Id == usuarioId);
@@ -446,12 +581,14 @@ namespace BLL
         }
 
         public int CrearUsuario(string usuario, string contrasena, string confirmacion, string direccion,
-            List<int> rolIds, string actor)
+            List<int> rolIds, BE.USUARIO actor)
         {
             usuario = (usuario ?? "").Trim();
             if (usuario.Length == 0) throw new InvalidOperationException("El nombre de usuario es obligatorio.");
             if (usuario.Length > 50) throw new InvalidOperationException("El nombre de usuario no puede superar los 50 caracteres.");
             ValidarContrasena(contrasena, confirmacion);
+            direccion = (direccion ?? "").Trim();
+            ValidarDireccion(direccion);
             var ids = (rolIds ?? new List<int>()).Distinct().ToList();
             if (ids.Count == 0) throw new InvalidOperationException("Elegí al menos un perfil.");
 
@@ -460,81 +597,115 @@ namespace BLL
                 EstadoPerfiles estado = CargarEstado();
                 if (ids.Any(id => estado.Roles.All(r => r.Id != id)))
                     throw new InvalidOperationException("Se indicó un perfil que no existe.");
+                ExigirPuedeAsignar(estado, PermisosDelGestor(estado, actor), ids);
                 if (_usuarioDal.ListarTodos().Any(u => string.Equals(u.Usuario, usuario, StringComparison.OrdinalIgnoreCase)))
                     throw new InvalidOperationException("Ya existe un usuario con ese nombre.");
 
-                int usuarioId = _usuarioDal.InsertarConPerfiles(usuario, HashHelper.HashSHA256(contrasena),
-                    (direccion ?? "").Trim(), ids);
-                PostEscritura(actor, Accion("ALTA_USUARIO", usuario),
+                int usuarioId = _usuarioDal.InsertarConPerfiles(usuario, HashHelper.HashSHA256(contrasena), direccion, ids);
+                PostEscritura(actor.Usuario, Accion("ALTA_USUARIO", usuario),
                     _integridad.RecalcularUsuario, _integridad.RecalcularUsuarioPerfil);
                 return usuarioId;
             }
         }
 
         /// <summary>
-        /// Modifica perfiles y dirección. Una dirección vacía significa "sin cambios".
-        /// Los perfiles pasan por la guarda del último operador.
+        /// Modifica perfiles y dirección (dirección vacía = sin cambios). Todo se valida
+        /// antes de escribir; si después de guardar los perfiles falla la dirección, el
+        /// mensaje lo dice con precisión.
         /// </summary>
-        public void ModificarUsuario(int usuarioId, string direccion, List<int> rolIds, string actor)
+        public void ModificarUsuario(int usuarioId, string direccion, List<int> rolIds, BE.USUARIO actor)
         {
+            direccion = (direccion ?? "").Trim();
+            ValidarDireccion(direccion);
+            var nuevos = new HashSet<int>(rolIds ?? new List<int>());
+            if (nuevos.Count == 0) throw new InvalidOperationException("El usuario debe tener al menos un perfil.");
+
             lock (_lockEscritura)
             {
+                EstadoPerfiles estado = CargarEstado();
+                HashSet<string> permisosActor = PermisosDelGestor(estado, actor);
                 BE.USUARIO u = BuscarUsuario(_usuarioDal.ListarTodos(), usuarioId);
+                ExigirPuedeActuarSobre(estado, permisosActor, usuarioId);
 
-                // Primero los perfiles: si la guarda los rechaza no se cambió nada.
-                var actuales = new HashSet<int>(_dal.ListarRolesDeUsuario(usuarioId));
-                var nuevos = new HashSet<int>(rolIds ?? new List<int>());
-                if (!actuales.SetEquals(nuevos))
-                    AsignarPerfilesAUsuario(usuarioId, nuevos.ToList(), actor);
-
-                direccion = (direccion ?? "").Trim();
-                if (direccion.Length > 0 && direccion != (_usuarioDal.ObtenerPorNombre(u.Usuario)?.DireccionVisible ?? ""))
+                var actuales = new HashSet<int>(estado.Asignaciones.Where(a => a.Key == usuarioId).Select(a => a.Value));
+                bool cambianPerfiles = !actuales.SetEquals(nuevos);
+                if (cambianPerfiles)
                 {
-                    _usuarioDal.ActualizarDireccion(u.Usuario, direccion);
-                    PostEscritura(actor, Accion("MODIF_USUARIO", u.Usuario), _integridad.RecalcularUsuario);
+                    if (usuarioId == actor.Id)
+                        throw new InvalidOperationException("No podés cambiar tus propios perfiles desde Usuarios.");
+                    ExigirPuedeAsignar(estado, permisosActor, actuales.Union(nuevos).Except(actuales.Intersect(nuevos)));
+                }
+
+                bool cambiaDireccion = direccion.Length > 0
+                    && direccion != (_usuarioDal.ObtenerPorNombre(u.Usuario)?.DireccionVisible ?? "");
+
+                if (cambianPerfiles)
+                    AsignarPerfilesInterno(estado, usuarioId, nuevos.ToList(), actor.Usuario);
+
+                if (cambiaDireccion)
+                {
+                    try
+                    {
+                        _usuarioDal.ActualizarDireccion(u.Usuario, direccion);
+                        PostEscritura(actor.Usuario, Accion("MODIF_USUARIO", u.Usuario), _integridad.RecalcularUsuario);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException(
+                            (cambianPerfiles ? "Los perfiles se guardaron, pero " : "No se guardó: ")
+                            + "falló la actualización de la dirección (" + ex.Message + ").", ex);
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// Baja lógica (activo = false) o reactivación. Un usuario no puede darse de
-        /// baja a sí mismo ni dejar al sistema sin operadores. Al dar de baja se libera
-        /// su registro de sesión y se invalidan los permisos: si estaba conectado, su
-        /// sesión se cierra en el próximo pedido.
+        /// Baja lógica (activo = false) o reactivación. Nadie se da de baja a sí mismo ni
+        /// deja al sistema sin operadores. Al dar de baja se revocan sus sesiones.
         /// </summary>
-        public void CambiarEstadoUsuario(int usuarioId, bool activo, int actorId, string actor)
+        public void CambiarEstadoUsuario(int usuarioId, bool activo, BE.USUARIO actor)
         {
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
                 BE.USUARIO u = BuscarUsuario(_usuarioDal.ListarTodos(), usuarioId);
+                ExigirPuedeActuarSobre(estado, PermisosDelGestor(estado, actor), usuarioId);
                 if (u.Activo == activo) return;
 
                 if (!activo)
                 {
-                    if (usuarioId == actorId)
+                    if (usuarioId == actor.Id)
                         throw new InvalidOperationException("No podés darte de baja a vos mismo.");
                     estado.Bloqueados.Add(usuarioId); // simulación: deja de ser operador
                     ExigirOperadorDePerfiles(estado);
                 }
 
                 _usuarioDal.ActualizarEstado(usuarioId, activo);
-                if (!activo) BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
-                PostEscritura(actor, Accion(activo ? "REACTIVAR_USUARIO" : "BAJA_USUARIO", u.Usuario),
+                if (!activo) RevocarSesionesDe(usuarioId, u.Usuario);
+                PostEscritura(actor.Usuario, Accion(activo ? "REACTIVAR_USUARIO" : "BAJA_USUARIO", u.Usuario),
                     _integridad.RecalcularUsuario);
             }
         }
 
-        /// <summary>Restablece la contraseña de un usuario (acción de administración).</summary>
-        public void ResetearContrasena(int usuarioId, string contrasena, string confirmacion, string actor)
+        /// <summary>
+        /// Restablece la contraseña de otro usuario. Cierra sus sesiones abiertas: si la
+        /// cuenta estaba comprometida, la sesión del atacante deja de valer.
+        /// </summary>
+        public void ResetearContrasena(int usuarioId, string contrasena, string confirmacion, BE.USUARIO actor)
         {
             ValidarContrasena(contrasena, confirmacion);
             lock (_lockEscritura)
             {
+                EstadoPerfiles estado = CargarEstado();
                 BE.USUARIO u = BuscarUsuario(_usuarioDal.ListarTodos(), usuarioId);
+                if (usuarioId == actor.Id)
+                    throw new InvalidOperationException("Tu propia contraseña se cambia desde Contraseña.");
+                ExigirPuedeActuarSobre(estado, PermisosDelGestor(estado, actor), usuarioId);
+
                 if (!_usuarioDal.CambiarContrasena(u.Usuario, HashHelper.HashSHA256(contrasena)))
                     throw new InvalidOperationException("No se pudo restablecer la contraseña.");
-                PostEscritura(actor, Accion("RESET_CONTRASENA", u.Usuario), _integridad.RecalcularUsuario);
+                RevocarSesionesDe(usuarioId, u.Usuario);
+                PostEscritura(actor.Usuario, Accion("RESET_CONTRASENA", u.Usuario), _integridad.RecalcularUsuario);
             }
         }
 

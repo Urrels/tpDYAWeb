@@ -59,6 +59,7 @@ namespace BLL
                 // queda bloqueado con "sesión ya activa".
                 // La versión se lee antes de calcular: si un perfil cambia en el medio,
                 // la sesión queda desactualizada y se refresca en el próximo pedido.
+                u.EpocaSesion = PerfilBLL.NuevaEpocaDeSesion();
                 u.VersionPermisos = PerfilBLL.VersionPermisos;
                 u.Permisos = new PerfilBLL().ObtenerPermisosEfectivos(u.Id);
 
