@@ -130,6 +130,8 @@
     <Content Include="Bitacora.aspx" />
     <Content Include="Integridad.aspx" />
     <Content Include="UsuariosBloqueados.aspx" />
+    <Content Include="Perfiles.aspx" />
+    <Content Include="AsignarPerfiles.aspx" />
     <Content Include="Dashboard.aspx" />
     <Content Include="Inscripcion.aspx" />
     <Content Include="Global.asax" />
@@ -159,6 +161,20 @@
     </Compile>
     <Compile Include="UsuariosBloqueados.aspx.designer.cs">
       <DependentUpon>UsuariosBloqueados.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Perfiles.aspx.cs">
+      <DependentUpon>Perfiles.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Perfiles.aspx.designer.cs">
+      <DependentUpon>Perfiles.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="AsignarPerfiles.aspx.cs">
+      <DependentUpon>AsignarPerfiles.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AsignarPerfiles.aspx.designer.cs">
+      <DependentUpon>AsignarPerfiles.aspx</DependentUpon>
     </Compile>
     <Compile Include="Calendario.aspx.cs">
       <DependentUpon>Calendario.aspx</DependentUpon>

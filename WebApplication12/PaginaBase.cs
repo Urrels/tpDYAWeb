@@ -43,6 +43,9 @@ namespace CAPAS_Web
                 return;
             }
 
+            // Si algún perfil cambió desde que se calcularon los permisos de la sesión, se recalculan.
+            new BLL.PerfilBLL().RefrescarPermisosSiHaceFalta(usuario);
+
             if (!TieneAcceso(usuario))
             {
                 string inicio = ObtenerPaginaInicio(usuario);
