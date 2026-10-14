@@ -1,12 +1,12 @@
--- Traducciones iniciales (espaÃ±ol / inglÃ©s / portuguÃ©s) de los textos del sitio.
--- Ejecutar DESPUÃ‰S de BD_Universidad.sql (que crea las tablas y los tres idiomas):
+-- Traducciones iniciales (español / inglés / portugués) de los textos del sitio.
+-- Ejecutar DESPUÉS de BD_Universidad.sql (que crea las tablas y los tres idiomas):
 --   sqlcmd -S . -E -i DAL\traducciones.sql
 -- Es idempotente y no destructivo: agrega las claves que falten, actualiza el texto por defecto
--- (espaÃ±ol) y las traducciones de estas claves, y no toca las claves que no figuran acÃ¡ ni las
--- traducciones que se editaron en Idiomas.aspx para otras claves. Los textos nuevos del cÃ³digo
+-- (español) y las traducciones de estas claves, y no toca las claves que no figuran acá ni las
+-- traducciones que se editaron en Idiomas.aspx para otras claves. Los textos nuevos del código
 -- se registran solos en CONTROL_IDIOMA la primera vez que se usan.
 -- Las claves son "Pagina.IdDelControl" (texto fijo del markup), "Msg.*" (mensajes de la BLL y de las
--- pÃ¡ginas) y "Valor.*" (estados, tipos, dÃ­as, meses y nombres de permisos que se muestran en pantalla).
+-- páginas) y "Valor.*" (estados, tipos, días, meses y nombres de permisos que se muestran en pantalla).
 USE BDUNIVERSIDAD
 GO
 SET NOCOUNT ON;
@@ -70,6 +70,7 @@ INSERT INTO @textos (CLAVE, ES, EN, PT) VALUES
     (N'Calendario.litNoLaborable', N'No laborable', N'Non-working day', N'Não útil'),
     (N'Calendario.litPeso', N'Peso', N'Weight', N'Peso'),
     (N'Calendario.litTipo', N'Tipo', N'Type', N'Tipo'),
+    (N'Calendario.lnkTexto2.confirmar', N'¿Eliminar este evento?', N'Delete this event?', N'Excluir este evento?'),
     (N'Calendario.msgActualizado', N'✔ Evento actualizado.', N'✔ Event updated.', N'✔ Evento atualizado.'),
     (N'Calendario.msgCreado', N'✔ Evento creado.', N'✔ Event created.', N'✔ Evento criado.'),
     (N'Calendario.msgEliminado', N'✔ Evento eliminado.', N'✔ Event deleted.', N'✔ Evento excluído.'),
@@ -160,11 +161,14 @@ INSERT INTO @textos (CLAVE, ES, EN, PT) VALUES
     (N'Inscripcion.litHaceClicEnLas', N'Hacé clic en las materias que querés cursar. Solo se muestran las que ya tenés habilitadas por correlativas.', N'Click the subjects you want to take. Only those you are already allowed to take by prerequisites are shown.', N'Clique nas matérias que você quer cursar. Só aparecem as que você já tem liberadas pelas correlativas.'),
     (N'Inscripcion.litHistorialDeInscripciones', N'Historial de inscripciones', N'Enrollment history', N'Histórico de matrículas'),
     (N'Inscripcion.litInscripcionCuatrimestral', N'Inscripción Cuatrimestral', N'Term enrollment', N'Matrícula semestral'),
+    (N'Inscripcion.litInscriptoEl', N'Inscripto el', N'Enrolled on', N'Matriculado em'),
     (N'Inscripcion.litMateriasDisponibles', N'Materias disponibles', N'Available subjects', N'Matérias disponíveis'),
     (N'Inscripcion.litNoExisteUnCuatrimestre', N'No existe un cuatrimestre configurado para la fecha de hoy. Consultá al administrador para que habilite las inscripciones.', N'There is no term configured for today''s date. Ask the administrator to enable enrollments.', N'Não existe um semestre configurado para a data de hoje. Consulte o administrador para habilitar as matrículas.'),
     (N'Inscripcion.litNoHayPeriodos', N'No hay períodos registrados.', N'There are no registered periods.', N'Não há períodos registrados.'),
     (N'Inscripcion.litNoHayUnPeriodo', N'No hay un período académico activo', N'There is no active academic period', N'Não há um período acadêmico ativo'),
     (N'Inscripcion.litPeriodosAcademicos', N'Períodos Académicos', N'Academic periods', N'Períodos acadêmicos'),
+    (N'Inscripcion.litPeso', N'Peso', N'Weight', N'Peso'),
+    (N'Inscripcion.litRequiere', N'Requiere:', N'Requires:', N'Requer:'),
     (N'Inscripcion.msgErrorActualizar', N'Error al actualizar el período.', N'Error while updating the period.', N'Erro ao atualizar o período.'),
     (N'Inscripcion.msgErrorCrear', N'Error al crear el período.', N'Error while creating the period.', N'Erro ao criar o período.'),
     (N'Inscripcion.msgPeriodoActivo', N'Período activo: {0}. Los alumnos pueden inscribirse hasta {1}.', N'Active period: {0}. Students can enroll until {1}.', N'Período ativo: {0}. Os alunos podem se matricular até {1}.'),
@@ -268,7 +272,9 @@ INSERT INTO @textos (CLAVE, ES, EN, PT) VALUES
     (N'Menu.litCalendario', N'Calendario', N'Calendar', N'Calendário'),
     (N'Menu.litDashboard', N'Dashboard', N'Dashboard', N'Painel'),
     (N'Menu.litDatosYDireccionEncriptad', N'Datos y dirección encriptada AES.', N'Your data and AES-encrypted address.', N'Dados e endereço criptografado com AES.'),
+    (N'Menu.litDias', N'días', N'days', N'dias'),
     (N'Menu.litEditar', N'Editar', N'Edit', N'Editar'),
+    (N'Menu.litEl', N'el', N'on', N'em'),
     (N'Menu.litEstadoYNotasDe', N'Estado y notas de cada materia.', N'Status and grades of each subject.', N'Situação e notas de cada matéria.'),
     (N'Menu.litEventosConMapaDe', N'Eventos con mapa de calor.', N'Events with a heat map.', N'Eventos com mapa de calor.'),
     (N'Menu.litExamenesProximos', N'⚠️ Exámenes próximos:', N'⚠️ Upcoming exams:', N'⚠️ Próximas provas:'),
@@ -530,6 +536,8 @@ INSERT INTO @textos (CLAVE, ES, EN, PT) VALUES
     (N'UsuariosBloqueados.litNoHayBloqueados', N'No hay usuarios bloqueados actualmente.', N'There are no blocked users right now.', N'Não há usuários bloqueados no momento.'),
     (N'UsuariosBloqueados.litUsuario', N'Usuario', N'User', N'Usuário'),
     (N'UsuariosBloqueados.litUsuariosBloqueados', N'Usuarios Bloqueados', N'Blocked users', N'Usuários bloqueados'),
+    (N'UsuariosBloqueados.lnkDesbloquear', N'Desbloquear', N'Unblock', N'Desbloquear'),
+    (N'UsuariosBloqueados.lnkDesbloquear.confirmar', N'¿Desbloquear este usuario?', N'Unblock this user?', N'Desbloquear este usuário?'),
     (N'UsuariosBloqueados.msgDesbloqueado', N'Usuario ''{0}'' desbloqueado correctamente.', N'User ''{0}'' was unblocked successfully.', N'Usuário ''{0}'' desbloqueado com sucesso.'),
     (N'Valor.Abril', N'Abril', N'April', N'Abril'),
     (N'Valor.Agosto', N'Agosto', N'August', N'Agosto'),
