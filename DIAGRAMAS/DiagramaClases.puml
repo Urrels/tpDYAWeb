@@ -172,7 +172,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +ObtenerPorNombre() : USUARIO
     +CambiarContrasena() : bool
     +ActualizarDireccion() : bool
-    +ListarAlumnos() : List<USUARIO>
+    +ListarTodos() : List<USUARIO>
     +EstaBloqueado(usuario) : bool
     +IncrementarIntentos(usuario) : bool
     +ResetearIntentos(usuario)
@@ -275,6 +275,7 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     +ActualizarDireccion() : bool
     +Desbloquear(usuario, admin)
     +ListarBloqueados() : List<USUARIO>
+    +ListarTodos() : List<USUARIO>
     +ListarAlumnos() : List<USUARIO>
   }
 
