@@ -2362,6 +2362,17 @@ CREATE TABLE TRADUCCION (
 )
 GO
 
+-- Migración: una base creada con una versión anterior de este script tiene los textos más cortos
+-- (200 caracteres, a veces VARCHAR) y los textos largos de traducciones.sql no entrarían.
+IF EXISTS (SELECT 1 FROM sys.columns WHERE Object_ID = Object_ID('CONTROL_IDIOMA') AND Name = 'TEXTO_DEFAULT'
+           AND (system_type_id <> 231 OR max_length <> 1000))
+    ALTER TABLE CONTROL_IDIOMA ALTER COLUMN TEXTO_DEFAULT NVARCHAR(500) NOT NULL
+GO
+IF EXISTS (SELECT 1 FROM sys.columns WHERE Object_ID = Object_ID('TRADUCCION') AND Name = 'TEXTO'
+           AND (system_type_id <> 231 OR max_length <> 1000))
+    ALTER TABLE TRADUCCION ALTER COLUMN TEXTO NVARCHAR(500) NOT NULL
+GO
+
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'IDIOMA_ID' AND Object_ID = Object_ID('USUARIO'))
     ALTER TABLE USUARIO ADD IDIOMA_ID INT NULL REFERENCES IDIOMA(ID)
 GO

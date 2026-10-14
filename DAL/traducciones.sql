@@ -1,4 +1,4 @@
-﻿-- Traducciones iniciales (espaÃ±ol / inglÃ©s / portuguÃ©s) de los textos del sitio.
+-- Traducciones iniciales (espaÃ±ol / inglÃ©s / portuguÃ©s) de los textos del sitio.
 -- Ejecutar DESPUÃ‰S de BD_Universidad.sql (que crea las tablas y los tres idiomas):
 --   sqlcmd -S . -E -i DAL\traducciones.sql
 -- Es idempotente y no destructivo: agrega las claves que falten, actualiza el texto por defecto
