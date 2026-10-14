@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Web.UI.WebControls;
 
 namespace CAPAS_Web
@@ -81,6 +82,49 @@ namespace CAPAS_Web
                            ok ? "✔ Materia dada de baja." : "✖ Error.");
                 CargarGrilla();
             }
+        }
+
+        protected void btnExportarXml_Click(object sender, EventArgs e)
+        {
+            string usuario = (Session["Usuario"] as BE.USUARIO).Usuario;
+            byte[] xml = new BLL.MateriaXmlBLL().Exportar(usuario);
+
+            Response.Clear();
+            Response.ContentType = "application/xml";
+            Response.AddHeader("Content-Disposition", $"attachment; filename=materias_{DateTime.Now:yyyyMMdd_HHmmss}.xml");
+            Response.BinaryWrite(xml);
+            Response.End();
+        }
+
+        protected void btnImportarXml_Click(object sender, EventArgs e)
+        {
+            if (!fileXml.HasFile)
+            {
+                MostrarMsg("alert-warning", "Elegí un archivo .xml para importar.");
+                CargarGrilla();
+                return;
+            }
+            // Se lee como máximo el tope + 1 byte para no cargar en memoria un archivo enorme.
+            byte[] contenido;
+            using (var ms = new System.IO.MemoryStream())
+            {
+                var buffer = new byte[8192];
+                int leidos;
+                var entrada = fileXml.PostedFile.InputStream;
+                while (ms.Length <= BLL.MateriaXmlBLL.TamanioMaximoBytes && (leidos = entrada.Read(buffer, 0, buffer.Length)) > 0)
+                    ms.Write(buffer, 0, leidos);
+                contenido = ms.ToArray();
+            }
+
+            string usuario = (Session["Usuario"] as BE.USUARIO).Usuario;
+            BLL.ResultadoImportacionXml r = new BLL.MateriaXmlBLL().Importar(contenido, usuario);
+            if (r.Ok)
+                MostrarMsg("alert-success", $"✔ Importación completa: {r.Creadas} materias nuevas, {r.Actualizadas} actualizadas, {r.CorrelativasAgregadas} correlativas agregadas.");
+            else
+                MostrarMsg("alert-danger", "✖ No se importó nada:<br/>" +
+                    string.Join("<br/>", r.Errores.Take(20).Select(System.Web.HttpUtility.HtmlEncode)) +
+                    (r.Errores.Count > 20 ? $"<br/>… y {r.Errores.Count - 20} errores más." : ""));
+            CargarGrilla();
         }
 
         private void MostrarMsg(string css, string texto)

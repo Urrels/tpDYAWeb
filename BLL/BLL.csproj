@@ -88,6 +88,7 @@
     <Compile Include="IntegridadBLL.cs" />
     <Compile Include="LoginBLL.cs" />
     <Compile Include="MateriaBLL.cs" />
+    <Compile Include="MateriaXmlBLL.cs" />
     <Compile Include="Paginacion.cs" />
     <Compile Include="PerfilBLL.cs" />
     <Compile Include="SiembraBLL.cs" />
