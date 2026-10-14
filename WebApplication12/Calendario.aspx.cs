@@ -4,8 +4,10 @@ using System.Web.UI.WebControls;
 
 namespace CAPAS_Web
 {
-    public partial class Calendario : System.Web.UI.Page
+    public partial class Calendario : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.VerCalendario;
+
         private readonly BLL.EventoBLL   _eventoBll   = new BLL.EventoBLL();
         private readonly BLL.FeriadosBLL _feriadosBll = new BLL.FeriadosBLL();
 
@@ -22,8 +24,6 @@ namespace CAPAS_Web
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            if ((Session["Usuario"] as BE.USUARIO).EsWebmaster) { Response.Redirect("~/Integridad.aspx"); return; }
             if (!IsPostBack)
             {
                 CargarMateriasDesplegable();

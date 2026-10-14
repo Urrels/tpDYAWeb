@@ -13,10 +13,28 @@ namespace CAPAS_Web
             }
             var u = Session["Usuario"] as BE.USUARIO;
             lblUsuarioNav.Text  = u.Usuario;
-            lnkInicio.NavigateUrl = u.EsWebmaster ? "~/Integridad.aspx" : (u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
-            phNavAdmin.Visible      = u.EsAdmin;
-            phNavAlumno.Visible     = !u.EsAdmin && !u.EsWebmaster;
-            phNavWebmaster.Visible  = u.EsWebmaster;
+            lnkInicio.NavigateUrl = PaginaBase.ObtenerPaginaInicio(u) ?? "~/Login.aspx";
+
+            phNavMaterias.Visible    = u.TienePermiso(BE.Permisos.GestionarMaterias);
+            phNavNotas.Visible       = u.TienePermiso(BE.Permisos.CargarNotas);
+            phNavPeriodos.Visible    = u.TienePermiso(BE.Permisos.GestionarPeriodos);
+            phNavBitacora.Visible    = u.TienePermiso(BE.Permisos.VerBitacora);
+            phNavBloqueados.Visible  = u.TienePermiso(BE.Permisos.DesbloquearUsuarios);
+            phNavInscripcion.Visible = u.TienePermiso(BE.Permisos.Inscribirse);
+            phNavMisCursadas.Visible = u.TienePermiso(BE.Permisos.VerMisCursadas);
+            phNavCalendario.Visible  = u.TienePermiso(BE.Permisos.VerCalendario);
+            phNavDashboard.Visible   = u.TienePermiso(BE.Permisos.VerDashboard);
+            phNavIntegridad.Visible  = u.TienePermiso(BE.Permisos.VerificarIntegridad);
+            phNavPerfil.Visible      = u.TienePermiso(BE.Permisos.EditarPerfil);
+            phNavContrasena.Visible  = u.TienePermiso(BE.Permisos.CambiarContrasena);
+
+            // Cada sección solo se muestra si alguno de sus enlaces es visible.
+            phSeccionGestion.Visible       = phNavMaterias.Visible || phNavNotas.Visible || phNavPeriodos.Visible
+                                             || phNavBitacora.Visible || phNavBloqueados.Visible;
+            phSeccionAcademico.Visible     = phNavInscripcion.Visible || phNavMisCursadas.Visible || phNavCalendario.Visible;
+            phSeccionHerramientas.Visible  = phNavDashboard.Visible;
+            phSeccionMantenimiento.Visible = phNavIntegridad.Visible;
+            phSeccionPersonal.Visible      = phNavPerfil.Visible || phNavContrasena.Visible;
         }
 
         protected void btnCerrarSesion_Click(object sender, EventArgs e)

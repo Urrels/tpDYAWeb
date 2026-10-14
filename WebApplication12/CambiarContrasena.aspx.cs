@@ -3,12 +3,12 @@ using System.Text.RegularExpressions;
 
 namespace CAPAS_Web
 {
-    public partial class CambiarContrasena : System.Web.UI.Page
+    public partial class CambiarContrasena : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.CambiarContrasena;
+
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            if ((Session["Usuario"] as BE.USUARIO).EsWebmaster) { Response.Redirect("~/Integridad.aspx"); return; }
         }
 
         protected void btnGuardar_Click(object sender, EventArgs e)

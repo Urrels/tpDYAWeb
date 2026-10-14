@@ -3,13 +3,12 @@ using System.Linq;
 
 namespace CAPAS_Web
 {
-    public partial class Menu : System.Web.UI.Page
+    public partial class Menu : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.VerMenuAlumno;
+
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            if ((Session["Usuario"] as BE.USUARIO).EsWebmaster) { Response.Redirect("~/Integridad.aspx"); return; }
-            if ((Session["Usuario"] as BE.USUARIO).EsAdmin) Response.Redirect("~/Materias.aspx");
             if (!IsPostBack)
             {
                 var u = Session["Usuario"] as BE.USUARIO;

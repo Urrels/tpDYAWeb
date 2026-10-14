@@ -12,6 +12,14 @@ namespace CAPAS_Web
             {
                 Application["DBError"] = ex.Message;
             }
+
+            // Tras migrar al modelo de perfiles, las tablas nuevas llegan sin
+            // DVH/DVV: se calculan por primera vez (solo si nunca se calcularon).
+            try { new BLL.IntegridadBLL().InicializarTablasDePerfiles(); }
+            catch (Exception ex)
+            {
+                Application["IntegridadInitError"] = ex.Message;
+            }
         }
 
         protected void Session_End(object sender, EventArgs e)

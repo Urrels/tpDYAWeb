@@ -3,15 +3,14 @@ using System.Web.UI.WebControls;
 
 namespace CAPAS_Web
 {
-    public partial class Materias : System.Web.UI.Page
+    public partial class Materias : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.GestionarMaterias;
+
         private readonly BLL.MateriaBLL _bll = new BLL.MateriaBLL();
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            var u = Session["Usuario"] as BE.USUARIO;
-            if (!u.EsAdmin) Response.Redirect("~/Menu.aspx");
             if (!IsPostBack) CargarGrilla();
         }
 

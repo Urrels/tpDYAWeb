@@ -3,26 +3,21 @@ using System.Linq;
 
 namespace CAPAS_Web
 {
-    public partial class Integridad : System.Web.UI.Page
+    public partial class Integridad : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.VerificarIntegridad;
+
         private readonly BLL.IntegridadBLL _bll = new BLL.IntegridadBLL();
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            BE.USUARIO u = Session["Usuario"] as BE.USUARIO;
-            if (!u.EsWebmaster)
-            {
-                Response.Redirect(u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx");
-            }
-
             if (!IsPostBack)
                 MostrarResultado(_bll.VerificarTodasLasTablas());
         }
 
         /// <summary>
         /// Acepta el estado actual de los datos como legítimo: recalcula
-        /// DVH/DVV (y el snapshot) de las 9 tablas sobre los valores
+        /// DVH/DVV (y el snapshot) de las 13 tablas sobre los valores
         /// presentes hoy en la base, y vuelve a mostrar una verificación
         /// (que debería dar OK, ya que lo que se acaba de recalcular es por
         /// definición consistente consigo mismo).
@@ -35,7 +30,7 @@ namespace CAPAS_Web
 
         /// <summary>
         /// No modifica la base: descarga como .json el snapshot actual de
-        /// las 9 tablas (el mismo que usaría Restaurar), para tener un
+        /// las 13 tablas (el mismo que usaría Restaurar), para tener un
         /// respaldo externo antes de aplicar una acción irreversible.
         /// </summary>
         protected void btnBackup_Click(object sender, EventArgs e)
@@ -51,7 +46,7 @@ namespace CAPAS_Web
         }
 
         /// <summary>
-        /// Acción destructiva/irreversible: devuelve las 9 tablas al último
+        /// Acción destructiva/irreversible: devuelve las 13 tablas al último
         /// estado guardado en el snapshot (confirmación ya pedida en el
         /// cliente vía OnClientClick antes de llegar a este postback).
         /// </summary>
@@ -115,7 +110,7 @@ namespace CAPAS_Web
 
             if (resultado.EsValido)
                 MostrarMsg("alert-success",
-                    "<i class='bi bi-shield-check me-2'></i>Integridad verificada correctamente en las 9 tablas de negocio.");
+                    "<i class='bi bi-shield-check me-2'></i>Integridad verificada correctamente en las 13 tablas de negocio.");
             else
             {
                 string usuariosAfectados = resultado.IdsUsuariosAfectados.Any()

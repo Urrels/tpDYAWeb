@@ -2,15 +2,14 @@
 
 namespace CAPAS_Web
 {
-    public partial class MisCursadas : System.Web.UI.Page
+    public partial class MisCursadas : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.VerMisCursadas;
+
         private readonly BLL.AlumnoMateriaBLL _bll = new BLL.AlumnoMateriaBLL();
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            if ((Session["Usuario"] as BE.USUARIO).EsWebmaster) { Response.Redirect("~/Integridad.aspx"); return; }
-            if ((Session["Usuario"] as BE.USUARIO).EsAdmin) Response.Redirect("~/Materias.aspx");
             if (!IsPostBack) CargarGrilla();
         }
 

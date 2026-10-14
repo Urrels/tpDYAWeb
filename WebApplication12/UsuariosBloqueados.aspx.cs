@@ -3,15 +3,14 @@ using System.Web.UI.WebControls;
 
 namespace CAPAS_Web
 {
-    public partial class UsuariosBloqueados : System.Web.UI.Page
+    public partial class UsuariosBloqueados : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.DesbloquearUsuarios;
+
         private readonly BLL.UsuarioBLL _bll = new BLL.UsuarioBLL();
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            var u = Session["Usuario"] as BE.USUARIO;
-            if (!u.EsAdmin) Response.Redirect("~/Menu.aspx");
             if (!IsPostBack) CargarGrilla();
         }
 

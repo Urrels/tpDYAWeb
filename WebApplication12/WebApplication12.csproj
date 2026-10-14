@@ -233,6 +233,7 @@
     <Compile Include="Perfil.aspx.designer.cs">
       <DependentUpon>Perfil.aspx</DependentUpon>
     </Compile>
+    <Compile Include="PaginaBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
 
 
