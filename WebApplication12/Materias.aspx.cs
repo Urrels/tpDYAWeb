@@ -15,20 +15,6 @@ namespace CAPAS_Web
             if (!IsPostBack) CargarGrilla();
         }
 
-        protected override void ActualizarTextosDinamicos()
-        {
-            // Los encabezados de la grilla no son controles con ID: se traducen por código, sobre la fila ya creada.
-            if (gvMaterias.HeaderRow == null) return;
-            string[,] encabezados =
-            {
-                { "Materias.colCodigo", "Código" }, { "Materias.colNombre", "Nombre" },
-                { "Materias.colModalidad", "Modalidad" }, { "Materias.colPeso", "Peso" },
-                { "Materias.colAcciones", "Acciones" }
-            };
-            for (int i = 0; i < encabezados.GetLength(0) && i < gvMaterias.HeaderRow.Cells.Count; i++)
-                gvMaterias.HeaderRow.Cells[i].Text = Textos.T(encabezados[i, 0], encabezados[i, 1]);
-        }
-
 
         private void CargarGrilla()
         {
@@ -47,7 +33,7 @@ namespace CAPAS_Web
             txtNombre.Text = txtCodigo.Text = "";
             ddlModalidad.SelectedValue = "Presencial";
             ddlPeso.SelectedValue = "3";
-            lblTituloForm.Text = "Nueva Materia";
+            lblTituloForm.Text = Textos.TH("Materias.tituloNueva", "Nueva Materia");
             pnlForm.Visible = true;
         }
 
@@ -87,7 +73,7 @@ namespace CAPAS_Web
                 txtCodigo.Text = m.Codigo;
                 ddlModalidad.SelectedValue = m.Modalidad;
                 ddlPeso.SelectedValue = m.Peso.ToString();
-                lblTituloForm.Text = "Editar Materia";
+                lblTituloForm.Text = Textos.TH("Materias.tituloEditar", "Editar Materia");
                 pnlForm.Visible = true;
             }
             else if (e.CommandName == "Eliminar")
@@ -140,7 +126,7 @@ namespace CAPAS_Web
             else
                 // Los errores los arma la BLL en español y se muestran tal cual (codificados).
                 MostrarMsg("alert-danger", Textos.TH("Materias.msgImportacionError", "✖ No se importó nada:") + "<br/>" +
-                    string.Join("<br/>", r.Errores.Take(20).Select(System.Web.HttpUtility.HtmlEncode)) +
+                    string.Join("<br/>", r.Errores.Take(20).Select(Textos.MH)) +
                     (r.Errores.Count > 20 ? "<br/>" + Textos.TH("Materias.msgMasErrores", "… y {0} errores más.", r.Errores.Count - 20) : ""));
             CargarGrilla();
         }

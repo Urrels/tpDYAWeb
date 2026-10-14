@@ -110,8 +110,8 @@ namespace BLL
             {
                 string texto = (par.Value ?? "").Trim();
                 if (texto.Length == 0) continue;
-                if (texto.Length > 200)
-                    throw new InvalidOperationException("Una traducción supera los 200 caracteres.");
+                if (texto.Length > 500)
+                    throw new InvalidOperationException("Una traducción supera los 500 caracteres.");
                 _dal.GuardarTraduccion(idiomaId, par.Key, texto);
                 guardadas++;
             }

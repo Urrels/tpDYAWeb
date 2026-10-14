@@ -19,27 +19,27 @@ namespace CAPAS_Web
             string conf = txtConfPass.Text.Trim();
 
             if (string.IsNullOrEmpty(actual) || string.IsNullOrEmpty(nueva) || string.IsNullOrEmpty(conf))
-            { lblError.Text = "Completá todos los campos."; lblError.Visible = true; return; }
+            { lblError.Text = Textos.TH("CambiarContrasena.msgCompletar", "Completá todos los campos."); lblError.Visible = true; return; }
 
             if (nueva != conf)
-            { lblError.Text = "Las contraseñas no coinciden."; lblError.Visible = true; return; }
+            { lblError.Text = Textos.TH("CambiarContrasena.msgNoCoinciden", "Las contraseñas no coinciden."); lblError.Visible = true; return; }
 
             if (!Regex.IsMatch(nueva, @"^(?=.*[A-Z])(?=.*\d).{6,}$"))
-            { lblError.Text = "Debe tener 6+ caracteres, 1 mayúscula y 1 número."; lblError.Visible = true; return; }
+            { lblError.Text = Textos.TH("CambiarContrasena.msgPolitica", "Debe tener 6+ caracteres, 1 mayúscula y 1 número."); lblError.Visible = true; return; }
 
             var u = Session["Usuario"] as BE.USUARIO;
             var bll = new BLL.UsuarioBLL();
 
             if (!bll.VerificarContrasena(u.Usuario, actual))
-            { lblError.Text = "La contraseña actual es incorrecta."; lblError.Visible = true; return; }
+            { lblError.Text = Textos.TH("CambiarContrasena.msgActualIncorrecta", "La contraseña actual es incorrecta."); lblError.Visible = true; return; }
 
             bool ok = bll.CambiarContrasena(u.Usuario, nueva);
             if (ok)
             {
                 txtPassActual.Text = txtNuevaPass.Text = txtConfPass.Text = "";
-                lblExito.Text = "✔ Contraseña cambiada."; lblExito.Visible = true;
+                lblExito.Text = Textos.TH("CambiarContrasena.msgCambiada", "✔ Contraseña cambiada."); lblExito.Visible = true;
             }
-            else { lblError.Text = "✖ Error al cambiar."; lblError.Visible = true; }
+            else { lblError.Text = Textos.TH("CambiarContrasena.msgError", "✖ Error al cambiar."); lblError.Visible = true; }
         }
     }
 }

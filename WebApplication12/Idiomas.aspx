@@ -58,7 +58,7 @@
                     <asp:BoundField DataField="TextoDefault" HeaderText="Texto por defecto"/>
                     <asp:TemplateField HeaderText="Traducción">
                         <ItemTemplate>
-                            <asp:TextBox ID="txtTraduccion" runat="server" MaxLength="200" CssClass="form-control form-control-sm"
+                            <asp:TextBox ID="txtTraduccion" runat="server" MaxLength="500" CssClass="form-control form-control-sm"
                                          Text='<%# Eval("TextoTraduccion") %>'/>
                         </ItemTemplate>
                     </asp:TemplateField>

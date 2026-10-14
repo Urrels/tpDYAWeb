@@ -24,7 +24,7 @@ namespace CAPAS_Web
             var u = Session["Usuario"] as BE.USUARIO;
             bool ok = new BLL.UsuarioBLL().ActualizarDireccion(u.Usuario, txtDireccion.Text.Trim());
             lblMsg.CssClass = ok ? "alert alert-success d-block mb-3" : "alert alert-danger d-block mb-3";
-            lblMsg.Text = ok ? "✔ Dirección guardada con AES-256." : "✖ Error al guardar.";
+            lblMsg.Text = ok ? Textos.TH("Perfil.msgGuardada", "✔ Dirección guardada con AES-256.") : Textos.TH("Perfil.msgError", "✖ Error al guardar.");
             lblMsg.Visible = true;
         }
     }

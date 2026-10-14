@@ -2,7 +2,7 @@
          AutoEventWireup="true" CodeBehind="UsuariosBloqueados.aspx.cs" Inherits="CAPAS_Web.UsuariosBloqueados" %>
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
-    <h4 class="mb-4"><i class="bi bi-unlock-fill me-2"></i>Usuarios Bloqueados</h4>
+    <h4 class="mb-4"><i class="bi bi-unlock-fill me-2"></i><asp:Literal ID="litUsuariosBloqueados" runat="server" Text="Usuarios Bloqueados"/></h4>
 
     <asp:Label ID="lblMsg" runat="server" CssClass="alert d-block mb-3" Visible="false"/>
 
@@ -12,9 +12,9 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Usuario</th>
-                            <th>Intentos Fallidos</th>
-                            <th>Acción</th>
+                            <th><asp:Literal ID="litUsuario" runat="server" Text="Usuario"/></th>
+                            <th><asp:Literal ID="litIntentosFallidos" runat="server" Text="Intentos Fallidos"/></th>
+                            <th><asp:Literal ID="litAccion" runat="server" Text="Acción"/></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -24,7 +24,7 @@
                     <td><%# Eval("Usuario") %></td>
                     <td><%# Eval("IntentosFallidos") %></td>
                     <td>
-                        <asp:LinkButton CommandName="Desbloquear" CommandArgument='<%# Eval("Usuario") %>'
+                        <asp:LinkButton ID="lnkDesbloquear" CommandName="Desbloquear" CommandArgument='<%# Eval("Usuario") %>'
                                         runat="server" CssClass="btn btn-success btn-sm"
                                         OnClientClick="return confirm('¿Desbloquear este usuario?');">
                             <i class="bi bi-unlock-fill"></i> Desbloquear
@@ -37,7 +37,8 @@
                 </table>
             </FooterTemplate>
         </asp:Repeater>
-        <asp:Label ID="lblSinBloqueados" runat="server" Visible="false"
-                   Text="<p class='text-muted small p-3 mb-0'>No hay usuarios bloqueados actualmente.</p>"/>
+        <asp:Panel ID="lblSinBloqueados" runat="server" Visible="false">
+            <p class="text-muted small p-3 mb-0"><asp:Literal ID="litNoHayBloqueados" runat="server" Text="No hay usuarios bloqueados actualmente."/></p>
+        </asp:Panel>
     </div>
 </asp:Content>

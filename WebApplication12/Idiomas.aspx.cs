@@ -46,21 +46,6 @@ namespace CAPAS_Web
             gvTraducciones.DataBind();
         }
 
-        protected override void ActualizarTextosDinamicos()
-        {
-            Encabezados(gvIdiomas, "Idiomas.colIdioma", "Idioma", "Idiomas.colHabilitado", "Habilitado",
-                "Idiomas.colPredeterminado", "Predeterminado", "Idiomas.colAcciones", "Acciones");
-            Encabezados(gvTraducciones, "Idiomas.colClave", "Clave", "Idiomas.colTextoDefault", "Texto por defecto",
-                "Idiomas.colTraduccion", "Traducción");
-        }
-
-        private static void Encabezados(GridView grilla, params string[] clavesYTextos)
-        {
-            if (grilla.HeaderRow == null) return;
-            for (int i = 0; i * 2 < clavesYTextos.Length && i < grilla.HeaderRow.Cells.Count; i++)
-                grilla.HeaderRow.Cells[i].Text = Textos.T(clavesYTextos[i * 2], clavesYTextos[i * 2 + 1]);
-        }
-
         protected void gvIdiomas_RowDataBound(object sender, GridViewRowEventArgs e)
         {
             if (e.Row.RowType != DataControlRowType.DataRow) return;
@@ -103,7 +88,7 @@ namespace CAPAS_Web
             catch (InvalidOperationException ex)
             {
                 // Los mensajes de la BLL son reglas de negocio en español.
-                MostrarError(System.Web.HttpUtility.HtmlEncode(ex.Message));
+                MostrarError(Textos.MH(ex.Message));
             }
         }
 
@@ -115,7 +100,7 @@ namespace CAPAS_Web
                 txtNombre.Text = "";
                 Exito(Textos.TH("Idiomas.msgCreado", "Idioma agregado. Está deshabilitado hasta que lo habilites."));
             }
-            catch (InvalidOperationException ex) { MostrarError(System.Web.HttpUtility.HtmlEncode(ex.Message)); }
+            catch (InvalidOperationException ex) { MostrarError(Textos.MH(ex.Message)); }
         }
 
         protected void btnRenombrar_Click(object sender, EventArgs e)
@@ -131,7 +116,7 @@ namespace CAPAS_Web
                 txtNombre.Text = "";
                 Exito(Textos.TH("Idiomas.msgRenombrado", "Idioma renombrado."));
             }
-            catch (InvalidOperationException ex) { MostrarError(System.Web.HttpUtility.HtmlEncode(ex.Message)); }
+            catch (InvalidOperationException ex) { MostrarError(Textos.MH(ex.Message)); }
         }
 
         protected void btnFiltrar_Click(object sender, EventArgs e) { }
@@ -152,7 +137,7 @@ namespace CAPAS_Web
                 IdiomaWeb.Fachada.RefrescarSiHaceFalta();
                 Exito(Textos.TH("Idiomas.msgGuardadas", "Traducciones guardadas: {0}.", guardadas));
             }
-            catch (InvalidOperationException ex) { MostrarError(System.Web.HttpUtility.HtmlEncode(ex.Message)); }
+            catch (InvalidOperationException ex) { MostrarError(Textos.MH(ex.Message)); }
         }
 
         // Estos métodos reciben texto ya codificado para HTML (lblMsg es un Label, que no codifica).

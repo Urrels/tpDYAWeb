@@ -98,7 +98,7 @@
         <div class="card-body">
             <div class="d-flex align-items-center gap-2 mb-2">
                 <h6 class="card-section-title mb-0 me-3"><asp:Literal ID="litWs" runat="server" Text="Resumen vía Web Service"/></h6>
-                <button type="button" id="btnResumenWs" class="btn btn-outline-secondary btn-sm">Consultar MateriasService</button>
+                <button type="button" id="btnResumenWs" class="btn btn-outline-secondary btn-sm"><asp:Literal ID="litConsultarMateriasservice" runat="server" Text="Consultar MateriasService"/></button>
             </div>
             <div id="wsResumen" class="small text-muted"></div>
         </div>
@@ -116,23 +116,23 @@
         // Consume ObtenerResumenAcademico de MateriasService.asmx (JSON); la cookie de sesión viaja sola.
         document.getElementById('btnResumenWs').addEventListener('click', function () {
             var salida = document.getElementById('wsResumen');
-            salida.textContent = 'Consultando…';
+            salida.textContent = '<%= CAPAS_Web.Textos.Js("Dashboard.jsConsultando", "Consultando…") %>';
             fetch('MateriasService.asmx/ObtenerResumenAcademico', {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json; charset=utf-8' },
                 body: '{}'
             }).then(function (r) {
-                if (!r.ok) throw new Error('El servicio respondió ' + r.status + '.');
+                if (!r.ok) throw new Error('<%= CAPAS_Web.Textos.Js("Dashboard.jsRespondio", "El servicio respondió") %>' + ' ' + r.status + '.');
                 return r.json();
             }).then(function (datos) {
                 var d = datos.d;
-                salida.textContent = 'Total: ' + d.TotalMaterias + ' · Aprobadas: ' + d.Aprobadas +
-                    ' · Cursando: ' + d.Cursando + ' · Final pendiente: ' + d.FinalPendiente +
-                    ' · Promedio ponderado: ' + (d.PromedioPonderado > 0 ? d.PromedioPonderado.toFixed(2) : 'sin datos') +
+                salida.textContent = '<%= CAPAS_Web.Textos.Js("Dashboard.jsTotal", "Total:") %>' + ' ' + d.TotalMaterias + ' · ' + '<%= CAPAS_Web.Textos.Js("Dashboard.jsAprobadas", "Aprobadas:") %>' + ' ' + d.Aprobadas +
+                    ' · ' + '<%= CAPAS_Web.Textos.Js("Dashboard.jsCursando", "Cursando:") %>' + ' ' + d.Cursando + ' · ' + '<%= CAPAS_Web.Textos.Js("Dashboard.jsFinalPendiente", "Final pendiente:") %>' + ' ' + d.FinalPendiente +
+                    ' · ' + '<%= CAPAS_Web.Textos.Js("Dashboard.jsPromedio", "Promedio ponderado:") %>' + ' ' + (d.PromedioPonderado > 0 ? d.PromedioPonderado.toFixed(2) : '<%= CAPAS_Web.Textos.Js("Dashboard.jsSinDatos", "sin datos") %>') +
                     ' (' + d.MensajePromedio + ')';
             }).catch(function (e) {
-                salida.textContent = 'No se pudo consultar el servicio: ' + e.message;
+                salida.textContent = '<%= CAPAS_Web.Textos.Js("Dashboard.jsError", "No se pudo consultar el servicio:") %>' + ' ' + e.message;
             });
         });
     </script>
@@ -145,17 +145,17 @@
                     labels: datosNotas.labels,
                     datasets: [
                         {
-                            label: 'Parcial 1',
+                            label: '<%= CAPAS_Web.Textos.Js("Dashboard.jsParcial1", "Parcial 1") %>',
                             data: datosNotas.parcial1,
                             backgroundColor: 'rgba(13,148,136,0.8)'
                         },
                         {
-                            label: 'Parcial 2',
+                            label: '<%= CAPAS_Web.Textos.Js("Dashboard.jsParcial2", "Parcial 2") %>',
                             data: datosNotas.parcial2,
                             backgroundColor: 'rgba(22,163,74,0.8)'
                         },
                         {
-                            label: 'Final',
+                            label: '<%= CAPAS_Web.Textos.Js("Dashboard.jsFinal", "Final") %>',
                             data: datosNotas.final,
                             backgroundColor: 'rgba(217,119,6,0.8)'
                         }

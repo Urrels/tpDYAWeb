@@ -33,6 +33,10 @@ namespace CAPAS_Web
             BE.IDIOMA elegido = fachada.ListarDisponibles().Find(i => i.Id == id);
             if (elegido == null) return;
             fachada.Cambiar(elegido, IdiomaWeb.IdUsuarioActual);
+            // Se vuelve a pedir la página con GET: así lo que armó el código al cargarla (listas, mensajes,
+            // calendario) también sale en el idioma nuevo.
+            Response.Redirect(Request.RawUrl, false);
+            Context.ApplicationInstance.CompleteRequest();
         }
     }
 }

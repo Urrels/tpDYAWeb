@@ -69,7 +69,7 @@ namespace CAPAS_Web
             if (!fileBackup.HasFile)
             {
                 MostrarMsg("alert-warning",
-                    "<i class='bi bi-exclamation-triangle me-2'></i>Elegí un archivo de backup (.json) antes de restaurar.");
+                    "<i class='bi bi-exclamation-triangle me-2'></i>" + Textos.TH("Integridad.msgElegirBackup", "Elegí un archivo de backup (.json) antes de restaurar."));
                 return;
             }
 
@@ -85,7 +85,7 @@ namespace CAPAS_Web
             catch (Exception ex)
             {
                 MostrarMsg("alert-danger",
-                    "<i class='bi bi-exclamation-triangle me-2'></i>No se pudo restaurar desde el backup: " + ex.Message);
+                    "<i class='bi bi-exclamation-triangle me-2'></i>" + Textos.TH("Integridad.msgErrorBackup", "No se pudo restaurar desde el backup: {0}", Textos.Mensaje(ex.Message)));
                 return;
             }
 
@@ -121,14 +121,14 @@ namespace CAPAS_Web
 
             if (resultado.EsValido)
                 MostrarMsg("alert-success",
-                    "<i class='bi bi-shield-check me-2'></i>Integridad verificada correctamente en las 13 tablas de negocio.");
+                    "<i class='bi bi-shield-check me-2'></i>" + Textos.TH("Integridad.msgOk", "Integridad verificada correctamente en las 13 tablas de negocio."));
             else
             {
                 string usuariosAfectados = resultado.IdsUsuariosAfectados.Any()
-                    ? $" Usuario(s) afectado(s): {string.Join(", ", resultado.IdsUsuariosAfectados.Distinct())}."
+                    ? " " + Textos.TH("Integridad.msgUsuariosAfectados", "Usuario(s) afectado(s): {0}.", string.Join(", ", resultado.IdsUsuariosAfectados.Distinct()))
                     : "";
                 MostrarMsg("alert-danger",
-                    $"<i class='bi bi-exclamation-triangle me-2'></i><strong>{resultado.Errores.Count} alteración(es)</strong> detectada(s).{usuariosAfectados}");
+                    "<i class='bi bi-exclamation-triangle me-2'></i>" + Textos.THF("Integridad.msgAlteraciones", "{0} detectada(s).", "<strong>" + Textos.TH("Integridad.alteraciones", "{0} alteración(es)", resultado.Errores.Count) + "</strong>") + usuariosAfectados);
             }
         }
 
@@ -136,7 +136,7 @@ namespace CAPAS_Web
         private void MostrarAvisos(System.Collections.Generic.List<string> avisos)
         {
             if (avisos == null || avisos.Count == 0) return;
-            lblMsg.Text += "<br/><small>" + string.Join("<br/>", avisos.Select(System.Web.HttpUtility.HtmlEncode)) + "</small>";
+            lblMsg.Text += "<br/><small>" + string.Join("<br/>", avisos.Select(Textos.MH)) + "</small>";
         }
 
         private void MostrarMsg(string css, string texto)

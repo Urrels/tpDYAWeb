@@ -48,7 +48,7 @@ namespace CAPAS_Web
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblSinAlumnos;
+        protected global::System.Web.UI.WebControls.Panel lblSinAlumnos;
 
         /// <summary>
         /// pnlAcciones control.
@@ -112,5 +112,50 @@ namespace CAPAS_Web
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.Button btnRestaurarDesdeBackup;
+        /// <summary>
+        /// litIntegridadDeDatos control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litIntegridadDeDatos;
+
+        /// <summary>
+        /// litAlteracionesDetectadas control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litAlteracionesDetectadas;
+
+        /// <summary>
+        /// litElegiComoContinuarCancel control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litElegiComoContinuarCancel;
+
+        /// <summary>
+        /// litORestaurarUsandoUn control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litORestaurarUsandoUn;
+
+        /// <summary>
+        /// litSinAlteraciones control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litSinAlteraciones;
+
     }
 }

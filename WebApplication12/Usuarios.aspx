@@ -3,7 +3,7 @@
 <%@ Register Src="~/Paginador.ascx" TagPrefix="uc" TagName="Paginador" %>
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
-    <h4 class="mb-4"><i class="bi bi-person-lines-fill me-2"></i>Usuarios</h4>
+    <h4 class="mb-4"><i class="bi bi-person-lines-fill me-2"></i><asp:Literal ID="litUsuarios" runat="server" Text="Usuarios"/></h4>
 
     <asp:Label ID="lblMsg" runat="server" CssClass="alert d-block mb-3" Visible="false"/>
 
@@ -17,8 +17,8 @@
                 <asp:TemplateField HeaderText="Estado">
                     <ItemTemplate>
                         <asp:Label runat="server" CssClass='<%# (bool)Eval("Activo") ? "badge bg-success" : "badge bg-secondary" %>'
-                                   Text='<%# (bool)Eval("Activo") ? "Activo" : "De baja" %>'/>
-                        <asp:Label runat="server" CssClass="badge bg-warning text-dark" Text="Bloqueado"
+                                   Text='<%# (bool)Eval("Activo") ? CAPAS_Web.Textos.TH("Usuarios.activo", "Activo") : CAPAS_Web.Textos.TH("Usuarios.deBaja", "De baja") %>'/>
+                        <asp:Label runat="server" CssClass="badge bg-warning text-dark" Text='<%# CAPAS_Web.Textos.TH("Usuarios.bloqueado", "Bloqueado") %>'
                                    Visible='<%# (bool)Eval("Bloqueado") %>'/>
                     </ItemTemplate>
                 </asp:TemplateField>
@@ -49,12 +49,12 @@
         <div class="col-lg-6">
             <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <h6 class="mb-3">Nuevo usuario</h6>
+                    <h6 class="mb-3"><asp:Literal ID="litNuevoUsuario" runat="server" Text="Nuevo usuario"/></h6>
                     <asp:TextBox ID="txtUsuario" runat="server" CssClass="form-control mb-2" MaxLength="50" placeholder="Usuario"/>
                     <asp:TextBox ID="txtPass" runat="server" CssClass="form-control mb-2" TextMode="Password" autocomplete="new-password" placeholder="Contraseña (6+, 1 mayúscula, 1 número)"/>
                     <asp:TextBox ID="txtConf" runat="server" CssClass="form-control mb-2" TextMode="Password" autocomplete="new-password" placeholder="Repetir contraseña"/>
                     <asp:TextBox ID="txtDireccion" runat="server" CssClass="form-control mb-2" MaxLength="100" placeholder="Dirección (opcional, hasta 100 caracteres)"/>
-                    <label class="form-label small">Perfiles (al menos uno)</label>
+                    <label class="form-label small"><asp:Literal ID="litPerfilesAlMenosUno" runat="server" Text="Perfiles (al menos uno)"/></label>
                     <asp:CheckBoxList ID="cblPerfilesAlta" runat="server" CssClass="mb-2" RepeatColumns="1" CellPadding="2"/>
                     <asp:Button ID="btnCrear" runat="server" Text="Crear usuario" CssClass="btn btn-primary btn-sm" OnClick="btnCrear_Click"/>
                 </div>
@@ -65,16 +65,16 @@
             <asp:Panel ID="pnlEdicion" runat="server" Visible="false">
                 <div class="card shadow-sm border-0">
                     <div class="card-body">
-                        <h6 class="mb-3">Editar: <asp:Label ID="lblEditUsuario" runat="server" CssClass="fw-bold"/></h6>
+                        <h6 class="mb-3"><asp:Literal ID="litEditar" runat="server" Text="Editar:"/> <asp:Label ID="lblEditUsuario" runat="server" CssClass="fw-bold"/></h6>
                         <asp:TextBox ID="txtEditDireccion" runat="server" CssClass="form-control mb-2" MaxLength="100" placeholder="Dirección (vacío = sin cambios)"/>
-                        <label class="form-label small">Perfiles</label>
+                        <label class="form-label small"><asp:Literal ID="litPerfiles" runat="server" Text="Perfiles"/></label>
                         <asp:CheckBoxList ID="cblPerfilesEdit" runat="server" CssClass="mb-2" RepeatColumns="1" CellPadding="2"/>
                         <asp:Button ID="btnGuardarEdicion" runat="server" Text="Guardar cambios" CssClass="btn btn-primary btn-sm" OnClick="btnGuardarEdicion_Click"/>
                         <asp:Button ID="btnCancelar" runat="server" Text="Cancelar" CssClass="btn btn-outline-secondary btn-sm" OnClick="btnCancelar_Click"/>
 
                         <asp:Panel ID="pnlReset" runat="server">
                         <hr/>
-                        <h6>Restablecer contraseña</h6>
+                        <h6><asp:Literal ID="litRestablecerContrasena" runat="server" Text="Restablecer contraseña"/></h6>
                         <asp:TextBox ID="txtResetPass" runat="server" CssClass="form-control mb-2" TextMode="Password" autocomplete="new-password" placeholder="Nueva contraseña"/>
                         <asp:TextBox ID="txtResetConf" runat="server" CssClass="form-control mb-2" TextMode="Password" autocomplete="new-password" placeholder="Repetir nueva contraseña"/>
                         <asp:Button ID="btnResetPass" runat="server" Text="Restablecer contraseña" CssClass="btn btn-outline-danger btn-sm"

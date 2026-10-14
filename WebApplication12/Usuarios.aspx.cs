@@ -73,7 +73,7 @@ namespace CAPAS_Web
                     {
                         EditandoId = null;
                         pnlEdicion.Visible = false;
-                        MostrarMsg("alert-danger", HttpUtility.HtmlEncode(ex.Message));
+                        MostrarMsg("alert-danger", Textos.MH(ex.Message));
                         CargarGrilla();
                     }
                     break;
@@ -156,15 +156,15 @@ namespace CAPAS_Web
             {
                 operacion();
                 alExito?.Invoke();
-                MostrarMsg("alert-success", mensajeExito);
+                MostrarMsg("alert-success", Textos.MH(mensajeExito));
             }
             catch (InvalidOperationException ex)
             {
-                MostrarMsg("alert-danger", HttpUtility.HtmlEncode(ex.Message));
+                MostrarMsg("alert-danger", Textos.MH(ex.Message));
             }
             catch (Exception)
             {
-                MostrarMsg("alert-danger", "Ocurrió un error inesperado al guardar. Revisá el estado y volvé a intentar.");
+                MostrarMsg("alert-danger", Textos.TH("Msg.errorInesperado", "Ocurrió un error inesperado al guardar. Revisá el estado y volvé a intentar."));
                 try { new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "ERROR_GESTION_USUARIOS"); }
                 catch { }
             }

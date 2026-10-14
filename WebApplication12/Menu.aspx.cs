@@ -49,7 +49,7 @@ namespace CAPAS_Web
             if (promedio > 0)
             {
                 lblPromedio.Text = promedio.ToString("F2");
-                lblMensajePromedio.Text = mensaje;
+                lblMensajePromedio.Text = Textos.MH(mensaje);
 
                 int porcentaje = (int)(promedio * 10);
                 pnlBarra.Style["width"] = porcentaje + "%";
@@ -59,8 +59,8 @@ namespace CAPAS_Web
 
                 decimal diff = 7 - promedio;
                 lblDiferenciaObjetivo.Text = diff <= 0
-                    ? "✔ Objetivo alcanzado"
-                    : $"Te faltan {diff:F2} puntos para llegar a 7";
+                    ? Textos.TH("Menu.objetivoAlcanzado", "✔ Objetivo alcanzado")
+                    : Textos.TH("Menu.teFaltan", "Te faltan {0} puntos para llegar a 7", diff.ToString("F2"));
                 lblDiferenciaObjetivo.ForeColor = diff <= 0
                     ? System.Drawing.Color.Green
                     : System.Drawing.Color.OrangeRed;
@@ -68,7 +68,7 @@ namespace CAPAS_Web
             else
             {
                 lblPromedio.Text = "--";
-                lblMensajePromedio.Text = "Sin materias finalizadas todavía.";
+                lblMensajePromedio.Text = Textos.MH("Sin materias finalizadas todavía.");
                 lblDiferenciaObjetivo.Text = "";
             }
         }

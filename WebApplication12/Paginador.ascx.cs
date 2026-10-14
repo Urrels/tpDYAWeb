@@ -41,8 +41,8 @@ namespace CAPAS_Web
         {
             bool hayFilas = TotalFilas > 0;
             lblPagina.Text = hayFilas
-                ? $"Página {PaginaActual} de {TotalPaginas} ({TotalFilas} registros)"
-                : "Sin registros";
+                ? Textos.TH("Paginador.pagina", "Página {0} de {1} ({2} registros)", PaginaActual, TotalPaginas, TotalFilas)
+                : Textos.TH("Paginador.sinRegistros", "Sin registros");
             btnPrimera.Enabled = btnAnterior.Enabled = hayFilas && PaginaActual > 1;
             btnSiguiente.Enabled = btnUltima.Enabled = hayFilas && PaginaActual < TotalPaginas;
         }

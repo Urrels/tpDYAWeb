@@ -3,7 +3,7 @@
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4><i class="bi bi-pencil-square me-2"></i>Inscripción Cuatrimestral</h4>
+        <h4><i class="bi bi-pencil-square me-2"></i><asp:Literal ID="litInscripcionCuatrimestral" runat="server" Text="Inscripción Cuatrimestral"/></h4>
     </div>
 
     <asp:Label ID="lblMsg" runat="server" CssClass="alert d-block mb-3" Visible="false"/>
@@ -17,7 +17,7 @@
     <asp:Panel ID="pnlListaPeriodos" runat="server" Visible="false"
                CssClass="card shadow-sm border-0 mb-4">
         <div class="card-body p-4">
-            <h6 class="card-section-title">Períodos Académicos</h6>
+            <h6 class="card-section-title"><asp:Literal ID="litPeriodosAcademicos" runat="server" Text="Períodos Académicos"/></h6>
             <asp:Repeater ID="rptPeriodos" runat="server"
                           OnItemCommand="rptPeriodos_ItemCommand">
                 <ItemTemplate>
@@ -31,7 +31,7 @@
                                 <%# ((DateTime?)Eval("FechaFin")).HasValue ? ((DateTime)Eval("FechaFin")).ToString("dd/MM/yyyy") : "—" %>
                             </span>
                         </div>
-                        <asp:LinkButton CommandName="EditarPeriodo"
+                        <asp:LinkButton ID="lnkTexto" CommandName="EditarPeriodo"
                                         CommandArgument='<%# Eval("Id") %>'
                                         runat="server" CssClass="btn btn-warning btn-sm">
                             <i class="bi bi-pencil"></i>
@@ -39,9 +39,9 @@
                     </div>
                 </ItemTemplate>
                 <FooterTemplate>
-                    <asp:Label ID="lblSinPeriodos" runat="server"
-                               Text="<p class='text-muted small mt-2'>No hay períodos registrados.</p>"
-                               Visible='<%# rptPeriodos.Items.Count == 0 %>'/>
+                    <asp:Panel ID="lblSinPeriodos" runat="server" Visible='<%# rptPeriodos.Items.Count == 0 %>'>
+                        <p class="text-muted small mt-2"><asp:Literal ID="litNoHayPeriodos" runat="server" Text="No hay períodos registrados."/></p>
+                    </asp:Panel>
                 </FooterTemplate>
             </asp:Repeater>
         </div>
@@ -51,9 +51,8 @@
                CssClass="card shadow-sm border-0 mb-4">
         <div class="card-body p-4 text-center">
             <i class="bi bi-calendar-x text-warning" style="font-size:2.5rem;"></i>
-            <h6 class="mt-3 fw-semibold">No hay un período académico activo</h6>
-            <p class="text-muted small">No existe un cuatrimestre configurado para la fecha de hoy.
-               Consultá al administrador para que habilite las inscripciones.</p>
+            <h6 class="mt-3 fw-semibold"><asp:Literal ID="litNoHayUnPeriodo" runat="server" Text="No hay un período académico activo"/></h6>
+            <p class="text-muted small"><asp:Literal ID="litNoExisteUnCuatrimestre" runat="server" Text="No existe un cuatrimestre configurado para la fecha de hoy. Consultá al administrador para que habilite las inscripciones."/></p>
         </div>
     </asp:Panel>
 
@@ -66,33 +65,33 @@
             </h6>
             <div class="row g-3">
                 <div class="col-md-2">
-                    <label class="form-label">Año</label>
+                    <label class="form-label"><asp:Literal ID="litAno" runat="server" Text="Año"/></label>
                     <asp:TextBox ID="txtAnio" runat="server" CssClass="form-control"
                                  TextMode="Number" placeholder="2025"/>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Cuatrimestre</label>
+                    <label class="form-label"><asp:Literal ID="litCuatrimestre" runat="server" Text="Cuatrimestre"/></label>
                     <asp:DropDownList ID="ddlCuatrimestre" runat="server" CssClass="form-select">
                         <asp:ListItem Value="1">1° Cuatrimestre</asp:ListItem>
                         <asp:ListItem Value="2">2° Cuatrimestre</asp:ListItem>
                     </asp:DropDownList>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Descripción</label>
+                    <label class="form-label"><asp:Literal ID="litDescripcion" runat="server" Text="Descripción"/></label>
                     <asp:TextBox ID="txtDescripcion" runat="server" CssClass="form-control"
                                  placeholder="Ej: Cursada regular 2025"/>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Fecha inicio</label>
+                    <label class="form-label"><asp:Literal ID="litFechaInicio" runat="server" Text="Fecha inicio"/></label>
                     <asp:TextBox ID="txtFechaInicio" runat="server" CssClass="form-control" TextMode="Date"/>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Fecha fin</label>
+                    <label class="form-label"><asp:Literal ID="litFechaFin" runat="server" Text="Fecha fin"/></label>
                     <asp:TextBox ID="txtFechaFin" runat="server" CssClass="form-control" TextMode="Date"/>
                 </div>
             </div>
             <div class="mt-3 d-flex gap-2">
-                <asp:Button ID="btnCrearPeriodo" runat="server" Text="Guardar Período"
+                <asp:Button ID="btnCrearPeriodo" runat="server" data-i18n="manual" Text="Guardar Período"
                             CssClass="btn btn-success" OnClick="btnCrearPeriodo_Click"/>
                 <asp:Button ID="btnCancelarCrear" runat="server" Text="Cancelar"
                             CssClass="btn btn-secondary" OnClick="btnCancelarCrear_Click"/>
@@ -106,11 +105,11 @@
 
     <asp:Panel ID="pnlInscribir" runat="server" Visible="false">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="card-section-title mb-0">Materias disponibles</h6>
+            <h6 class="card-section-title mb-0"><asp:Literal ID="litMateriasDisponibles" runat="server" Text="Materias disponibles"/></h6>
             <asp:Label ID="lblPeriodoBadge" runat="server" CssClass="badge bg-primary fs-6"/>
         </div>
         <p class="text-muted small mb-3">
-            Hacé clic en las materias que querés cursar. Solo se muestran las que ya tenés habilitadas por correlativas.
+            <asp:Literal ID="litHaceClicEnLas" runat="server" Text="Hacé clic en las materias que querés cursar. Solo se muestran las que ya tenés habilitadas por correlativas."/>
         </p>
 
         <div class="row g-3 mb-4">
@@ -126,12 +125,12 @@
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <span class="badge bg-secondary"><%# Eval("Codigo") %></span>
                                         <span class='badge <%# (int)Eval("Peso") >= 4 ? "bg-danger" : (int)Eval("Peso") == 3 ? "bg-warning text-dark" : "bg-success" %>'>
-                                            Peso <%# Eval("Peso") %>
+                                            <asp:Literal ID="litPeso" runat="server" Text="Peso"/> <%# Eval("Peso") %>
                                         </span>
                                     </div>
                                     <h6 class="fw-semibold mb-2 lh-sm"><%# Eval("Nombre") %></h6>
                                     <span class='badge <%# (string)Eval("Modalidad") == "Virtual" ? "bg-info" : "bg-primary" %>'>
-                                        <%# Eval("Modalidad") %>
+                                        <%# CAPAS_Web.Textos.ValorH(Eval("Modalidad")) %>
                                     </span>
                                     <div class="materia-check-icon">
                                         <i class="bi bi-check-circle-fill"></i>
@@ -151,7 +150,7 @@
 
         <asp:Panel ID="pnlNoDisponibles" runat="server" Visible="false" CssClass="mb-4">
             <h6 class="card-section-title card-section-title--warning mb-3">
-                Bloqueadas (correlativas pendientes)
+                <asp:Literal ID="litBloqueadasCorrelativasPe" runat="server" Text="Bloqueadas (correlativas pendientes)"/>
             </h6>
             <div class="row g-3">
                 <asp:Repeater ID="rptNoDisponibles" runat="server">
@@ -165,7 +164,7 @@
                                     </div>
                                     <h6 class="fw-semibold mb-2 lh-sm text-muted"><%# Eval("Nombre") %></h6>
                                     <p class="small text-danger mb-0">
-                                        Requiere: <%# ObtenerNombresCorrelativas((List<BE.MATERIA>)Eval("Correlativas")) %>
+                                        <asp:Literal ID="litRequiere" runat="server" Text="Requiere:"/> <%# ObtenerNombresCorrelativas((List<BE.MATERIA>)Eval("Correlativas")) %>
                                     </p>
                                 </div>
                             </div>
@@ -178,7 +177,7 @@
 
     <div class="card shadow-sm border-0">
         <div class="card-body p-4">
-            <h6 class="card-section-title">Historial de inscripciones</h6>
+            <h6 class="card-section-title"><asp:Literal ID="litHistorialDeInscripciones" runat="server" Text="Historial de inscripciones"/></h6>
             <asp:Repeater ID="rptHistorial" runat="server">
                 <ItemTemplate>
                     <div class="mb-3 pb-3 border-bottom">
@@ -188,7 +187,7 @@
                                 <%# Eval("EtiquetaPeriodo") %>
                             </span>
                             <span class="text-muted small">
-                                Inscripto el <%# ((DateTime)Eval("FechaInscripcion")).ToString("dd/MM/yyyy") %>
+                                <asp:Literal ID="litInscriptoEl" runat="server" Text="Inscripto el"/> <%# ((DateTime)Eval("FechaInscripcion")).ToString("dd/MM/yyyy") %>
                             </span>
                         </div>
                         <div class="d-flex flex-wrap gap-2">

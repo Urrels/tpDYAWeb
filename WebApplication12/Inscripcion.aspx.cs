@@ -35,8 +35,10 @@ namespace CAPAS_Web
                     return;
                 }
                 MostrarMsg("alert-info",
-                    $"<i class='bi bi-info-circle me-1'></i>Período activo: <strong>{periodo.Etiqueta}</strong>. " +
-                    $"Los alumnos pueden inscribirse hasta <strong>{(periodo.FechaFin.HasValue ? periodo.FechaFin.Value.ToString("dd/MM/yyyy") : "fecha no definida")}</strong>.");
+                    "<i class='bi bi-info-circle me-1'></i>" + Textos.THF("Inscripcion.msgPeriodoActivo",
+                        "Período activo: {0}. Los alumnos pueden inscribirse hasta {1}.",
+                        Textos.Negrita(periodo.Etiqueta),
+                        Textos.Negrita(periodo.FechaFin.HasValue ? periodo.FechaFin.Value.ToString("dd/MM/yyyy") : Textos.T("Inscripcion.fechaNoDefinida", "fecha no definida"))));
                 return;
             }
 
@@ -62,12 +64,12 @@ namespace CAPAS_Web
             var sb = new StringBuilder();
             sb.Append($"<div class='alert alert-success'>");
             sb.Append($"<i class='bi bi-check-circle-fill me-2'></i>");
-            sb.Append($"<strong>Ya estás inscripto en {periodo.Etiqueta}.</strong>");
+            sb.Append("<strong>" + Textos.TH("Inscripcion.yaInscripto", "Ya estás inscripto en {0}.", periodo.Etiqueta) + "</strong>");
             if (inscActual != null)
             {
-                sb.Append($" Registrado el {inscActual.FechaInscripcion:dd/MM/yyyy}.<br/><div class='mt-2 d-flex flex-wrap gap-2'>");
+                sb.Append(" " + Textos.TH("Inscripcion.registradoEl", "Registrado el {0}.", inscActual.FechaInscripcion.ToString("dd/MM/yyyy")) + "<br/><div class='mt-2 d-flex flex-wrap gap-2'>");
                 foreach (var m in inscActual.Materias)
-                    sb.Append($"<span class='badge bg-primary'>{m.Nombre}</span>");
+                    sb.Append("<span class='badge bg-primary'>" + System.Web.HttpUtility.HtmlEncode(m.Nombre) + "</span>");
                 sb.Append("</div>");
             }
             sb.Append("</div>");
@@ -86,9 +88,8 @@ namespace CAPAS_Web
 
             if (disponibles.Count == 0)
             {
-                MostrarMsg("alert-warning",
-                    "No hay materias disponibles para inscribirte. " +
-                    "Revisá si ya estás cursando todo o si te faltan correlativas.");
+                MostrarMsg("alert-warning", Textos.TH("Inscripcion.msgSinMaterias",
+                    "No hay materias disponibles para inscribirte. Revisá si ya estás cursando todo o si te faltan correlativas."));
             }
 
             if (noDisponibles.Count > 0)
@@ -126,7 +127,7 @@ namespace CAPAS_Web
             if (periodo == null) return;
 
             hfIdPeriodo.Value               = periodo.Id.ToString();
-            lblTituloFormPeriodo.Text        = "Editar Período Académico";
+            lblTituloFormPeriodo.Text        = Textos.TH("Inscripcion.tituloEditar", "Editar Período Académico");
             txtAnio.Text                     = periodo.Anio.ToString();
             ddlCuatrimestre.SelectedValue    = periodo.Cuatrimestre.ToString();
             txtDescripcion.Text              = periodo.Descripcion;
@@ -134,7 +135,7 @@ namespace CAPAS_Web
                                                ? periodo.FechaInicio.Value.ToString("yyyy-MM-dd") : "";
             txtFechaFin.Text                 = periodo.FechaFin.HasValue
                                                ? periodo.FechaFin.Value.ToString("yyyy-MM-dd") : "";
-            btnCrearPeriodo.Text             = "Guardar Cambios";
+            btnCrearPeriodo.Text             = Textos.T("Inscripcion.btnGuardarCambios", "Guardar Cambios");
             pnlCrearPeriodo.Visible          = true;
             pnlAdminAcciones.Visible         = false;
         }
@@ -143,13 +144,13 @@ namespace CAPAS_Web
         {
             if (!UsuarioActual.TienePermiso(BE.Permisos.GestionarPeriodos)) return;
             hfIdPeriodo.Value            = "0";
-            lblTituloFormPeriodo.Text    = "Nuevo Período Académico";
+            lblTituloFormPeriodo.Text    = Textos.TH("Inscripcion.tituloNuevo", "Nuevo Período Académico");
             txtAnio.Text                 = DateTime.Today.Year.ToString();
             txtDescripcion.Text          = "";
             txtFechaInicio.Text          = "";
             txtFechaFin.Text             = "";
             ddlCuatrimestre.SelectedIndex = 0;
-            btnCrearPeriodo.Text         = "Guardar Período";
+            btnCrearPeriodo.Text         = Textos.T("Inscripcion.btnGuardarPeriodo", "Guardar Período");
             pnlCrearPeriodo.Visible      = true;
             pnlSinPeriodo.Visible        = false;
             pnlAdminAcciones.Visible     = false;
@@ -199,12 +200,12 @@ namespace CAPAS_Web
                 pnlAdminAcciones.Visible = true;
                 CargarListaPeriodos();
                 MostrarMsg("alert-success",
-                    esNuevo ? $"✔ Período {periodo.Etiqueta} creado correctamente."
-                            : $"✔ Período {periodo.Etiqueta} actualizado correctamente.");
+                    esNuevo ? Textos.TH("Inscripcion.msgPeriodoCreado", "✔ Período {0} creado correctamente.", periodo.Etiqueta)
+                            : Textos.TH("Inscripcion.msgPeriodoActualizado", "✔ Período {0} actualizado correctamente.", periodo.Etiqueta));
             }
             else
             {
-                MostrarMsg("alert-danger", esNuevo ? "Error al crear el período." : "Error al actualizar el período.");
+                MostrarMsg("alert-danger", esNuevo ? Textos.TH("Inscripcion.msgErrorCrear", "Error al crear el período.") : Textos.TH("Inscripcion.msgErrorActualizar", "Error al actualizar el período."));
             }
         }
 
@@ -223,7 +224,7 @@ namespace CAPAS_Web
 
             var (ok, mensaje, _) = _bll.Inscribir(u.Id, idPeriodo, seleccionadas, u.Usuario);
 
-            MostrarMsg(ok ? "alert-success" : "alert-danger", mensaje);
+            MostrarMsg(ok ? "alert-success" : "alert-danger", Textos.MH(mensaje));
 
             if (ok)
             {
@@ -243,10 +244,10 @@ namespace CAPAS_Web
         protected string RenderBadgesMaterias(List<BE.MATERIA> materias)
         {
             if (materias == null || materias.Count == 0)
-                return "<span class='text-muted small'>Sin materias registradas</span>";
+                return "<span class='text-muted small'>" + Textos.TH("Inscripcion.sinMaterias", "Sin materias registradas") + "</span>";
             return string.Join("",
                 materias.Select(m =>
-                    $"<span class='badge bg-secondary me-1'>{m.Nombre}</span>"));
+                    "<span class='badge bg-secondary me-1'>" + System.Web.HttpUtility.HtmlEncode(m.Nombre) + "</span>"));
         }
 
         private void MostrarMsg(string css, string texto)

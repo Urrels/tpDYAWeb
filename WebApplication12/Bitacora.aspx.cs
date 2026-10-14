@@ -23,7 +23,7 @@ namespace CAPAS_Web
         private void CargarUsuarios()
         {
             ddlUsuario.Items.Clear();
-            ddlUsuario.Items.Add(new ListItem("Todos", ""));
+            ddlUsuario.Items.Add(new ListItem(Textos.T("Bitacora.todos", "Todos"), ""));
             foreach (string usuario in _bll.ListarUsuariosDistinct())
                 ddlUsuario.Items.Add(new ListItem(usuario, usuario));
         }
