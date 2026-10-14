@@ -71,7 +71,7 @@ namespace BLL
                 }
                 catch
                 {
-                    BE.SessionRegistry.Instancia.CerrarSesion(usuario);
+                    BE.SessionRegistry.Instancia.CerrarSesion(usuario, sessionId);
                     throw;
                 }
                 return LoginResultado.Exito;

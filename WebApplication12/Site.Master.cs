@@ -57,7 +57,7 @@ namespace CAPAS_Web
                 // El logueo de logout se centraliza en Global.asax.cs (Session_End),
                 // que Session.Abandon() dispara siempre (modo InProc) — cubre tanto
                 // este botón como el timeout por inactividad, de forma uniforme.
-                BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
+                BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario, Session.SessionID);
             }
             Session.Abandon();
             Response.Redirect("~/Login.aspx");

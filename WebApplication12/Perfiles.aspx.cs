@@ -140,20 +140,20 @@ namespace CAPAS_Web
         }
 
         protected void btnCrearRaiz_Click(object sender, EventArgs e) => Ejecutar(
-            () => _bll.CrearRol(txtNuevoNombre.Text, null, UsuarioActual.Usuario),
+            () => _bll.CrearRol(txtNuevoNombre.Text, null, UsuarioActual),
             "Perfil creado.", () => txtNuevoNombre.Text = "");
 
         protected void btnCrearHijo_Click(object sender, EventArgs e)
         {
             if (!RolSeleccionadoId.HasValue) return;
-            Ejecutar(() => _bll.CrearRol(txtNuevoNombre.Text, RolSeleccionadoId, UsuarioActual.Usuario),
+            Ejecutar(() => _bll.CrearRol(txtNuevoNombre.Text, RolSeleccionadoId, UsuarioActual),
                 "Perfil creado dentro del seleccionado.", () => txtNuevoNombre.Text = "");
         }
 
         protected void btnRenombrar_Click(object sender, EventArgs e)
         {
             if (!RolSeleccionadoId.HasValue) return;
-            Ejecutar(() => _bll.RenombrarRol(RolSeleccionadoId.Value, txtRenombrar.Text, UsuarioActual.Usuario),
+            Ejecutar(() => _bll.RenombrarRol(RolSeleccionadoId.Value, txtRenombrar.Text, UsuarioActual),
                 "Perfil renombrado.");
         }
 
@@ -161,7 +161,7 @@ namespace CAPAS_Web
         {
             if (!RolSeleccionadoId.HasValue) return;
             int? padre = string.IsNullOrEmpty(ddlPadre.SelectedValue) ? (int?)null : int.Parse(ddlPadre.SelectedValue);
-            Ejecutar(() => _bll.CambiarPadre(RolSeleccionadoId.Value, padre, UsuarioActual.Usuario),
+            Ejecutar(() => _bll.CambiarPadre(RolSeleccionadoId.Value, padre, UsuarioActual),
                 "Padre actualizado.");
         }
 
@@ -169,7 +169,7 @@ namespace CAPAS_Web
         {
             if (!RolSeleccionadoId.HasValue) return;
             List<int> ids = cblPermisos.Items.Cast<ListItem>().Where(i => i.Selected).Select(i => int.Parse(i.Value)).ToList();
-            Ejecutar(() => _bll.GuardarPermisosDeRol(RolSeleccionadoId.Value, ids, UsuarioActual.Usuario),
+            Ejecutar(() => _bll.GuardarPermisosDeRol(RolSeleccionadoId.Value, ids, UsuarioActual),
                 "Permisos guardados.");
         }
 
@@ -177,7 +177,7 @@ namespace CAPAS_Web
         {
             if (!RolSeleccionadoId.HasValue) return;
             int id = RolSeleccionadoId.Value;
-            Ejecutar(() => _bll.EliminarRol(id, UsuarioActual.Usuario), "Perfil eliminado.",
+            Ejecutar(() => _bll.EliminarRol(id, UsuarioActual), "Perfil eliminado.",
                 () => RolSeleccionadoId = null);
         }
 

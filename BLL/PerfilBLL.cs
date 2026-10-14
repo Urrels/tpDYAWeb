@@ -152,6 +152,8 @@ namespace BLL
             public List<KeyValuePair<int, int>> Asignaciones;
             // Usuarios bloqueados o dados de baja: no cuentan como operadores disponibles.
             public HashSet<int> Bloqueados;
+            // Todos los usuarios que existen (para verificar al actor).
+            public HashSet<int> Existentes;
         }
 
         private EstadoPerfiles CargarEstado()
@@ -161,9 +163,10 @@ namespace BLL
                 Roles = _dal.ListarRoles(),
                 PermisosPorRol = new Dictionary<int, List<string>>(),
                 Asignaciones = _dal.ListarAsignaciones(),
-                Bloqueados = new HashSet<int>(new DAL.UsuarioDAL().ListarTodos()
-                    .Where(u => u.Bloqueado || !u.Activo).Select(u => u.Id))
             };
+            List<BE.USUARIO> todos = new DAL.UsuarioDAL().ListarTodos();
+            estado.Bloqueados = new HashSet<int>(todos.Where(u => u.Bloqueado || !u.Activo).Select(u => u.Id));
+            estado.Existentes = new HashSet<int>(todos.Select(u => u.Id));
             foreach (Permiso p in _dal.ListarPermisosPorRol())
             {
                 if (!estado.PermisosPorRol.TryGetValue(p.PadreId.Value, out List<string> lista))
@@ -292,41 +295,44 @@ namespace BLL
                     primerError);
         }
 
-        public int CrearRol(string nombre, int? padreId, string actor)
+        public int CrearRol(string nombre, int? padreId, BE.USUARIO actor)
         {
             nombre = NormalizarNombre(nombre);
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
+                ExigirGestorDePerfiles(estado, actor);
                 ExigirNombreLibre(estado, nombre, null);
                 if (padreId.HasValue) BuscarRol(estado, padreId.Value);
 
                 int id = _dal.InsertarRol(nombre, padreId);
-                PostEscritura(actor, Accion("ALTA_PERFIL", nombre), _integridad.RecalcularRol);
+                PostEscritura(actor.Usuario, Accion("ALTA_PERFIL", nombre), _integridad.RecalcularRol);
                 return id;
             }
         }
 
-        public void RenombrarRol(int rolId, string nombre, string actor)
+        public void RenombrarRol(int rolId, string nombre, BE.USUARIO actor)
         {
             nombre = NormalizarNombre(nombre);
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
+                ExigirGestorDePerfiles(estado, actor);
                 Rol rol = BuscarRol(estado, rolId);
                 ExigirNoProtegido(rol, "renombrar");
                 ExigirNombreLibre(estado, nombre, rolId);
 
                 _dal.RenombrarRol(rolId, nombre);
-                PostEscritura(actor, Accion("RENOMBRE_PERFIL", rol.Nombre + ">" + nombre), _integridad.RecalcularRol);
+                PostEscritura(actor.Usuario, Accion("RENOMBRE_PERFIL", rol.Nombre + ">" + nombre), _integridad.RecalcularRol);
             }
         }
 
-        public void CambiarPadre(int rolId, int? nuevoPadreId, string actor)
+        public void CambiarPadre(int rolId, int? nuevoPadreId, BE.USUARIO actor)
         {
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
+                ExigirGestorDePerfiles(estado, actor);
                 Rol rol = BuscarRol(estado, rolId);
                 ExigirNoProtegido(rol, "mover");
 
@@ -342,15 +348,16 @@ namespace BLL
                 ExigirOperadorDePerfiles(estado);
 
                 _dal.CambiarPadre(rolId, nuevoPadreId);
-                PostEscritura(actor, Accion("CAMBIO_JERARQUIA_PERFIL", rol.Nombre), _integridad.RecalcularRol);
+                PostEscritura(actor.Usuario, Accion("CAMBIO_JERARQUIA_PERFIL", rol.Nombre), _integridad.RecalcularRol);
             }
         }
 
-        public void EliminarRol(int rolId, string actor)
+        public void EliminarRol(int rolId, BE.USUARIO actor)
         {
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
+                ExigirGestorDePerfiles(estado, actor);
                 Rol rol = BuscarRol(estado, rolId);
                 ExigirNoProtegido(rol, "eliminar");
                 if (estado.Roles.Any(r => r.PadreId == rolId))
@@ -365,17 +372,18 @@ namespace BLL
                 ExigirOperadorDePerfiles(estado);
 
                 _dal.EliminarRol(rolId);
-                PostEscritura(actor, Accion("BAJA_PERFIL", rol.Nombre),
+                PostEscritura(actor.Usuario, Accion("BAJA_PERFIL", rol.Nombre),
                     _integridad.RecalcularRolPermiso, _integridad.RecalcularRol);
             }
         }
 
         /// <summary>Reemplaza los permisos directos del perfil (en una sola transacción).</summary>
-        public void GuardarPermisosDeRol(int rolId, List<int> permisoIds, string actor)
+        public void GuardarPermisosDeRol(int rolId, List<int> permisoIds, BE.USUARIO actor)
         {
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
+                ExigirGestorDePerfiles(estado, actor);
                 Rol rol = BuscarRol(estado, rolId);
                 ExigirNoProtegido(rol, "modificar sus permisos");
 
@@ -388,7 +396,7 @@ namespace BLL
                 ExigirOperadorDePerfiles(estado);
 
                 _dal.GuardarPermisosDeRol(rolId, ids);
-                PostEscritura(actor, Accion("MODIF_PERMISOS_PERFIL", rol.Nombre), _integridad.RecalcularRolPermiso);
+                PostEscritura(actor.Usuario, Accion("MODIF_PERMISOS_PERFIL", rol.Nombre), _integridad.RecalcularRolPermiso);
             }
         }
 
@@ -461,7 +469,7 @@ namespace BLL
         private static void RevocarSesionesDe(int usuarioId, string nombreUsuario)
         {
             _revocaciones[usuarioId] = Interlocked.Increment(ref _epoca);
-            BE.SessionRegistry.Instancia.CerrarSesion(nombreUsuario);
+            BE.SessionRegistry.Instancia.ForzarCierre(nombreUsuario);
         }
 
         /// <summary>true si las sesiones de este usuario fueron revocadas después de iniciada la suya.</summary>
@@ -471,8 +479,19 @@ namespace BLL
         private static HashSet<string> PermisosDelActor(EstadoPerfiles estado, BE.USUARIO actor)
         {
             if (actor == null) throw new InvalidOperationException("No hay un usuario que realice la operación.");
+            // El actor se verifica contra la base, no contra lo que dice su sesión:
+            // un usuario dado de baja, bloqueado o inexistente no puede operar.
+            if (!estado.Existentes.Contains(actor.Id) || estado.Bloqueados.Contains(actor.Id))
+                throw new InvalidOperationException("Tu cuenta no está habilitada para realizar esta operación.");
             return PermisosEfectivosPorUsuario(estado).TryGetValue(actor.Id, out HashSet<string> permisos)
                 ? permisos : new HashSet<string>();
+        }
+
+        // Operaciones sobre perfiles: exigen "Gestionar perfiles" en la BLL, no solo en la página.
+        private static void ExigirGestorDePerfiles(EstadoPerfiles estado, BE.USUARIO actor)
+        {
+            if (!PermisosDelActor(estado, actor).Contains(Permisos.GestionarPerfiles))
+                throw new InvalidOperationException("No tenés permiso para gestionar perfiles.");
         }
 
         // Permisos del actor para las operaciones de gestión de usuarios: además exige "Gestionar usuarios".

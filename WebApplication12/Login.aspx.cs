@@ -41,7 +41,7 @@ namespace CAPAS_Web
                     // Usuario sin permiso para operar con la base alterada: fue manipulada externamente.
                     // No se revela el detalle de resultadoIntegridad.Errores (eso es
                     // tarea del panel de Webmaster, no implementada acá).
-                    BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
+                    BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario, Session.SessionID);
                     BE.SessionManager.getInstane().cerrarSesion();
                     Session["Usuario"] = null;
                     pnlInconsistencia.Visible = true;
@@ -52,7 +52,7 @@ namespace CAPAS_Web
                 if (inicio == null)
                 {
                     // El usuario no tiene ningún permiso que le dé una página de inicio.
-                    BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
+                    BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario, Session.SessionID);
                     BE.SessionManager.getInstane().cerrarSesion();
                     lblError.Text = "Tu cuenta no tiene permisos asignados. Contactá a un administrador.";
                     lblError.Visible = true;
