@@ -41,6 +41,7 @@ namespace CAPAS_Web
                     // Usuario sin permiso para operar con la base alterada: fue manipulada externamente.
                     // No se revela el detalle de resultadoIntegridad.Errores (eso es
                     // tarea del panel de Webmaster, no implementada acá).
+                    BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
                     BE.SessionManager.getInstane().cerrarSesion();
                     Session["Usuario"] = null;
                     pnlInconsistencia.Visible = true;
