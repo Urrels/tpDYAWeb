@@ -10,16 +10,6 @@ namespace CAPAS_Web
     /// </summary>
     public class PaginaBase : System.Web.UI.Page
     {
-        /// <summary>
-        /// Texto único del aviso de integridad comprometida (Login y Site.Master).
-        /// No revela ningún detalle a propósito.
-        /// </summary>
-        public const string MensajeSistemaNoDisponible =
-            "El sistema no se encuentra disponible en este momento, intente más tarde.";
-
-        /// <summary>Clave de Session: mostrar una vez el aviso al usuario que ingresó con integridad inválida.</summary>
-        public const string ClaveAvisoIntegridad = "AvisoIntegridad";
-
         // Orden de prioridad para elegir la página de inicio de un usuario
         // según sus permisos.
         private static readonly string[,] PaginasInicio =

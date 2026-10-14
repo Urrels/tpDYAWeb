@@ -61,10 +61,6 @@ namespace CAPAS_Web
                 }
 
                 Session["Usuario"] = u;
-                // Entra igual (tiene permiso para operar con la base alterada) pero, salvo que
-                // pueda ver el detalle en Integridad, se le muestra una vez el mismo aviso genérico.
-                if (!resultadoIntegridad.EsValido && !u.TienePermiso(BE.Permisos.VerificarIntegridad))
-                    Session[PaginaBase.ClaveAvisoIntegridad] = true;
                 BE.SessionManager.getInstane().cerrarSesion();
                 Response.Redirect(inicio);
             }

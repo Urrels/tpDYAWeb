@@ -20,12 +20,6 @@ namespace CAPAS_Web
             var u = Session["Usuario"] as BE.USUARIO;
             if (u == null) return;
             new BLL.PerfilBLL().RefrescarPermisosSiHaceFalta(u);
-            // Aviso de un solo uso, puesto por Login: se muestra en la primera página que se dibuja.
-            if (Session[PaginaBase.ClaveAvisoIntegridad] != null)
-            {
-                Session.Remove(PaginaBase.ClaveAvisoIntegridad);
-                pnlAvisoIntegridad.Visible = true;
-            }
             lblUsuarioNav.Text  = u.Usuario;
             lnkInicio.NavigateUrl = PaginaBase.ObtenerPaginaInicio(u) ?? "~/Login.aspx";
 
