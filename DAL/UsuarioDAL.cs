@@ -70,13 +70,13 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public List<BE.USUARIO> ListarAlumnos()
+        public List<BE.USUARIO> ListarTodos()
         {
             var lista = new List<BE.USUARIO>();
             try
             {
                 _acceso.Abrir();
-                DataTable dt = _acceso.Leer("USUARIO_LISTAR_ALUMNOS");
+                DataTable dt = _acceso.Leer("USUARIO_LISTAR_TODOS");
                 foreach (DataRow r in dt.Rows)
                     lista.Add(new BE.USUARIO
                     {

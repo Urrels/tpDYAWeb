@@ -15,6 +15,10 @@ namespace BE
         // sesión a partir de los perfiles asignados (ver BLL.PerfilBLL).
         public List<string> Permisos { get; set; } = new List<string>();
 
+        // Versión de permisos con la que se calcularon: si cambia la versión
+        // global (PerfilBLL.VersionPermisos) hay que recalcularlos.
+        public int VersionPermisos { get; set; }
+
         public bool TienePermiso(string nombrePermiso)
         {
             return Permisos != null && Permisos.Contains(nombrePermiso);

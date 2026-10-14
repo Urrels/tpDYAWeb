@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using BE;
 using DAL;
 
@@ -48,6 +49,9 @@ namespace BLL
                 // recorriendo el árbol de perfiles (Composite) en memoria. Se
                 // cargan ANTES de registrar la sesión: si fallan, el usuario no
                 // queda bloqueado con "sesión ya activa".
+                // La versión se lee antes de calcular: si un perfil cambia en el medio,
+                // la sesión queda desactualizada y se refresca en el próximo pedido.
+                u.VersionPermisos = PerfilBLL.VersionPermisos;
                 u.Permisos = new PerfilBLL().ObtenerPermisosEfectivos(u.Id);
 
                 BE.SessionRegistry.Instancia.RegistrarSesion(usuario, sessionId);
@@ -132,6 +136,18 @@ namespace BLL
 
         public List<BE.USUARIO> ListarBloqueados() => _dal.ListarBloqueados();
 
-        public List<BE.USUARIO> ListarAlumnos() => _dal.ListarAlumnos();
+        public List<BE.USUARIO> ListarTodos() => _dal.ListarTodos();
+
+        /// <summary>
+        /// Alumno es una identidad de dominio, no un perfil puntual: se
+        /// considera alumno a quien tiene el permiso de inscribirse a
+        /// materias (es quien genera cursadas), sea por el perfil Alumno o
+        /// por cualquier perfil que lo contenga.
+        /// </summary>
+        public List<BE.USUARIO> ListarAlumnos()
+        {
+            var ids = new HashSet<int>(new PerfilBLL().ListarUsuariosConPermiso(BE.Permisos.Inscribirse));
+            return _dal.ListarTodos().Where(u => ids.Contains(u.Id)).ToList();
+        }
     }
 }
