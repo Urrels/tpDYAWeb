@@ -64,6 +64,13 @@ namespace CAPAS_Web
                 lblMsg.CssClass = "alert alert-danger d-block mb-3";
                 lblMsg.Text = HttpUtility.HtmlEncode(ex.Message);
             }
+            catch (Exception)
+            {
+                lblMsg.CssClass = "alert alert-danger d-block mb-3";
+                lblMsg.Text = "Ocurrió un error inesperado al guardar. Revisá el estado y volvé a intentar.";
+                try { new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "ERROR_GESTION_PERFILES"); }
+                catch { }
+            }
             lblMsg.Visible = true;
             CargarUsuario();
         }

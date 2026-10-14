@@ -197,7 +197,19 @@ namespace CAPAS_Web
             {
                 MostrarMsg("alert-danger", HttpUtility.HtmlEncode(ex.Message));
             }
+            catch (Exception)
+            {
+                MostrarMsg("alert-danger", "Ocurrió un error inesperado al guardar. Revisá el estado y volvé a intentar.");
+                RegistrarErrorInesperado();
+            }
             Recargar();
+        }
+
+        // Deja constancia en bitácora; si la base no responde no se agrega otro error.
+        private void RegistrarErrorInesperado()
+        {
+            try { new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "ERROR_GESTION_PERFILES"); }
+            catch { }
         }
 
         private void MostrarMsg(string css, string texto)
