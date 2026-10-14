@@ -15,11 +15,9 @@ namespace CAPAS_Web
 
             // Tras migrar al modelo de perfiles, las tablas nuevas llegan sin
             // DVH/DVV: se calculan por primera vez (solo si nunca se calcularon).
-            try { new BLL.IntegridadBLL().InicializarTablasDePerfiles(); }
-            catch (Exception ex)
-            {
-                Application["IntegridadInitError"] = ex.Message;
-            }
+            // Si falla, el error queda en IntegridadBLL.ErrorInicializacionPerfiles
+            // (visible en Integridad.aspx) y se reintenta en el próximo login.
+            BLL.IntegridadBLL.IntentarInicializarTablasDePerfiles();
         }
 
         protected void Session_End(object sender, EventArgs e)

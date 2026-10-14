@@ -11,6 +11,7 @@ namespace CAPAS_Web
 
         protected void Page_Load(object sender, EventArgs e)
         {
+            BLL.IntegridadBLL.IntentarInicializarTablasDePerfiles();
             if (!IsPostBack)
                 MostrarResultado(_bll.VerificarTodasLasTablas());
         }
@@ -52,8 +53,9 @@ namespace CAPAS_Web
         /// </summary>
         protected void btnRestaurar_Click(object sender, EventArgs e)
         {
-            _bll.RestaurarTodasLasTablas();
+            var avisos = _bll.RestaurarTodasLasTablas();
             MostrarResultado(_bll.VerificarTodasLasTablas());
+            MostrarAvisos(avisos);
         }
 
         /// <summary>
@@ -75,9 +77,10 @@ namespace CAPAS_Web
             using (var reader = new System.IO.StreamReader(fileBackup.FileContent))
                 json = reader.ReadToEnd();
 
+            System.Collections.Generic.List<string> avisos;
             try
             {
-                _bll.RestaurarDesdeBackupJson(json);
+                avisos = _bll.RestaurarDesdeBackupJson(json);
             }
             catch (Exception ex)
             {
@@ -87,6 +90,7 @@ namespace CAPAS_Web
             }
 
             MostrarResultado(_bll.VerificarTodasLasTablas());
+            MostrarAvisos(avisos);
         }
 
         /// <summary>
@@ -101,6 +105,13 @@ namespace CAPAS_Web
 
         private void MostrarResultado(BLL.ResultadoIntegridad resultado)
         {
+            string errorInicio = BLL.IntegridadBLL.ErrorInicializacionPerfiles;
+            if (errorInicio != null)
+            {
+                resultado.EsValido = false;
+                resultado.Errores.Insert(0, "No se pudo calcular la integridad inicial de las tablas de perfiles: " + errorInicio);
+            }
+
             rptResultados.DataSource = resultado.Errores;
             rptResultados.DataBind();
 
@@ -119,6 +130,13 @@ namespace CAPAS_Web
                 MostrarMsg("alert-danger",
                     $"<i class='bi bi-exclamation-triangle me-2'></i><strong>{resultado.Errores.Count} alteración(es)</strong> detectada(s).{usuariosAfectados}");
             }
+        }
+
+        // Agrega al mensaje actual los avisos del restore (tablas omitidas, borrados evitados).
+        private void MostrarAvisos(System.Collections.Generic.List<string> avisos)
+        {
+            if (avisos == null || avisos.Count == 0) return;
+            lblMsg.Text += "<br/><small>" + string.Join("<br/>", avisos.Select(System.Web.HttpUtility.HtmlEncode)) + "</small>";
         }
 
         private void MostrarMsg(string css, string texto)

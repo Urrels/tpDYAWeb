@@ -612,6 +612,49 @@ namespace BLL
         /// datos de integridad, no se toca (una alteración se sigue
         /// detectando como siempre).
         /// </summary>
+        private static readonly object _lockInit = new object();
+        private static bool _perfilesInicializados;
+        private static string _errorInicializacion;
+
+        /// <summary>
+        /// Último error del cálculo inicial de integridad de las tablas de
+        /// perfiles, o null si no hubo error o ya se resolvió. El panel
+        /// Webmaster lo muestra para que la falla no pase inadvertida.
+        /// </summary>
+        public static string ErrorInicializacionPerfiles
+        {
+            get { lock (_lockInit) { return _errorInicializacion; } }
+        }
+
+        /// <summary>
+        /// Intenta el cálculo inicial una sola vez con éxito: si falla guarda
+        /// el error, lo registra en bitácora (la primera vez) y deja el
+        /// reintento para el próximo login o la próxima visita a Integridad.
+        /// </summary>
+        public static void IntentarInicializarTablasDePerfiles()
+        {
+            lock (_lockInit)
+            {
+                if (_perfilesInicializados) return;
+                try
+                {
+                    new IntegridadBLL().InicializarTablasDePerfiles();
+                    _perfilesInicializados = true;
+                    _errorInicializacion = null;
+                }
+                catch (Exception ex)
+                {
+                    bool esNuevo = _errorInicializacion == null;
+                    _errorInicializacion = ex.Message;
+                    if (esNuevo)
+                    {
+                        try { new BitacoraBLL().RegistrarAccion("SISTEMA", "ERROR_INICIALIZAR_INTEGRIDAD_PERFILES"); }
+                        catch { /* sin base disponible no hay donde registrar */ }
+                    }
+                }
+            }
+        }
+
         public void InicializarTablasDePerfiles()
         {
             InicializarSiNuncaCalculada("USUARIO", RecalcularUsuario);
@@ -674,7 +717,7 @@ namespace BLL
         /// de <see cref="RestaurarTodasLasTablas"/> ya existente y probado,
         /// en vez de duplicar la lógica de borrado/upsert.
         /// </summary>
-        public void RestaurarDesdeBackupJson(string backupJson)
+        public List<string> RestaurarDesdeBackupJson(string backupJson)
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
             var backup = (Dictionary<string, object>)serializer.DeserializeObject(backupJson);
@@ -683,23 +726,97 @@ namespace BLL
                 throw new ArgumentException("El archivo no tiene el formato de backup esperado (falta 'Tablas').");
 
             var tablasData = (Dictionary<string, object>)tablasObj;
-            var tablas = new[]
+            var tablasBase = new[]
             {
                 "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
-                "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE",
-                "ROL", "PERMISO", "ROL_PERMISO", "USUARIO_PERFIL"
+                "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE"
             };
+            var tablasPerfiles = new[] { "ROL", "PERMISO", "ROL_PERMISO", "USUARIO_PERFIL" };
 
-            foreach (var tabla in tablas)
-            {
-                if (!tablasData.TryGetValue(tabla, out object filas))
+            foreach (var tabla in tablasBase)
+                if (!tablasData.ContainsKey(tabla))
                     throw new ArgumentException($"El backup no contiene datos para la tabla {tabla}.");
 
-                string jsonTabla = serializer.Serialize(filas);
-                _dal.GuardarSnapshot(tabla, jsonTabla);
+            // Un backup anterior a los perfiles dinámicos no trae las 4 tablas
+            // nuevas: se conservan los datos actuales de las 4 (no se tocan).
+            var omitidas = new HashSet<string>();
+            var avisos = new List<string>();
+            if (tablasPerfiles.Any(t => !tablasData.ContainsKey(t)))
+            {
+                foreach (var t in tablasPerfiles) omitidas.Add(t);
+                avisos.Add("El backup es anterior a los perfiles dinámicos: no incluye ROL, PERMISO, ROL_PERMISO ni " +
+                           "USUARIO_PERFIL. Esas tablas se dejaron como estaban.");
             }
 
-            RestaurarTodasLasTablas();
+            // Se arma todo primero (y se valida USUARIO) antes de escribir
+            // ningún snapshot, para no dejar el estado a medias por un backup inválido.
+            var aGuardar = new Dictionary<string, string>();
+            var rolesPorUsuarioViejo = new Dictionary<int, string>();
+            foreach (var tabla in tablasBase.Concat(tablasPerfiles.Where(t => !omitidas.Contains(t))))
+            {
+                object filas = tablasData[tabla];
+                if (tabla == "USUARIO")
+                    filas = AdaptarUsuarioDeBackup(serializer, filas, rolesPorUsuarioViejo, avisos);
+                aGuardar[tabla] = serializer.Serialize(filas);
+            }
+
+            foreach (var par in aGuardar)
+                _dal.GuardarSnapshot(par.Key, par.Value);
+
+            avisos.AddRange(RestaurarTablas(omitidas));
+
+            if (rolesPorUsuarioViejo.Count > 0 && omitidas.Count > 0)
+                avisos.AddRange(AsignarPerfilesDesdeRolViejo(rolesPorUsuarioViejo));
+
+            return avisos;
+        }
+
+        /// <summary>
+        /// El layout de USUARIO cambió al quitar ROL: los backups viejos tienen
+        /// 7 atributos con el rol en la posición 4. Se detecta por la cantidad
+        /// de atributos, se quita el rol (guardándolo para reasignar perfiles) y
+        /// cualquier otro largo se rechaza.
+        /// </summary>
+        private static object AdaptarUsuarioDeBackup(System.Web.Script.Serialization.JavaScriptSerializer serializer,
+            object filas, Dictionary<int, string> rolesViejos, List<string> avisos)
+        {
+            var lista = serializer.Deserialize<List<FilaSnapshot>>(serializer.Serialize(filas));
+            int largoActual = ColumnasUsuario.Length;
+            foreach (var f in lista)
+            {
+                if (f.Atributos != null && f.Atributos.Length == largoActual) continue;
+                if (f.Atributos != null && f.Atributos.Length == largoActual + 1)
+                {
+                    rolesViejos[f.Id] = f.Atributos[4];
+                    var nuevos = new List<string>(f.Atributos);
+                    nuevos.RemoveAt(4);
+                    f.Atributos = nuevos.ToArray();
+                    continue;
+                }
+                throw new ArgumentException("El backup tiene un formato de USUARIO que no se reconoce; no se restauró nada.");
+            }
+            if (rolesViejos.Count > 0)
+                avisos.Add("El backup tiene el formato anterior de USUARIO (con columna ROL): se adaptó. " +
+                           "Los usuarios sin perfil se reasignan según su rol de entonces.");
+            return lista;
+        }
+
+        private List<string> AsignarPerfilesDesdeRolViejo(Dictionary<int, string> rolesViejos)
+        {
+            var avisos = new List<string>();
+            var perfilDal = new DAL.PerfilDAL();
+            var idsRol = perfilDal.ListarRoles().ToDictionary(r => r.Nombre, r => r.Id);
+            foreach (var par in rolesViejos)
+            {
+                if (perfilDal.ListarRolesDeUsuario(par.Key).Count > 0) continue;
+                string nombre = par.Value == "Admin" ? "Administrador" : par.Value == "Webmaster" ? "Webmaster" : "Alumno";
+                if (idsRol.TryGetValue(nombre, out int rolId))
+                    perfilDal.AsignarPerfil(par.Key, rolId);
+                else
+                    avisos.Add($"No se encontró el perfil {nombre} para el usuario {par.Key}.");
+            }
+            RecalcularUsuarioPerfil();
+            return avisos;
         }
 
         // =====================================================
@@ -730,27 +847,35 @@ namespace BLL
         /// puede quedar parcialmente restaurada. No se resuelve ni se oculta
         /// acá; queda documentado como limitación conocida.
         /// </summary>
-        public void RestaurarTodasLasTablas()
+        public List<string> RestaurarTodasLasTablas()
         {
+            return RestaurarTablas(new HashSet<string>());
+        }
+
+        /// <summary>
+        /// Restore de todas las tablas salvo las indicadas en
+        /// <paramref name="omitidas"/> (se dejan como están). Devuelve avisos
+        /// para mostrar al usuario (por ejemplo tablas donde se evitó un
+        /// borrado masivo).
+        /// </summary>
+        private List<string> RestaurarTablas(HashSet<string> omitidas)
+        {
+            var avisos = new List<string>();
+
             // Fase 1: borrado de filas agregadas externamente — hijo→padre.
-            BorrarAgregadosExternamente("USUARIO_PERFIL");
-            BorrarAgregadosExternamente("ROL_PERMISO");
-            BorrarAgregadosExternamente("INSCRIPCION_DETALLE");
-            BorrarAgregadosExternamente("INSCRIPCION");
-            BorrarAgregadosExternamente("EVENTO_ACADEMICO");
-            BorrarAgregadosExternamente("ALUMNO_MATERIA");
-            BorrarAgregadosExternamente("CORRELATIVA");
-            BorrarAgregadosExternamente("BITACORA");
-            BorrarAgregadosExternamente("PERIODO_ACADEMICO");
-            BorrarAgregadosExternamente("MATERIA");
-            BorrarAgregadosExternamente("ROL");
-            BorrarAgregadosExternamente("PERMISO");
-            BorrarAgregadosExternamente("USUARIO");
+            foreach (var tabla in new[]
+            {
+                "USUARIO_PERFIL", "ROL_PERMISO", "INSCRIPCION_DETALLE", "INSCRIPCION", "EVENTO_ACADEMICO",
+                "ALUMNO_MATERIA", "CORRELATIVA", "BITACORA", "PERIODO_ACADEMICO", "MATERIA",
+                "ROL", "PERMISO", "USUARIO"
+            })
+                if (!omitidas.Contains(tabla))
+                    BorrarAgregadosExternamente(tabla, avisos);
 
             // Fase 2: upsert de modificados + eliminados que vuelven — padre→hijo.
             RestaurarUpsertUsuario();
-            RestaurarUpsertRol();
-            RestaurarUpsertPermiso();
+            if (!omitidas.Contains("ROL")) RestaurarUpsertRol();
+            if (!omitidas.Contains("PERMISO")) RestaurarUpsertPermiso();
             RestaurarUpsertMateria();
             RestaurarUpsertPeriodoAcademico();
             RestaurarUpsertBitacora();
@@ -759,11 +884,12 @@ namespace BLL
             RestaurarUpsertEventoAcademico();
             RestaurarUpsertInscripcion();
             RestaurarUpsertInscripcionDetalle();
-            RestaurarUpsertRolPermiso();
-            RestaurarUpsertUsuarioPerfil();
+            if (!omitidas.Contains("ROL_PERMISO")) RestaurarUpsertRolPermiso();
+            if (!omitidas.Contains("USUARIO_PERFIL")) RestaurarUpsertUsuarioPerfil();
 
             // El estado restaurado debe quedar con DVH/DVV (y snapshot) al día.
             RecalcularTodasLasTablas();
+            return avisos;
         }
 
         /// <summary>
@@ -771,13 +897,23 @@ namespace BLL
         /// ausente del snapshot fue agregado externamente (por fuera del
         /// mecanismo normal de la aplicación) — se borra.
         /// </summary>
-        private void BorrarAgregadosExternamente(string nombreTabla)
+        private void BorrarAgregadosExternamente(string nombreTabla, List<string> avisos)
         {
             var idsSnapshot = new HashSet<int>();
             foreach (var f in ObtenerSnapshot(nombreTabla))
                 idsSnapshot.Add(f.Id);
 
             DataTable actuales = _dal.ListarParaIntegridad(nombreTabla);
+
+            // Guarda: con el snapshot vacío todas las filas actuales serían
+            // "agregadas externamente" y se borraría la tabla entera. Se omite
+            // el borrado y se avisa.
+            if (idsSnapshot.Count == 0 && actuales.Rows.Count > 0)
+            {
+                avisos.Add($"{nombreTabla}: el snapshot está vacío, no se borraron las {actuales.Rows.Count} fila(s) actuales.");
+                return;
+            }
+
             foreach (DataRow fila in actuales.Rows)
             {
                 int id = Convert.ToInt32(fila["ID"]);
