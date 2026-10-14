@@ -173,6 +173,8 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +CambiarContrasena() : bool
     +ActualizarDireccion() : bool
     +ListarTodos() : List<USUARIO>
+    +InsertarConPerfiles(usuario, hash, direccion, rolIds) : int
+    +ActualizarEstado(id, activo)
     +EstaBloqueado(usuario) : bool
     +IncrementarIntentos(usuario) : bool
     +ResetearIntentos(usuario)
