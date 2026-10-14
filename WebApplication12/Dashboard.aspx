@@ -94,6 +94,16 @@
 
     <asp:HiddenField ID="hfDatosNotas"   runat="server"/>
     <asp:HiddenField ID="hfDatosEstados" runat="server"/>
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <h6 class="card-section-title mb-0 me-3">Resumen vía Web Service</h6>
+                <button type="button" id="btnResumenWs" class="btn btn-outline-secondary btn-sm">Consultar MateriasService</button>
+            </div>
+            <div id="wsResumen" class="small text-muted"></div>
+        </div>
+    </div>
+
     <div class="mt-4 text-end">
         <a href="ExportarPDF.aspx" class="btn btn-danger" target="_blank">
             <i class="bi bi-file-pdf me-2"></i>Exportar PDF
@@ -102,6 +112,30 @@
 </asp:Content>
 
 <asp:Content ContentPlaceHolderID="ScriptContent" runat="server">
+    <script>
+        // Consume ObtenerResumenAcademico de MateriasService.asmx (JSON); la cookie de sesión viaja sola.
+        document.getElementById('btnResumenWs').addEventListener('click', function () {
+            var salida = document.getElementById('wsResumen');
+            salida.textContent = 'Consultando…';
+            fetch('MateriasService.asmx/ObtenerResumenAcademico', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                body: '{}'
+            }).then(function (r) {
+                if (!r.ok) throw new Error('El servicio respondió ' + r.status + '.');
+                return r.json();
+            }).then(function (datos) {
+                var d = datos.d;
+                salida.textContent = 'Total: ' + d.TotalMaterias + ' · Aprobadas: ' + d.Aprobadas +
+                    ' · Cursando: ' + d.Cursando + ' · Final pendiente: ' + d.FinalPendiente +
+                    ' · Promedio ponderado: ' + (d.PromedioPonderado > 0 ? d.PromedioPonderado.toFixed(2) : 'sin datos') +
+                    ' (' + d.MensajePromedio + ')';
+            }).catch(function (e) {
+                salida.textContent = 'No se pudo consultar el servicio: ' + e.message;
+            });
+        });
+    </script>
     <script>
         var datosNotas = JSON.parse(document.getElementById('<%= hfDatosNotas.ClientID %>').value || '{}');
         if (datosNotas.labels && datosNotas.labels.length > 0) {

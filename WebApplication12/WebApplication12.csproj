@@ -230,6 +230,10 @@
     <Compile Include="Materias.aspx.designer.cs">
       <DependentUpon>Materias.aspx</DependentUpon>
     </Compile>
+    <Compile Include="MateriasService.asmx.cs">
+      <DependentUpon>MateriasService.asmx</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Menu.aspx.cs">
       <DependentUpon>Menu.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -286,6 +290,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Materias.aspx" />
+    <Content Include="MateriasService.asmx" />
     <Content Include="Notas.aspx" />
     <Content Include="MisCursadas.aspx" />
     <Content Include="Calendario.aspx" />
@@ -326,6 +331,8 @@
     <VisualStudio>
       <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
         <WebProjectProperties>
+          <StartAction>SpecificPage</StartAction>
+          <StartPageUrl>Login.aspx</StartPageUrl>
           <UseIIS>True</UseIIS>
           <AutoAssignPort>True</AutoAssignPort>
           <DevelopmentServerPort>56294</DevelopmentServerPort>
