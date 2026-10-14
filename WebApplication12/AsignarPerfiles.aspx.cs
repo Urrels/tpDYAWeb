@@ -55,7 +55,7 @@ namespace CAPAS_Web
 
             try
             {
-                _bll.AsignarPerfilesAUsuario(usuarioId, rolIds, UsuarioActual.Usuario);
+                _bll.AsignarPerfilesAUsuario(usuarioId, rolIds, UsuarioActual);
                 lblMsg.CssClass = "alert alert-success d-block mb-3";
                 lblMsg.Text = "Asignación guardada.";
             }

@@ -52,6 +52,14 @@ namespace CAPAS_Web
                 return;
             }
 
+            // Sesión revocada desde el servidor (baja o restablecimiento de contraseña).
+            if (BLL.PerfilBLL.SesionRevocada(usuario))
+            {
+                Session.Abandon();
+                Response.Redirect("~/Login.aspx", true);
+                return;
+            }
+
             // Si algún perfil cambió desde que se calcularon los permisos de la sesión, se recalculan.
             if (!new BLL.PerfilBLL().RefrescarPermisosSiHaceFalta(usuario))
             {

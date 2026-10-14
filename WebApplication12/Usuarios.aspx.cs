@@ -12,6 +12,10 @@ namespace CAPAS_Web
 
         private readonly BLL.PerfilBLL _bll = new BLL.PerfilBLL();
 
+        // Usuarios sobre los que el actor puede operar: la página solo lo refleja,
+        // la BLL vuelve a comprobarlo en cada operación.
+        private HashSet<int> _actuables = new HashSet<int>();
+
         // Usuario que se está editando; sobrevive a los postbacks.
         private int? EditandoId
         {
@@ -23,7 +27,9 @@ namespace CAPAS_Web
         {
             if (IsPostBack) return;
 
-            foreach (BE.Rol r in _bll.ListarRoles().OrderBy(x => x.Nombre))
+            // Solo los perfiles que el actor puede asignar.
+            List<int> asignables = _bll.ListarRolesAsignablesPor(UsuarioActual);
+            foreach (BE.Rol r in _bll.ListarRoles().Where(x => asignables.Contains(x.Id)).OrderBy(x => x.Nombre))
             {
                 cblPerfilesAlta.Items.Add(new ListItem(r.Nombre, r.Id.ToString()));
                 cblPerfilesEdit.Items.Add(new ListItem(r.Nombre, r.Id.ToString()));
@@ -33,6 +39,7 @@ namespace CAPAS_Web
 
         private void CargarGrilla()
         {
+            _actuables = _bll.ListarUsuariosActuablesPor(UsuarioActual);
             gvUsuarios.DataSource = _bll.ListarUsuariosParaGestion();
             gvUsuarios.DataBind();
         }
@@ -42,8 +49,10 @@ namespace CAPAS_Web
         {
             if (e.Row.RowType != DataControlRowType.DataRow) return;
             var u = (BE.USUARIO)e.Row.DataItem;
-            e.Row.FindControl("lnkBaja").Visible = u.Activo;
-            e.Row.FindControl("lnkReactivar").Visible = !u.Activo;
+            bool puede = _actuables.Contains(u.Id);
+            e.Row.FindControl("lnkEditar").Visible = puede;
+            e.Row.FindControl("lnkBaja").Visible = puede && u.Activo && u.Id != UsuarioActual.Id;
+            e.Row.FindControl("lnkReactivar").Visible = puede && !u.Activo;
         }
 
         protected void gvUsuarios_RowCommand(object sender, GridViewCommandEventArgs e)
@@ -57,11 +66,11 @@ namespace CAPAS_Web
                     CargarEdicion(id);
                     break;
                 case "Baja":
-                    Ejecutar(() => _bll.CambiarEstadoUsuario(id, false, UsuarioActual.Id, UsuarioActual.Usuario),
+                    Ejecutar(() => _bll.CambiarEstadoUsuario(id, false, UsuarioActual),
                         "Usuario dado de baja.");
                     break;
                 case "Reactivar":
-                    Ejecutar(() => _bll.CambiarEstadoUsuario(id, true, UsuarioActual.Id, UsuarioActual.Usuario),
+                    Ejecutar(() => _bll.CambiarEstadoUsuario(id, true, UsuarioActual),
                         "Usuario reactivado.");
                     break;
             }
@@ -70,7 +79,8 @@ namespace CAPAS_Web
         private void CargarEdicion(int id)
         {
             BE.USUARIO u = _bll.ListarUsuariosParaGestion().FirstOrDefault(x => x.Id == id);
-            if (u == null) { EditandoId = null; pnlEdicion.Visible = false; return; }
+            if (u == null || !_bll.ListarUsuariosActuablesPor(UsuarioActual).Contains(id))
+            { EditandoId = null; pnlEdicion.Visible = false; return; }
 
             EditandoId = id;
             lblEditUsuario.Text = HttpUtility.HtmlEncode(u.Usuario);
@@ -78,6 +88,10 @@ namespace CAPAS_Web
             List<int> asignados = _bll.ObtenerIdsRolesDeUsuario(id);
             foreach (ListItem item in cblPerfilesEdit.Items)
                 item.Selected = asignados.Contains(int.Parse(item.Value));
+            // Los perfiles propios no se editan desde acá, ni se restablece la propia contraseña.
+            bool esUnoMismo = id == UsuarioActual.Id;
+            cblPerfilesEdit.Enabled = !esUnoMismo;
+            pnlReset.Visible = !esUnoMismo;
             pnlEdicion.Visible = true;
         }
 
@@ -85,7 +99,7 @@ namespace CAPAS_Web
         {
             List<int> roles = Seleccionados(cblPerfilesAlta);
             Ejecutar(() => _bll.CrearUsuario(txtUsuario.Text, txtPass.Text, txtConf.Text, txtDireccion.Text,
-                    roles, UsuarioActual.Usuario),
+                    roles, UsuarioActual),
                 "Usuario creado.", () =>
                 {
                     txtUsuario.Text = txtDireccion.Text = "";
@@ -97,8 +111,9 @@ namespace CAPAS_Web
         {
             if (!EditandoId.HasValue) return;
             int id = EditandoId.Value;
-            List<int> roles = Seleccionados(cblPerfilesEdit);
-            Ejecutar(() => _bll.ModificarUsuario(id, txtEditDireccion.Text, roles, UsuarioActual.Usuario),
+            // Los perfiles propios no se editan acá (el control está deshabilitado y no envía valores).
+            List<int> roles = id == UsuarioActual.Id ? _bll.ObtenerIdsRolesDeUsuario(id) : Seleccionados(cblPerfilesEdit);
+            Ejecutar(() => _bll.ModificarUsuario(id, txtEditDireccion.Text, roles, UsuarioActual),
                 "Cambios guardados.", () => CargarEdicion(id));
         }
 
@@ -106,7 +121,7 @@ namespace CAPAS_Web
         {
             if (!EditandoId.HasValue) return;
             int id = EditandoId.Value;
-            Ejecutar(() => _bll.ResetearContrasena(id, txtResetPass.Text, txtResetConf.Text, UsuarioActual.Usuario),
+            Ejecutar(() => _bll.ResetearContrasena(id, txtResetPass.Text, txtResetConf.Text, UsuarioActual),
                 "Contraseña restablecida.", () => txtResetPass.Text = txtResetConf.Text = "");
         }
 

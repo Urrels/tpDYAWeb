@@ -23,7 +23,7 @@
                 </asp:TemplateField>
                 <asp:TemplateField HeaderText="Acciones">
                     <ItemTemplate>
-                        <asp:LinkButton runat="server" CommandName="Editar" CommandArgument='<%# Eval("Id") %>'
+                        <asp:LinkButton ID="lnkEditar" runat="server" CommandName="Editar" CommandArgument='<%# Eval("Id") %>'
                                         CssClass="btn btn-outline-primary btn-sm">
                             <i class="bi bi-pencil"></i> Editar
                         </asp:LinkButton>
@@ -48,9 +48,9 @@
                 <div class="card-body">
                     <h6 class="mb-3">Nuevo usuario</h6>
                     <asp:TextBox ID="txtUsuario" runat="server" CssClass="form-control mb-2" MaxLength="50" placeholder="Usuario"/>
-                    <asp:TextBox ID="txtPass" runat="server" CssClass="form-control mb-2" TextMode="Password" placeholder="Contraseña (6+, 1 mayúscula, 1 número)"/>
-                    <asp:TextBox ID="txtConf" runat="server" CssClass="form-control mb-2" TextMode="Password" placeholder="Repetir contraseña"/>
-                    <asp:TextBox ID="txtDireccion" runat="server" CssClass="form-control mb-2" MaxLength="200" placeholder="Dirección (opcional)"/>
+                    <asp:TextBox ID="txtPass" runat="server" CssClass="form-control mb-2" TextMode="Password" autocomplete="new-password" placeholder="Contraseña (6+, 1 mayúscula, 1 número)"/>
+                    <asp:TextBox ID="txtConf" runat="server" CssClass="form-control mb-2" TextMode="Password" autocomplete="new-password" placeholder="Repetir contraseña"/>
+                    <asp:TextBox ID="txtDireccion" runat="server" CssClass="form-control mb-2" MaxLength="100" placeholder="Dirección (opcional, hasta 100 caracteres)"/>
                     <label class="form-label small">Perfiles (al menos uno)</label>
                     <asp:CheckBoxList ID="cblPerfilesAlta" runat="server" CssClass="mb-2" RepeatColumns="1" CellPadding="2"/>
                     <asp:Button ID="btnCrear" runat="server" Text="Crear usuario" CssClass="btn btn-primary btn-sm" OnClick="btnCrear_Click"/>
@@ -63,18 +63,20 @@
                 <div class="card shadow-sm border-0">
                     <div class="card-body">
                         <h6 class="mb-3">Editar: <asp:Label ID="lblEditUsuario" runat="server" CssClass="fw-bold"/></h6>
-                        <asp:TextBox ID="txtEditDireccion" runat="server" CssClass="form-control mb-2" MaxLength="200" placeholder="Dirección (vacío = sin cambios)"/>
+                        <asp:TextBox ID="txtEditDireccion" runat="server" CssClass="form-control mb-2" MaxLength="100" placeholder="Dirección (vacío = sin cambios)"/>
                         <label class="form-label small">Perfiles</label>
                         <asp:CheckBoxList ID="cblPerfilesEdit" runat="server" CssClass="mb-2" RepeatColumns="1" CellPadding="2"/>
                         <asp:Button ID="btnGuardarEdicion" runat="server" Text="Guardar cambios" CssClass="btn btn-primary btn-sm" OnClick="btnGuardarEdicion_Click"/>
                         <asp:Button ID="btnCancelar" runat="server" Text="Cancelar" CssClass="btn btn-outline-secondary btn-sm" OnClick="btnCancelar_Click"/>
 
+                        <asp:Panel ID="pnlReset" runat="server">
                         <hr/>
                         <h6>Restablecer contraseña</h6>
-                        <asp:TextBox ID="txtResetPass" runat="server" CssClass="form-control mb-2" TextMode="Password" placeholder="Nueva contraseña"/>
-                        <asp:TextBox ID="txtResetConf" runat="server" CssClass="form-control mb-2" TextMode="Password" placeholder="Repetir nueva contraseña"/>
+                        <asp:TextBox ID="txtResetPass" runat="server" CssClass="form-control mb-2" TextMode="Password" autocomplete="new-password" placeholder="Nueva contraseña"/>
+                        <asp:TextBox ID="txtResetConf" runat="server" CssClass="form-control mb-2" TextMode="Password" autocomplete="new-password" placeholder="Repetir nueva contraseña"/>
                         <asp:Button ID="btnResetPass" runat="server" Text="Restablecer contraseña" CssClass="btn btn-outline-danger btn-sm"
                                     OnClick="btnResetPass_Click" OnClientClick="return confirm('¿Restablecer la contraseña de este usuario?');"/>
+                        </asp:Panel>
                     </div>
                 </div>
             </asp:Panel>
