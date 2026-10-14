@@ -71,6 +71,28 @@ namespace DAL
             return lista;
         }
 
+        public BE.PaginaResultado<BE.MATERIA> ListarPaginado(int pagina, int tamanio)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@pagina", pagina),
+                _acceso.CrearParametro("@tamanio", tamanio)
+            };
+            var resultado = new BE.PaginaResultado<BE.MATERIA> { Pagina = pagina, Tamanio = tamanio };
+            try
+            {
+                _acceso.Abrir();
+                DataTable dt = _acceso.Leer("MATERIA_LISTAR_PAGINADO", p);
+                foreach (DataRow r in dt.Rows)
+                {
+                    resultado.Filas.Add(MapearFila(r));
+                    resultado.TotalFilas = System.Convert.ToInt32(r["TOTAL_FILAS"]);
+                }
+            }
+            finally { _acceso.Cerrar(); }
+            return resultado;
+        }
+
         public BE.MATERIA Obtener(int id)
         {
             var p = new List<SqlParameter> { _acceso.CrearParametro("@id", id) };

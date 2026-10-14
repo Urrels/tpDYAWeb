@@ -1,5 +1,6 @@
 ﻿<%@ Page Title="Materias" Language="C#" MasterPageFile="~/Site.Master"
          AutoEventWireup="true" CodeBehind="Materias.aspx.cs" Inherits="CAPAS_Web.Materias" %>
+<%@ Register Src="~/Paginador.ascx" TagPrefix="uc" TagName="Paginador" %>
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -79,4 +80,6 @@
             </Columns>
         </asp:GridView>
     </div>
+
+    <uc:Paginador ID="paginador" runat="server" TamanioPagina="10" OnCambioPagina="paginador_CambioPagina"/>
 </asp:Content>

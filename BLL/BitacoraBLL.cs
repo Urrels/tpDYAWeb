@@ -46,8 +46,9 @@ namespace BLL
             _integridad.RecalcularBitacora();
         }
 
-        public BE.BitacoraPaginaResultado ListarPaginado(string usuario, string criticidad, DateTime? fechaDesde, DateTime? fechaHasta, int pagina, int tamanio)
-            => _dal.ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta, pagina, tamanio);
+        public BE.PaginaResultado<BE.BITACORA> ListarPaginado(string usuario, string criticidad, DateTime? fechaDesde, DateTime? fechaHasta, int pagina, int tamanio)
+            => Paginacion.ConsultarAjustando(pagina,
+                p => _dal.ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta, p, tamanio));
 
         public List<string> ListarUsuariosDistinct() => _dal.ListarUsuariosDistinct();
     }

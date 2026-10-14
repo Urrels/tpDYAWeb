@@ -128,6 +128,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Bitacora.aspx" />
+    <Content Include="Paginador.ascx" />
     <Content Include="Integridad.aspx" />
     <Content Include="UsuariosBloqueados.aspx" />
     <Content Include="Perfiles.aspx" />
@@ -148,6 +149,13 @@
     </Compile>
     <Compile Include="Bitacora.aspx.designer.cs">
       <DependentUpon>Bitacora.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Paginador.ascx.cs">
+      <DependentUpon>Paginador.ascx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Paginador.ascx.designer.cs">
+      <DependentUpon>Paginador.ascx</DependentUpon>
     </Compile>
     <Compile Include="Integridad.aspx.cs">
       <DependentUpon>Integridad.aspx</DependentUpon>

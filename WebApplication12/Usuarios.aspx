@@ -1,5 +1,6 @@
 <%@ Page Title="Usuarios" Language="C#" MasterPageFile="~/Site.Master"
          AutoEventWireup="true" CodeBehind="Usuarios.aspx.cs" Inherits="CAPAS_Web.Usuarios" %>
+<%@ Register Src="~/Paginador.ascx" TagPrefix="uc" TagName="Paginador" %>
 
 <asp:Content ContentPlaceHolderID="MainContent" runat="server">
     <h4 class="mb-4"><i class="bi bi-person-lines-fill me-2"></i>Usuarios</h4>
@@ -42,7 +43,9 @@
         </asp:GridView>
     </div>
 
-    <div class="row g-3">
+    <uc:Paginador ID="paginador" runat="server" TamanioPagina="10" OnCambioPagina="paginador_CambioPagina"/>
+
+    <div class="row g-3 mt-1">
         <div class="col-lg-6">
             <div class="card shadow-sm border-0">
                 <div class="card-body">

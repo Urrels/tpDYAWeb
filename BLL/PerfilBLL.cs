@@ -702,6 +702,21 @@ namespace BLL
             return usuarios;
         }
 
+        /// <summary>
+        /// Misma lista que <see cref="ListarUsuariosVisiblesPor(BE.USUARIO)"/>, paginada. Se pagina en memoria
+        /// y DESPUÉS de filtrar por visibilidad: esa regla vive en el Composite (C#), no en SQL. Paginar
+        /// antes en la base daría páginas incompletas y un total que delataría a los usuarios ocultos.
+        /// </summary>
+        public BE.PaginaResultado<BE.USUARIO> ListarUsuariosVisiblesPor(BE.USUARIO actor, int pagina, int tamanio)
+        {
+            List<BE.USUARIO> visibles = ListarUsuariosVisiblesPor(actor).OrderBy(u => u.Usuario).ToList();
+            if (tamanio < 1) tamanio = 10;
+            var resultado = new BE.PaginaResultado<BE.USUARIO> { TotalFilas = visibles.Count, Tamanio = tamanio };
+            resultado.Pagina = Math.Max(1, Math.Min(pagina, resultado.TotalPaginas));
+            resultado.Filas = visibles.Skip((resultado.Pagina - 1) * tamanio).Take(tamanio).ToList();
+            return resultado;
+        }
+
         // Lecturas por usuario: exigen que el actor pueda ver al usuario (mismo error que si no existiera).
         private BE.USUARIO ExigirVisible(int usuarioId, BE.USUARIO actor, bool soloGestorDeUsuarios, out EstadoPerfiles estado)
         {
