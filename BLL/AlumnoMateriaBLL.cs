@@ -92,6 +92,22 @@ namespace BLL
             am.MensajeRiesgo = "🟢 Vas bien. Seguí así.";
         }
 
+        /// <summary>Cantidades por estado y promedio ponderado de un alumno; lo comparten el dashboard, el PDF y el servicio web.</summary>
+        public ResumenAcademico ObtenerResumen(int idUsuario)
+        {
+            var cursadas = Listar(idUsuario);
+            var (promedio, mensaje) = CalcularPromedioPonderado(idUsuario);
+            return new ResumenAcademico
+            {
+                TotalMaterias = cursadas.Count,
+                Aprobadas = cursadas.Count(am => am.Estado == "Aprobada"),
+                Cursando = cursadas.Count(am => am.Estado == "Cursando"),
+                FinalPendiente = cursadas.Count(am => am.Estado == "FinalPendiente"),
+                PromedioPonderado = promedio,
+                MensajePromedio = mensaje
+            };
+        }
+
         public (decimal promedio, string mensaje) CalcularPromedioPonderado(int idUsuario)
         {
             var lista = Listar(idUsuario)
@@ -111,5 +127,18 @@ namespace BLL
 
             return (Math.Round(promedio, 2), msg);
         }
+    }
+}
+
+namespace BLL
+{
+    public class ResumenAcademico
+    {
+        public int TotalMaterias { get; set; }
+        public int Aprobadas { get; set; }
+        public int Cursando { get; set; }
+        public int FinalPendiente { get; set; }
+        public decimal PromedioPonderado { get; set; }
+        public string MensajePromedio { get; set; }
     }
 }

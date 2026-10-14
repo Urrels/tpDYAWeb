@@ -16,12 +16,14 @@ namespace CAPAS_Web
         private void CargarDashboard()
         {
             var u = Session["Usuario"] as BE.USUARIO;
-            var cursadas = new BLL.AlumnoMateriaBLL().Listar(u.Id);
+            var bll = new BLL.AlumnoMateriaBLL();
+            var cursadas = bll.Listar(u.Id);
+            var resumen = bll.ObtenerResumen(u.Id);
 
-            lblTotalMaterias.Text = cursadas.Count.ToString();
-            lblAprobadas.Text = cursadas.Count(am => am.Estado == "Aprobada").ToString();
-            lblCursando.Text = cursadas.Count(am => am.Estado == "Cursando").ToString();
-            lblFinalPendiente.Text = cursadas.Count(am => am.Estado == "FinalPendiente").ToString();
+            lblTotalMaterias.Text = resumen.TotalMaterias.ToString();
+            lblAprobadas.Text = resumen.Aprobadas.ToString();
+            lblCursando.Text = resumen.Cursando.ToString();
+            lblFinalPendiente.Text = resumen.FinalPendiente.ToString();
 
             var serial = new JavaScriptSerializer();
 

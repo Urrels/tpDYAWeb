@@ -45,6 +45,14 @@ namespace CAPAS_Web
             return m == null ? null : Convertir(m);
         }
 
+        [WebMethod(EnableSession = true, Description = "Resumen académico del alumno de la sesión: cantidades por estado y promedio ponderado.")]
+        public BLL.ResumenAcademico ObtenerResumenAcademico()
+        {
+            // Solo devuelve los datos del usuario de la sesión: no recibe ningún id.
+            BE.USUARIO usuario = ExigirPermiso(BE.Permisos.VerDashboard);
+            return new BLL.AlumnoMateriaBLL().ObtenerResumen(usuario.Id);
+        }
+
         private MateriaDto Convertir(BE.MATERIA m) => new MateriaDto
         {
             Codigo = m.Codigo,
@@ -55,14 +63,15 @@ namespace CAPAS_Web
         };
 
         /// <summary>Mismas comprobaciones que PaginaBase, pero fallando con una excepción en vez de redirigir.</summary>
-        private void ExigirPermiso()
+        private BE.USUARIO ExigirPermiso(string permiso = BE.Permisos.GestionarMaterias)
         {
             var usuario = Session["Usuario"] as BE.USUARIO;
             if (usuario == null || BLL.PerfilBLL.SesionRevocada(usuario)
                 || !new BLL.PerfilBLL().RefrescarPermisosSiHaceFalta(usuario))
                 throw new UnauthorizedAccessException("Sesión no iniciada o vencida.");
-            if (!usuario.TienePermiso(BE.Permisos.GestionarMaterias))
-                throw new UnauthorizedAccessException("No tenés permiso para consultar las materias.");
+            if (!usuario.TienePermiso(permiso))
+                throw new UnauthorizedAccessException("No tenés permiso para esta consulta.");
+            return usuario;
         }
     }
 }

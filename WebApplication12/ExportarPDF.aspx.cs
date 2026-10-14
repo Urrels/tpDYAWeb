@@ -19,7 +19,8 @@ namespace CAPAS_Web
         {
             var u = Session["Usuario"] as BE.USUARIO;
             var cursadas = new BLL.AlumnoMateriaBLL().Listar(u.Id);
-            var (promedio, _) = new BLL.AlumnoMateriaBLL().CalcularPromedioPonderado(u.Id);
+            var resumen = new BLL.AlumnoMateriaBLL().ObtenerResumen(u.Id);
+            decimal promedio = resumen.PromedioPonderado;
 
             Response.ContentType = "application/pdf";
             Response.AddHeader("content-disposition",
@@ -41,9 +42,9 @@ namespace CAPAS_Web
             doc.Add(Chunk.NEWLINE);
 
             doc.Add(new Paragraph("Resumen de estado:", fuenteSubtit));
-            doc.Add(new Paragraph($"  • Aprobadas:       {cursadas.Count(am => am.Estado == "Aprobada")}", fuenteNormal));
-            doc.Add(new Paragraph($"  • Cursando:        {cursadas.Count(am => am.Estado == "Cursando")}", fuenteNormal));
-            doc.Add(new Paragraph($"  • Final Pendiente: {cursadas.Count(am => am.Estado == "FinalPendiente")}", fuenteNormal));
+            doc.Add(new Paragraph($"  • Aprobadas:       {resumen.Aprobadas}", fuenteNormal));
+            doc.Add(new Paragraph($"  • Cursando:        {resumen.Cursando}", fuenteNormal));
+            doc.Add(new Paragraph($"  • Final Pendiente: {resumen.FinalPendiente}", fuenteNormal));
             doc.Add(Chunk.NEWLINE);
 
             doc.Add(new Paragraph("Detalle de Materias:", fuenteSubtit));
