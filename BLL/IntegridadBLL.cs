@@ -47,7 +47,7 @@ namespace BLL
         // vez que haya datos guardados (cambiar el orden invalida todos los
         // DVH/DVV ya calculados).
         private static readonly string[] ColumnasUsuario =
-            { "ID", "USUARIO", "PASS", "DIRECCION", "INTENTOS_FALLIDOS", "BLOQUEADO" };
+            { "ID", "USUARIO", "PASS", "DIRECCION", "INTENTOS_FALLIDOS", "BLOQUEADO", "ACTIVO" };
 
         private static readonly string[] ColumnasBitacora =
             { "ID", "USUARIO", "ACCION", "FECHA", "CRITICIDAD" };
@@ -304,7 +304,7 @@ namespace BLL
         private static string[] ExtraerUsuario(DataRow r) => new[]
         {
             IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["PASS"]), Base64Str(r["DIRECCION"]),
-            IntStr(r["INTENTOS_FALLIDOS"]), BitStr(r["BLOQUEADO"])
+            IntStr(r["INTENTOS_FALLIDOS"]), BitStr(r["BLOQUEADO"]), BitStr(r["ACTIVO"])
         };
 
         private static string[] ExtraerBitacora(DataRow r) => new[]
@@ -781,23 +781,36 @@ namespace BLL
             object filas, Dictionary<int, string> rolesViejos, List<string> avisos)
         {
             var lista = serializer.Deserialize<List<FilaSnapshot>>(serializer.Serialize(filas));
-            int largoActual = ColumnasUsuario.Length;
+            int largoActual = ColumnasUsuario.Length; // 7: ..., INTENTOS_FALLIDOS, BLOQUEADO, ACTIVO
+            bool adaptado = false;
             foreach (var f in lista)
             {
-                if (f.Atributos != null && f.Atributos.Length == largoActual) continue;
-                if (f.Atributos != null && f.Atributos.Length == largoActual + 1)
+                int n = f.Atributos == null ? -1 : f.Atributos.Length;
+
+                // Layout anterior a los perfiles dinámicos: 7 atributos con ROL (texto) en la
+                // posición 4 -> se quita el rol y se agrega ACTIVO. Se distingue del layout
+                // actual (también de 7) porque ahí la posición 4 es INTENTOS_FALLIDOS (numérico).
+                if (n == largoActual && !int.TryParse(f.Atributos[4], out _))
                 {
                     rolesViejos[f.Id] = f.Atributos[4];
-                    var nuevos = new List<string>(f.Atributos);
-                    nuevos.RemoveAt(4);
-                    f.Atributos = nuevos.ToArray();
-                    continue;
+                    var sinRol = new List<string>(f.Atributos);
+                    sinRol.RemoveAt(4);
+                    sinRol.Add("1");
+                    f.Atributos = sinRol.ToArray();
+                    adaptado = true;
                 }
-                throw new ArgumentException("El backup tiene un formato de USUARIO que no se reconoce; no se restauró nada.");
+                // Layout de perfiles dinámicos sin ACTIVO: 6 atributos -> se agrega ACTIVO activo.
+                else if (n == largoActual - 1)
+                {
+                    f.Atributos = f.Atributos.Concat(new[] { "1" }).ToArray();
+                    adaptado = true;
+                }
+                else if (n != largoActual)
+                    throw new ArgumentException("El backup tiene un formato de USUARIO que no se reconoce; no se restauró nada.");
             }
-            if (rolesViejos.Count > 0)
-                avisos.Add("El backup tiene el formato anterior de USUARIO (con columna ROL): se adaptó. " +
-                           "Los usuarios sin perfil se reasignan según su rol de entonces.");
+            if (adaptado)
+                avisos.Add("El backup tiene un formato anterior de USUARIO: se adaptó (los usuarios quedan activos" +
+                           (rolesViejos.Count > 0 ? " y los que no tienen perfil se reasignan según su rol de entonces" : "") + ").");
             return lista;
         }
 
@@ -951,6 +964,7 @@ namespace BLL
             public string Usuario;
             public string Pass;
             public byte[] Direccion;
+            public bool Activo;
         }
 
         private class FilaRolRestaurada
@@ -1061,7 +1075,8 @@ namespace BLL
             Id = ParseInt(a[0]),
             Usuario = a[1],
             Pass = a[2],
-            Direccion = ParseBase64(a[3])
+            Direccion = ParseBase64(a[3]),
+            Activo = ParseBit(a[6])
         };
 
         private static FilaRolRestaurada RehidratarRol(string[] a) => new FilaRolRestaurada
@@ -1177,7 +1192,7 @@ namespace BLL
             foreach (var f in ObtenerSnapshot("USUARIO"))
             {
                 var u = RehidratarUsuario(f.Atributos);
-                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion);
+                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion, u.Activo);
             }
         }
 

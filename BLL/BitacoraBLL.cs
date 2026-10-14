@@ -15,6 +15,8 @@ namespace BLL
         {
             if (accion.StartsWith("BAJA_") || accion == "USUARIO_BLOQUEADO" || accion == "LOGIN_FALLIDO"
                 || accion.StartsWith("DESBLOQUEO_USUARIO") || accion == "CAMBIO_CONTRASENA"
+                || accion.StartsWith("RESET_CONTRASENA") || accion.StartsWith("REACTIVAR_USUARIO")
+                || accion == "LOGIN_USUARIO_INACTIVO"
                 || accion.StartsWith("ASIGNACION_PERFIL") || accion.StartsWith("CAMBIO_JERARQUIA_PERFIL"))
                 return "Alta";
             if (accion == "LOGIN" || accion == "LOGOUT")

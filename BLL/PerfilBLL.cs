@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using BE;
 
@@ -18,6 +19,10 @@ namespace BLL
     ///  - Ningún cambio puede dejar al sistema sin al menos un usuario cuyos
     ///    permisos efectivos incluyan "Gestionar perfiles".
     ///  - No se elimina un perfil que tenga perfiles hijos o usuarios asignados.
+    ///
+    /// También concentra el alta, modificación y baja lógica de usuarios porque
+    /// comparten con los perfiles el lock de escritura y la guarda del último
+    /// operador (un usuario inactivo o bloqueado no cuenta como operador).
     /// </summary>
     public class PerfilBLL
     {
@@ -114,12 +119,17 @@ namespace BLL
         /// Recalcula los permisos del usuario de la sesión si cambió algún
         /// perfil desde la última vez que se calcularon.
         /// </summary>
-        public void RefrescarPermisosSiHaceFalta(BE.USUARIO usuario)
+        /// <returns>false si el usuario fue dado de baja: la sesión debe cerrarse.</returns>
+        public bool RefrescarPermisosSiHaceFalta(BE.USUARIO usuario)
         {
             int version = VersionPermisos;
-            if (usuario.VersionPermisos == version) return;
-            usuario.Permisos = ObtenerPermisosEfectivos(usuario.Id);
+            if (usuario.VersionPermisos == version) return usuario.Activo;
+
+            BE.USUARIO actual = new DAL.UsuarioDAL().ListarTodos().FirstOrDefault(x => x.Id == usuario.Id);
+            usuario.Activo = actual != null && actual.Activo;
+            usuario.Permisos = usuario.Activo ? ObtenerPermisosEfectivos(usuario.Id) : new List<string>();
             usuario.VersionPermisos = version;
+            return usuario.Activo;
         }
 
         /// <summary>IDs de los usuarios cuyos permisos efectivos incluyen el permiso dado.</summary>
@@ -140,7 +150,7 @@ namespace BLL
             public List<Rol> Roles;
             public Dictionary<int, List<string>> PermisosPorRol;
             public List<KeyValuePair<int, int>> Asignaciones;
-            // Usuarios con la cuenta bloqueada: no cuentan como operadores disponibles.
+            // Usuarios bloqueados o dados de baja: no cuentan como operadores disponibles.
             public HashSet<int> Bloqueados;
         }
 
@@ -151,7 +161,8 @@ namespace BLL
                 Roles = _dal.ListarRoles(),
                 PermisosPorRol = new Dictionary<int, List<string>>(),
                 Asignaciones = _dal.ListarAsignaciones(),
-                Bloqueados = new HashSet<int>(new DAL.UsuarioDAL().ListarBloqueados().Select(u => u.Id))
+                Bloqueados = new HashSet<int>(new DAL.UsuarioDAL().ListarTodos()
+                    .Where(u => u.Bloqueado || !u.Activo).Select(u => u.Id))
             };
             foreach (Permiso p in _dal.ListarPermisosPorRol())
             {
@@ -194,7 +205,7 @@ namespace BLL
                             && !estadoResultante.Bloqueados.Contains(par.Key));
             if (!hayOperador)
                 throw new InvalidOperationException(
-                    "El cambio dejaría al sistema sin ningún usuario activo (no bloqueado) con permiso para gestionar perfiles.");
+                    "El cambio dejaría al sistema sin ningún usuario activo y no bloqueado con permiso para gestionar perfiles.");
         }
 
         private static Rol BuscarRol(EstadoPerfiles estado, int rolId)
@@ -393,6 +404,137 @@ namespace BLL
                 _dal.ReemplazarPerfilesDeUsuario(usuarioId, ids);
                 PostEscritura(actor, Accion("ASIGNACION_PERFIL", usuarioId + "/" + string.Join(",", ids)),
                     _integridad.RecalcularUsuarioPerfil);
+            }
+        }
+
+        // =====================================================
+        // Usuarios (alta, modificación, baja lógica)
+        // =====================================================
+
+        private const string PoliticaContrasena = @"^(?=.*[A-Z])(?=.*\d).{6,}$";
+        private const string MensajePoliticaContrasena = "La contraseña debe tener 6+ caracteres, 1 mayúscula y 1 número.";
+
+        private readonly DAL.UsuarioDAL _usuarioDal = new DAL.UsuarioDAL();
+
+        /// <summary>Usuarios para la grilla de gestión, con sus perfiles y estado.</summary>
+        public List<BE.USUARIO> ListarUsuariosParaGestion()
+        {
+            List<BE.USUARIO> usuarios = _usuarioDal.ListarTodos();
+            Dictionary<int, string> nombresRol = _dal.ListarRoles().ToDictionary(r => r.Id, r => r.Nombre);
+            ILookup<int, int> asignaciones = _dal.ListarAsignaciones().ToLookup(a => a.Key, a => a.Value);
+            foreach (BE.USUARIO u in usuarios)
+                u.PerfilesTexto = string.Join(", ", asignaciones[u.Id]
+                    .Where(nombresRol.ContainsKey).Select(id => nombresRol[id]).OrderBy(n => n));
+            return usuarios;
+        }
+
+        /// <summary>Dirección ya desencriptada del usuario (null si no tiene).</summary>
+        public string ObtenerDireccion(string usuario) => _usuarioDal.ObtenerPorNombre(usuario)?.DireccionVisible;
+
+        private static void ValidarContrasena(string contrasena, string confirmacion)
+        {
+            if (string.IsNullOrEmpty(contrasena)) throw new InvalidOperationException("La contraseña es obligatoria.");
+            if (contrasena != confirmacion) throw new InvalidOperationException("Las contraseñas no coinciden.");
+            if (!Regex.IsMatch(contrasena, PoliticaContrasena)) throw new InvalidOperationException(MensajePoliticaContrasena);
+        }
+
+        private static BE.USUARIO BuscarUsuario(List<BE.USUARIO> usuarios, int usuarioId)
+        {
+            BE.USUARIO u = usuarios.FirstOrDefault(x => x.Id == usuarioId);
+            if (u == null) throw new InvalidOperationException("El usuario no existe.");
+            return u;
+        }
+
+        public int CrearUsuario(string usuario, string contrasena, string confirmacion, string direccion,
+            List<int> rolIds, string actor)
+        {
+            usuario = (usuario ?? "").Trim();
+            if (usuario.Length == 0) throw new InvalidOperationException("El nombre de usuario es obligatorio.");
+            if (usuario.Length > 50) throw new InvalidOperationException("El nombre de usuario no puede superar los 50 caracteres.");
+            ValidarContrasena(contrasena, confirmacion);
+            var ids = (rolIds ?? new List<int>()).Distinct().ToList();
+            if (ids.Count == 0) throw new InvalidOperationException("Elegí al menos un perfil.");
+
+            lock (_lockEscritura)
+            {
+                EstadoPerfiles estado = CargarEstado();
+                if (ids.Any(id => estado.Roles.All(r => r.Id != id)))
+                    throw new InvalidOperationException("Se indicó un perfil que no existe.");
+                if (_usuarioDal.ListarTodos().Any(u => string.Equals(u.Usuario, usuario, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException("Ya existe un usuario con ese nombre.");
+
+                int usuarioId = _usuarioDal.InsertarConPerfiles(usuario, HashHelper.HashSHA256(contrasena),
+                    (direccion ?? "").Trim(), ids);
+                PostEscritura(actor, Accion("ALTA_USUARIO", usuario),
+                    _integridad.RecalcularUsuario, _integridad.RecalcularUsuarioPerfil);
+                return usuarioId;
+            }
+        }
+
+        /// <summary>
+        /// Modifica perfiles y dirección. Una dirección vacía significa "sin cambios".
+        /// Los perfiles pasan por la guarda del último operador.
+        /// </summary>
+        public void ModificarUsuario(int usuarioId, string direccion, List<int> rolIds, string actor)
+        {
+            lock (_lockEscritura)
+            {
+                BE.USUARIO u = BuscarUsuario(_usuarioDal.ListarTodos(), usuarioId);
+
+                // Primero los perfiles: si la guarda los rechaza no se cambió nada.
+                var actuales = new HashSet<int>(_dal.ListarRolesDeUsuario(usuarioId));
+                var nuevos = new HashSet<int>(rolIds ?? new List<int>());
+                if (!actuales.SetEquals(nuevos))
+                    AsignarPerfilesAUsuario(usuarioId, nuevos.ToList(), actor);
+
+                direccion = (direccion ?? "").Trim();
+                if (direccion.Length > 0 && direccion != (_usuarioDal.ObtenerPorNombre(u.Usuario)?.DireccionVisible ?? ""))
+                {
+                    _usuarioDal.ActualizarDireccion(u.Usuario, direccion);
+                    PostEscritura(actor, Accion("MODIF_USUARIO", u.Usuario), _integridad.RecalcularUsuario);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Baja lógica (activo = false) o reactivación. Un usuario no puede darse de
+        /// baja a sí mismo ni dejar al sistema sin operadores. Al dar de baja se libera
+        /// su registro de sesión y se invalidan los permisos: si estaba conectado, su
+        /// sesión se cierra en el próximo pedido.
+        /// </summary>
+        public void CambiarEstadoUsuario(int usuarioId, bool activo, int actorId, string actor)
+        {
+            lock (_lockEscritura)
+            {
+                EstadoPerfiles estado = CargarEstado();
+                BE.USUARIO u = BuscarUsuario(_usuarioDal.ListarTodos(), usuarioId);
+                if (u.Activo == activo) return;
+
+                if (!activo)
+                {
+                    if (usuarioId == actorId)
+                        throw new InvalidOperationException("No podés darte de baja a vos mismo.");
+                    estado.Bloqueados.Add(usuarioId); // simulación: deja de ser operador
+                    ExigirOperadorDePerfiles(estado);
+                }
+
+                _usuarioDal.ActualizarEstado(usuarioId, activo);
+                if (!activo) BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
+                PostEscritura(actor, Accion(activo ? "REACTIVAR_USUARIO" : "BAJA_USUARIO", u.Usuario),
+                    _integridad.RecalcularUsuario);
+            }
+        }
+
+        /// <summary>Restablece la contraseña de un usuario (acción de administración).</summary>
+        public void ResetearContrasena(int usuarioId, string contrasena, string confirmacion, string actor)
+        {
+            ValidarContrasena(contrasena, confirmacion);
+            lock (_lockEscritura)
+            {
+                BE.USUARIO u = BuscarUsuario(_usuarioDal.ListarTodos(), usuarioId);
+                if (!_usuarioDal.CambiarContrasena(u.Usuario, HashHelper.HashSHA256(contrasena)))
+                    throw new InvalidOperationException("No se pudo restablecer la contraseña.");
+                PostEscritura(actor, Accion("RESET_CONTRASENA", u.Usuario), _integridad.RecalcularUsuario);
             }
         }
 

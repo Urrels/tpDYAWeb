@@ -10,7 +10,8 @@ namespace BLL
         Exito,
         CredencialesInvalidas,
         UsuarioBloqueado,
-        SesionYaActiva
+        SesionYaActiva,
+        UsuarioInactivo
     }
 
     public class LoginBLL
@@ -35,6 +36,13 @@ namespace BLL
 
             if (u != null)
             {
+                // Baja lógica: credenciales correctas pero cuenta dada de baja.
+                if (!u.Activo)
+                {
+                    _bitacora.RegistrarAccion(usuario, "LOGIN_USUARIO_INACTIVO");
+                    return LoginResultado.UsuarioInactivo;
+                }
+
                 _dal.ResetearIntentos(usuario);
 
                 // Reintenta (si hace falta) el cálculo inicial de integridad de

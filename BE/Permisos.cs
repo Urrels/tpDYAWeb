@@ -16,6 +16,7 @@ namespace BE
         public const string VerificarIntegridad = "Verificar integridad";
         public const string IngresarConIntegridadInvalida = "Ingresar con integridad invalida";
         public const string GestionarPerfiles = "Gestionar perfiles";
+        public const string GestionarUsuarios = "Gestionar usuarios";
         public const string VerMenuAlumno = "Ver menu de alumno";
         public const string Inscribirse = "Inscribirse a materias";
         public const string VerMisCursadas = "Ver mis cursadas";
