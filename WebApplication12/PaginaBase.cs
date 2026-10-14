@@ -34,6 +34,15 @@ namespace CAPAS_Web
             return PermisoRequerido == null || usuario.TienePermiso(PermisoRequerido);
         }
 
+        protected override void OnInit(EventArgs e)
+        {
+            // Protege el ViewState contra CSRF atándolo a la sesión. El SessionID es
+            // estable porque Login guarda Session["Usuario"] (una sesión con datos
+            // no regenera su ID); Login no hereda de esta clase.
+            ViewStateUserKey = Session.SessionID;
+            base.OnInit(e);
+        }
+
         protected override void OnLoad(EventArgs e)
         {
             BE.USUARIO usuario = UsuarioActual;
