@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace BE
 {
     public class USUARIO
@@ -7,10 +9,15 @@ namespace BE
         public string Contrasena { get; set; }
         public string DireccionEncriptada { get; set; }
         public string DireccionVisible { get; set; }
-        public string Rol { get; set; }
         public int IntentosFallidos { get; set; }
 
-        public bool EsAdmin => Rol == "Admin";
-        public bool EsWebmaster => Rol == "Webmaster";
+        // Nombres de los permisos efectivos, calculados una vez al iniciar
+        // sesión a partir de los perfiles asignados (ver BLL.PerfilBLL).
+        public List<string> Permisos { get; set; } = new List<string>();
+
+        public bool TienePermiso(string nombrePermiso)
+        {
+            return Permisos != null && Permisos.Contains(nombrePermiso);
+        }
     }
 }

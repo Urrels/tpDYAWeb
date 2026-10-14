@@ -3,17 +3,15 @@ using System.Web.UI.WebControls;
 
 namespace CAPAS_Web
 {
-    public partial class Notas : System.Web.UI.Page
+    public partial class Notas : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.CargarNotas;
+
         private readonly BLL.AlumnoMateriaBLL _amBll = new BLL.AlumnoMateriaBLL();
         private readonly BLL.UsuarioBLL _usuarioBll = new BLL.UsuarioBLL();
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            var u = Session["Usuario"] as BE.USUARIO;
-            if (u.EsWebmaster) { Response.Redirect("~/Integridad.aspx"); return; }
-            if (!u.EsAdmin) { Response.Redirect("~/Menu.aspx"); return; }
             if (!IsPostBack)
             {
                 CargarAlumnos();

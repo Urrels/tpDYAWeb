@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 
 namespace BLL
 {
@@ -20,7 +21,7 @@ namespace BLL
 
     /// <summary>
     /// Motor genérico de dígitos verificadores horizontal (DVH, por fila) y
-    /// vertical (DVV, por columna) para las 9 tablas de negocio del sistema.
+    /// vertical (DVV, por columna) para las 13 tablas de negocio del sistema.
     /// Patrón portado del TP hermano "ingenieria_software" (ya aprobado por
     /// el docente): <see cref="BE.CalculadorDVH"/> hace el cálculo puro,
     /// esta clase orquesta lectura/escritura vía <see cref="DAL.IntegridadDAL"/>.
@@ -46,7 +47,7 @@ namespace BLL
         // vez que haya datos guardados (cambiar el orden invalida todos los
         // DVH/DVV ya calculados).
         private static readonly string[] ColumnasUsuario =
-            { "ID", "USUARIO", "PASS", "DIRECCION", "ROL", "INTENTOS_FALLIDOS", "BLOQUEADO" };
+            { "ID", "USUARIO", "PASS", "DIRECCION", "INTENTOS_FALLIDOS", "BLOQUEADO" };
 
         private static readonly string[] ColumnasBitacora =
             { "ID", "USUARIO", "ACCION", "FECHA", "CRITICIDAD" };
@@ -73,6 +74,18 @@ namespace BLL
 
         private static readonly string[] ColumnasInscripcionDetalle =
             { "ID", "ID_INSCRIPCION", "ID_MATERIA" };
+
+        private static readonly string[] ColumnasRol =
+            { "ID", "NOMBRE", "PADRE_ID", "PROTEGIDO" };
+
+        private static readonly string[] ColumnasPermiso =
+            { "ID", "NOMBRE" };
+
+        private static readonly string[] ColumnasRolPermiso =
+            { "ID", "ROL_ID", "PERMISO_ID" };
+
+        private static readonly string[] ColumnasUsuarioPerfil =
+            { "ID", "USUARIO_ID", "ROL_ID" };
 
         // =====================================================
         // Motor genérico
@@ -290,7 +303,7 @@ namespace BLL
 
         private static string[] ExtraerUsuario(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["PASS"]), Base64Str(r["DIRECCION"]), StrStr(r["ROL"]),
+            IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["PASS"]), Base64Str(r["DIRECCION"]),
             IntStr(r["INTENTOS_FALLIDOS"]), BitStr(r["BLOQUEADO"])
         };
 
@@ -334,6 +347,26 @@ namespace BLL
         private static string[] ExtraerInscripcionDetalle(DataRow r) => new[]
         {
             IntStr(r["ID"]), IntStr(r["ID_INSCRIPCION"]), IntStr(r["ID_MATERIA"])
+        };
+
+        private static string[] ExtraerRol(DataRow r) => new[]
+        {
+            IntStr(r["ID"]), StrStr(r["NOMBRE"]), IntStr(r["PADRE_ID"]), BitStr(r["PROTEGIDO"])
+        };
+
+        private static string[] ExtraerPermiso(DataRow r) => new[]
+        {
+            IntStr(r["ID"]), StrStr(r["NOMBRE"])
+        };
+
+        private static string[] ExtraerRolPermiso(DataRow r) => new[]
+        {
+            IntStr(r["ID"]), IntStr(r["ROL_ID"]), IntStr(r["PERMISO_ID"])
+        };
+
+        private static string[] ExtraerUsuarioPerfil(DataRow r) => new[]
+        {
+            IntStr(r["ID"]), IntStr(r["USUARIO_ID"]), IntStr(r["ROL_ID"])
         };
 
         // =====================================================
@@ -475,6 +508,54 @@ namespace BLL
                 (id, dvh) => _dal.ActualizarDVH("INSCRIPCION_DETALLE", id, dvh));
         }
 
+        public ResultadoIntegridad VerificarRol()
+        {
+            var resultado = new ResultadoIntegridad();
+            VerificarTabla("ROL", ColumnasRol, _dal.ListarParaIntegridad("ROL"), ExtraerRol, resultado);
+            return resultado;
+        }
+        public void RecalcularRol()
+        {
+            RecalcularTabla("ROL", ColumnasRol, _dal.ListarParaIntegridad("ROL"), ExtraerRol,
+                (id, dvh) => _dal.ActualizarDVH("ROL", id, dvh));
+        }
+
+        public ResultadoIntegridad VerificarPermiso()
+        {
+            var resultado = new ResultadoIntegridad();
+            VerificarTabla("PERMISO", ColumnasPermiso, _dal.ListarParaIntegridad("PERMISO"), ExtraerPermiso, resultado);
+            return resultado;
+        }
+        public void RecalcularPermiso()
+        {
+            RecalcularTabla("PERMISO", ColumnasPermiso, _dal.ListarParaIntegridad("PERMISO"), ExtraerPermiso,
+                (id, dvh) => _dal.ActualizarDVH("PERMISO", id, dvh));
+        }
+
+        public ResultadoIntegridad VerificarRolPermiso()
+        {
+            var resultado = new ResultadoIntegridad();
+            VerificarTabla("ROL_PERMISO", ColumnasRolPermiso, _dal.ListarParaIntegridad("ROL_PERMISO"), ExtraerRolPermiso, resultado);
+            return resultado;
+        }
+        public void RecalcularRolPermiso()
+        {
+            RecalcularTabla("ROL_PERMISO", ColumnasRolPermiso, _dal.ListarParaIntegridad("ROL_PERMISO"), ExtraerRolPermiso,
+                (id, dvh) => _dal.ActualizarDVH("ROL_PERMISO", id, dvh));
+        }
+
+        public ResultadoIntegridad VerificarUsuarioPerfil()
+        {
+            var resultado = new ResultadoIntegridad();
+            VerificarTabla("USUARIO_PERFIL", ColumnasUsuarioPerfil, _dal.ListarParaIntegridad("USUARIO_PERFIL"), ExtraerUsuarioPerfil, resultado);
+            return resultado;
+        }
+        public void RecalcularUsuarioPerfil()
+        {
+            RecalcularTabla("USUARIO_PERFIL", ColumnasUsuarioPerfil, _dal.ListarParaIntegridad("USUARIO_PERFIL"), ExtraerUsuarioPerfil,
+                (id, dvh) => _dal.ActualizarDVH("USUARIO_PERFIL", id, dvh));
+        }
+
         // =====================================================
         // Agregados — para el panel Webmaster
         // =====================================================
@@ -486,7 +567,8 @@ namespace BLL
             {
                 VerificarUsuario(), VerificarBitacora(), VerificarMateria(), VerificarCorrelativa(),
                 VerificarAlumnoMateria(), VerificarEventoAcademico(), VerificarPeriodoAcademico(),
-                VerificarInscripcion(), VerificarInscripcionDetalle()
+                VerificarInscripcion(), VerificarInscripcionDetalle(),
+                VerificarRol(), VerificarPermiso(), VerificarRolPermiso(), VerificarUsuarioPerfil()
             };
 
             foreach (var parcial in parciales)
@@ -516,10 +598,80 @@ namespace BLL
             RecalcularPeriodoAcademico();
             RecalcularInscripcion();
             RecalcularInscripcionDetalle();
+            RecalcularRol();
+            RecalcularPermiso();
+            RecalcularRolPermiso();
+            RecalcularUsuarioPerfil();
+        }
+
+        /// <summary>
+        /// Arranque único tras migrar la base al modelo de perfiles: las
+        /// tablas nuevas (y USUARIO, cuyo orden de columnas cambió al quitar
+        /// ROL) llegan sin DVH/DVV ni snapshot. Solo las tablas que no tienen
+        /// ninguno de los dos se calculan por primera vez; si alguna ya tiene
+        /// datos de integridad, no se toca (una alteración se sigue
+        /// detectando como siempre).
+        /// </summary>
+        private static readonly object _lockInit = new object();
+        private static bool _perfilesInicializados;
+        private static string _errorInicializacion;
+
+        /// <summary>
+        /// Último error del cálculo inicial de integridad de las tablas de
+        /// perfiles, o null si no hubo error o ya se resolvió. El panel
+        /// Webmaster lo muestra para que la falla no pase inadvertida.
+        /// </summary>
+        public static string ErrorInicializacionPerfiles
+        {
+            get { lock (_lockInit) { return _errorInicializacion; } }
+        }
+
+        /// <summary>
+        /// Intenta el cálculo inicial una sola vez con éxito: si falla guarda
+        /// el error, lo registra en bitácora (la primera vez) y deja el
+        /// reintento para el próximo login o la próxima visita a Integridad.
+        /// </summary>
+        public static void IntentarInicializarTablasDePerfiles()
+        {
+            lock (_lockInit)
+            {
+                if (_perfilesInicializados) return;
+                try
+                {
+                    new IntegridadBLL().InicializarTablasDePerfiles();
+                    _perfilesInicializados = true;
+                    _errorInicializacion = null;
+                }
+                catch (Exception ex)
+                {
+                    bool esNuevo = _errorInicializacion == null;
+                    _errorInicializacion = ex.Message;
+                    if (esNuevo)
+                    {
+                        try { new BitacoraBLL().RegistrarAccion("SISTEMA", "ERROR_INICIALIZAR_INTEGRIDAD_PERFILES"); }
+                        catch { /* sin base disponible no hay donde registrar */ }
+                    }
+                }
+            }
+        }
+
+        public void InicializarTablasDePerfiles()
+        {
+            InicializarSiNuncaCalculada("USUARIO", RecalcularUsuario);
+            InicializarSiNuncaCalculada("ROL", RecalcularRol);
+            InicializarSiNuncaCalculada("PERMISO", RecalcularPermiso);
+            InicializarSiNuncaCalculada("ROL_PERMISO", RecalcularRolPermiso);
+            InicializarSiNuncaCalculada("USUARIO_PERFIL", RecalcularUsuarioPerfil);
+        }
+
+        private void InicializarSiNuncaCalculada(string nombreTabla, Action recalcular)
+        {
+            if (_dal.ObtenerDVV(nombreTabla).Count == 0 && string.IsNullOrEmpty(_dal.ObtenerSnapshot(nombreTabla)))
+                recalcular();
         }
 
         // =====================================================
-        // Backup — exporta a JSON el snapshot actual de las 9 tablas
+        // Backup — exporta a JSON el snapshot actual de las 13 tablas
         // (el mismo que usa Restaurar), como respaldo externo descargable.
         // No modifica nada en la base.
         // =====================================================
@@ -529,7 +681,8 @@ namespace BLL
             var tablas = new[]
             {
                 "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
-                "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE"
+                "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE",
+                "ROL", "PERMISO", "ROL_PERMISO", "USUARIO_PERFIL"
             };
 
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
@@ -553,7 +706,7 @@ namespace BLL
         }
 
         /// <summary>
-        /// Restaura las 9 tablas usando un backup externo (el .json generado
+        /// Restaura las 13 tablas usando un backup externo (el .json generado
         /// por <see cref="ExportarBackupJson"/>) en vez del snapshot interno
         /// de la base. Sirve para el caso que el snapshot interno no cubre:
         /// si SNAPSHOT_INTEGRIDAD también se corrompió o se perdió junto con
@@ -564,7 +717,7 @@ namespace BLL
         /// de <see cref="RestaurarTodasLasTablas"/> ya existente y probado,
         /// en vez de duplicar la lógica de borrado/upsert.
         /// </summary>
-        public void RestaurarDesdeBackupJson(string backupJson)
+        public List<string> RestaurarDesdeBackupJson(string backupJson)
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
             var backup = (Dictionary<string, object>)serializer.DeserializeObject(backupJson);
@@ -573,32 +726,107 @@ namespace BLL
                 throw new ArgumentException("El archivo no tiene el formato de backup esperado (falta 'Tablas').");
 
             var tablasData = (Dictionary<string, object>)tablasObj;
-            var tablas = new[]
+            var tablasBase = new[]
             {
                 "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
                 "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE"
             };
+            var tablasPerfiles = new[] { "ROL", "PERMISO", "ROL_PERMISO", "USUARIO_PERFIL" };
 
-            foreach (var tabla in tablas)
-            {
-                if (!tablasData.TryGetValue(tabla, out object filas))
+            foreach (var tabla in tablasBase)
+                if (!tablasData.ContainsKey(tabla))
                     throw new ArgumentException($"El backup no contiene datos para la tabla {tabla}.");
 
-                string jsonTabla = serializer.Serialize(filas);
-                _dal.GuardarSnapshot(tabla, jsonTabla);
+            // Un backup anterior a los perfiles dinámicos no trae las 4 tablas
+            // nuevas: se conservan los datos actuales de las 4 (no se tocan).
+            var omitidas = new HashSet<string>();
+            var avisos = new List<string>();
+            if (tablasPerfiles.Any(t => !tablasData.ContainsKey(t)))
+            {
+                foreach (var t in tablasPerfiles) omitidas.Add(t);
+                avisos.Add("El backup es anterior a los perfiles dinámicos: no incluye ROL, PERMISO, ROL_PERMISO ni " +
+                           "USUARIO_PERFIL. Esas tablas se dejaron como estaban.");
             }
 
-            RestaurarTodasLasTablas();
+            // Se arma todo primero (y se valida USUARIO) antes de escribir
+            // ningún snapshot, para no dejar el estado a medias por un backup inválido.
+            var aGuardar = new Dictionary<string, string>();
+            var rolesPorUsuarioViejo = new Dictionary<int, string>();
+            foreach (var tabla in tablasBase.Concat(tablasPerfiles.Where(t => !omitidas.Contains(t))))
+            {
+                object filas = tablasData[tabla];
+                if (tabla == "USUARIO")
+                    filas = AdaptarUsuarioDeBackup(serializer, filas, rolesPorUsuarioViejo, avisos);
+                aGuardar[tabla] = serializer.Serialize(filas);
+            }
+
+            foreach (var par in aGuardar)
+                _dal.GuardarSnapshot(par.Key, par.Value);
+
+            avisos.AddRange(RestaurarTablas(omitidas));
+
+            if (rolesPorUsuarioViejo.Count > 0 && omitidas.Count > 0)
+                avisos.AddRange(AsignarPerfilesDesdeRolViejo(rolesPorUsuarioViejo));
+
+            return avisos;
+        }
+
+        /// <summary>
+        /// El layout de USUARIO cambió al quitar ROL: los backups viejos tienen
+        /// 7 atributos con el rol en la posición 4. Se detecta por la cantidad
+        /// de atributos, se quita el rol (guardándolo para reasignar perfiles) y
+        /// cualquier otro largo se rechaza.
+        /// </summary>
+        private static object AdaptarUsuarioDeBackup(System.Web.Script.Serialization.JavaScriptSerializer serializer,
+            object filas, Dictionary<int, string> rolesViejos, List<string> avisos)
+        {
+            var lista = serializer.Deserialize<List<FilaSnapshot>>(serializer.Serialize(filas));
+            int largoActual = ColumnasUsuario.Length;
+            foreach (var f in lista)
+            {
+                if (f.Atributos != null && f.Atributos.Length == largoActual) continue;
+                if (f.Atributos != null && f.Atributos.Length == largoActual + 1)
+                {
+                    rolesViejos[f.Id] = f.Atributos[4];
+                    var nuevos = new List<string>(f.Atributos);
+                    nuevos.RemoveAt(4);
+                    f.Atributos = nuevos.ToArray();
+                    continue;
+                }
+                throw new ArgumentException("El backup tiene un formato de USUARIO que no se reconoce; no se restauró nada.");
+            }
+            if (rolesViejos.Count > 0)
+                avisos.Add("El backup tiene el formato anterior de USUARIO (con columna ROL): se adaptó. " +
+                           "Los usuarios sin perfil se reasignan según su rol de entonces.");
+            return lista;
+        }
+
+        private List<string> AsignarPerfilesDesdeRolViejo(Dictionary<int, string> rolesViejos)
+        {
+            var avisos = new List<string>();
+            var perfilDal = new DAL.PerfilDAL();
+            var idsRol = perfilDal.ListarRoles().ToDictionary(r => r.Nombre, r => r.Id);
+            foreach (var par in rolesViejos)
+            {
+                if (perfilDal.ListarRolesDeUsuario(par.Key).Count > 0) continue;
+                string nombre = par.Value == "Admin" ? "Administrador" : par.Value == "Webmaster" ? "Webmaster" : "Alumno";
+                if (idsRol.TryGetValue(nombre, out int rolId))
+                    perfilDal.AsignarPerfil(par.Key, rolId);
+                else
+                    avisos.Add($"No se encontró el perfil {nombre} para el usuario {par.Key}.");
+            }
+            RecalcularUsuarioPerfil();
+            return avisos;
         }
 
         // =====================================================
-        // Restore — devuelve las 9 tablas al último estado guardado en
+        // Restore — devuelve las 13 tablas al último estado guardado en
         // SNAPSHOT_INTEGRIDAD. Dos fases (ver detalle en cada método) para
         // no violar ninguna Foreign Key entre tablas.
         // =====================================================
 
         /// <summary>
-        /// Restaura las 9 tablas de negocio al último estado guardado en el
+        /// Restaura las 13 tablas de negocio al último estado guardado en el
         /// snapshot de integridad: filas agregadas externamente se borran,
         /// filas eliminadas externamente se re-insertan (con su ID original,
         /// vía IDENTITY_INSERT) y filas modificadas vuelven a los valores del
@@ -606,34 +834,48 @@ namespace BLL
         ///   1) Borrado, en orden hijo→padre (inverso a la dependencia FK).
         ///   2) Upsert (modificados + eliminados que vuelven), en orden
         ///      padre→hijo.
-        /// Al final se recalculan DVH/DVV de las 9 tablas (y se regenera el
+        /// Al final se recalculan DVH/DVV de las 13 tablas (y se regenera el
         /// snapshot) para que queden consistentes con el estado restaurado.
         ///
         /// LIMITACIÓN CONOCIDA Y ACEPTADA: cada llamada a <see cref="DAL.IntegridadDAL"/>
         /// abre y cierra su propia conexión (patrón Acceso actual: abrir →
         /// ejecutar → cerrar en finally, por llamada). No hay una única
-        /// transacción SQL que envuelva las 9 tablas de punta a punta —
+        /// transacción SQL que envuelva las 13 tablas de punta a punta —
         /// hacerlo sería un cambio arquitectural mayor, fuera de alcance de
         /// esta entrega. Si una tabla falla a mitad del restore, las tablas
         /// ya procesadas quedan restauradas y las restantes no: la base
         /// puede quedar parcialmente restaurada. No se resuelve ni se oculta
         /// acá; queda documentado como limitación conocida.
         /// </summary>
-        public void RestaurarTodasLasTablas()
+        public List<string> RestaurarTodasLasTablas()
         {
+            return RestaurarTablas(new HashSet<string>());
+        }
+
+        /// <summary>
+        /// Restore de todas las tablas salvo las indicadas en
+        /// <paramref name="omitidas"/> (se dejan como están). Devuelve avisos
+        /// para mostrar al usuario (por ejemplo tablas donde se evitó un
+        /// borrado masivo).
+        /// </summary>
+        private List<string> RestaurarTablas(HashSet<string> omitidas)
+        {
+            var avisos = new List<string>();
+
             // Fase 1: borrado de filas agregadas externamente — hijo→padre.
-            BorrarAgregadosExternamente("INSCRIPCION_DETALLE");
-            BorrarAgregadosExternamente("INSCRIPCION");
-            BorrarAgregadosExternamente("EVENTO_ACADEMICO");
-            BorrarAgregadosExternamente("ALUMNO_MATERIA");
-            BorrarAgregadosExternamente("CORRELATIVA");
-            BorrarAgregadosExternamente("BITACORA");
-            BorrarAgregadosExternamente("PERIODO_ACADEMICO");
-            BorrarAgregadosExternamente("MATERIA");
-            BorrarAgregadosExternamente("USUARIO");
+            foreach (var tabla in new[]
+            {
+                "USUARIO_PERFIL", "ROL_PERMISO", "INSCRIPCION_DETALLE", "INSCRIPCION", "EVENTO_ACADEMICO",
+                "ALUMNO_MATERIA", "CORRELATIVA", "BITACORA", "PERIODO_ACADEMICO", "MATERIA",
+                "ROL", "PERMISO", "USUARIO"
+            })
+                if (!omitidas.Contains(tabla))
+                    BorrarAgregadosExternamente(tabla, avisos);
 
             // Fase 2: upsert de modificados + eliminados que vuelven — padre→hijo.
             RestaurarUpsertUsuario();
+            if (!omitidas.Contains("ROL")) RestaurarUpsertRol();
+            if (!omitidas.Contains("PERMISO")) RestaurarUpsertPermiso();
             RestaurarUpsertMateria();
             RestaurarUpsertPeriodoAcademico();
             RestaurarUpsertBitacora();
@@ -642,9 +884,12 @@ namespace BLL
             RestaurarUpsertEventoAcademico();
             RestaurarUpsertInscripcion();
             RestaurarUpsertInscripcionDetalle();
+            if (!omitidas.Contains("ROL_PERMISO")) RestaurarUpsertRolPermiso();
+            if (!omitidas.Contains("USUARIO_PERFIL")) RestaurarUpsertUsuarioPerfil();
 
             // El estado restaurado debe quedar con DVH/DVV (y snapshot) al día.
             RecalcularTodasLasTablas();
+            return avisos;
         }
 
         /// <summary>
@@ -652,13 +897,23 @@ namespace BLL
         /// ausente del snapshot fue agregado externamente (por fuera del
         /// mecanismo normal de la aplicación) — se borra.
         /// </summary>
-        private void BorrarAgregadosExternamente(string nombreTabla)
+        private void BorrarAgregadosExternamente(string nombreTabla, List<string> avisos)
         {
             var idsSnapshot = new HashSet<int>();
             foreach (var f in ObtenerSnapshot(nombreTabla))
                 idsSnapshot.Add(f.Id);
 
             DataTable actuales = _dal.ListarParaIntegridad(nombreTabla);
+
+            // Guarda: con el snapshot vacío todas las filas actuales serían
+            // "agregadas externamente" y se borraría la tabla entera. Se omite
+            // el borrado y se avisa.
+            if (idsSnapshot.Count == 0 && actuales.Rows.Count > 0)
+            {
+                avisos.Add($"{nombreTabla}: el snapshot está vacío, no se borraron las {actuales.Rows.Count} fila(s) actuales.");
+                return;
+            }
+
             foreach (DataRow fila in actuales.Rows)
             {
                 int id = Convert.ToInt32(fila["ID"]);
@@ -696,7 +951,34 @@ namespace BLL
             public string Usuario;
             public string Pass;
             public byte[] Direccion;
-            public string Rol;
+        }
+
+        private class FilaRolRestaurada
+        {
+            public int Id;
+            public string Nombre;
+            public int? PadreId;
+            public bool Protegido;
+        }
+
+        private class FilaPermisoRestaurada
+        {
+            public int Id;
+            public string Nombre;
+        }
+
+        private class FilaRolPermisoRestaurada
+        {
+            public int Id;
+            public int RolId;
+            public int PermisoId;
+        }
+
+        private class FilaUsuarioPerfilRestaurada
+        {
+            public int Id;
+            public int UsuarioId;
+            public int RolId;
         }
 
         private class FilaBitacoraRestaurada
@@ -779,8 +1061,35 @@ namespace BLL
             Id = ParseInt(a[0]),
             Usuario = a[1],
             Pass = a[2],
-            Direccion = ParseBase64(a[3]),
-            Rol = a[4]
+            Direccion = ParseBase64(a[3])
+        };
+
+        private static FilaRolRestaurada RehidratarRol(string[] a) => new FilaRolRestaurada
+        {
+            Id = ParseInt(a[0]),
+            Nombre = a[1],
+            PadreId = string.IsNullOrEmpty(a[2]) ? (int?)null : ParseInt(a[2]),
+            Protegido = ParseBit(a[3])
+        };
+
+        private static FilaPermisoRestaurada RehidratarPermiso(string[] a) => new FilaPermisoRestaurada
+        {
+            Id = ParseInt(a[0]),
+            Nombre = a[1]
+        };
+
+        private static FilaRolPermisoRestaurada RehidratarRolPermiso(string[] a) => new FilaRolPermisoRestaurada
+        {
+            Id = ParseInt(a[0]),
+            RolId = ParseInt(a[1]),
+            PermisoId = ParseInt(a[2])
+        };
+
+        private static FilaUsuarioPerfilRestaurada RehidratarUsuarioPerfil(string[] a) => new FilaUsuarioPerfilRestaurada
+        {
+            Id = ParseInt(a[0]),
+            UsuarioId = ParseInt(a[1]),
+            RolId = ParseInt(a[2])
         };
 
         private static FilaBitacoraRestaurada RehidratarBitacora(string[] a) => new FilaBitacoraRestaurada
@@ -868,7 +1177,63 @@ namespace BLL
             foreach (var f in ObtenerSnapshot("USUARIO"))
             {
                 var u = RehidratarUsuario(f.Atributos);
-                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion, u.Rol);
+                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion);
+            }
+        }
+
+        /// <summary>
+        /// Los roles se restauran con los padres primero: la FK PADRE_ID
+        /// apunta a la misma tabla y un hijo con ID menor que su padre
+        /// fallaría si el padre había sido eliminado.
+        /// </summary>
+        private void RestaurarUpsertRol()
+        {
+            var filas = ObtenerSnapshot("ROL").Select(f => RehidratarRol(f.Atributos)).ToList();
+            var idsRestantes = new HashSet<int>(filas.Select(r => r.Id));
+            var pendientes = new List<FilaRolRestaurada>(filas);
+
+            while (pendientes.Count > 0)
+            {
+                // Un rol puede restaurarse cuando su padre ya no está pendiente.
+                var listos = pendientes
+                    .Where(r => !r.PadreId.HasValue || !idsRestantes.Contains(r.PadreId.Value))
+                    .ToList();
+                // Si queda solo un ciclo (dato corrupto), se restaura igual para no colgar el proceso.
+                if (listos.Count == 0) listos = pendientes.ToList();
+
+                foreach (var r in listos)
+                {
+                    _dal.RestaurarFilaRol(r.Id, r.Nombre, r.PadreId, r.Protegido);
+                    idsRestantes.Remove(r.Id);
+                    pendientes.Remove(r);
+                }
+            }
+        }
+
+        private void RestaurarUpsertPermiso()
+        {
+            foreach (var f in ObtenerSnapshot("PERMISO"))
+            {
+                var p = RehidratarPermiso(f.Atributos);
+                _dal.RestaurarFilaPermiso(p.Id, p.Nombre);
+            }
+        }
+
+        private void RestaurarUpsertRolPermiso()
+        {
+            foreach (var f in ObtenerSnapshot("ROL_PERMISO"))
+            {
+                var rp = RehidratarRolPermiso(f.Atributos);
+                _dal.RestaurarFilaRolPermiso(rp.Id, rp.RolId, rp.PermisoId);
+            }
+        }
+
+        private void RestaurarUpsertUsuarioPerfil()
+        {
+            foreach (var f in ObtenerSnapshot("USUARIO_PERFIL"))
+            {
+                var up = RehidratarUsuarioPerfil(f.Atributos);
+                _dal.RestaurarFilaUsuarioPerfil(up.Id, up.UsuarioId, up.RolId);
             }
         }
 

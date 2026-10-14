@@ -4,13 +4,12 @@ using System.Web.Script.Serialization;
 
 namespace CAPAS_Web
 {
-    public partial class Dashboard : System.Web.UI.Page
+    public partial class Dashboard : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.VerDashboard;
+
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            if ((Session["Usuario"] as BE.USUARIO).EsWebmaster) { Response.Redirect("~/Integridad.aspx"); return; }
-            if ((Session["Usuario"] as BE.USUARIO).EsAdmin) Response.Redirect("~/Materias.aspx");
             if (!IsPostBack) CargarDashboard();
         }
 

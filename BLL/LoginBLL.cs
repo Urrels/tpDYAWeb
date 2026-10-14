@@ -35,15 +35,32 @@ namespace BLL
             if (u != null)
             {
                 _dal.ResetearIntentos(usuario);
+
+                // Reintenta (si hace falta) el cálculo inicial de integridad de
+                // las tablas de perfiles antes de recalcular USUARIO.
+                IntegridadBLL.IntentarInicializarTablasDePerfiles();
                 _integridad.RecalcularUsuario();
 
                 if (BE.SessionRegistry.Instancia.TieneSesionActiva(usuario))
                     return LoginResultado.SesionYaActiva;
 
-                BE.SessionRegistry.Instancia.RegistrarSesion(usuario, sessionId);
+                // Los permisos efectivos se resuelven una sola vez por sesión,
+                // recorriendo el árbol de perfiles (Composite) en memoria. Se
+                // cargan ANTES de registrar la sesión: si fallan, el usuario no
+                // queda bloqueado con "sesión ya activa".
+                u.Permisos = new PerfilBLL().ObtenerPermisosEfectivos(u.Id);
 
-                BE.SessionManager.getInstane().setUsuario(u);
-                _bitacora.RegistrarLogin(usuario);
+                BE.SessionRegistry.Instancia.RegistrarSesion(usuario, sessionId);
+                try
+                {
+                    BE.SessionManager.getInstane().setUsuario(u);
+                    _bitacora.RegistrarLogin(usuario);
+                }
+                catch
+                {
+                    BE.SessionRegistry.Instancia.CerrarSesion(usuario);
+                    throw;
+                }
                 return LoginResultado.Exito;
             }
 

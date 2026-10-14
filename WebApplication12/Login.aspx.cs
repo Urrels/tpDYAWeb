@@ -9,7 +9,8 @@ namespace CAPAS_Web
             if (Session["Usuario"] != null)
             {
                 var u = Session["Usuario"] as BE.USUARIO;
-                Response.Redirect(u.EsWebmaster ? "~/Integridad.aspx" : (u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx"));
+                string inicio = PaginaBase.ObtenerPaginaInicio(u);
+                if (inicio != null) Response.Redirect(inicio);
             }
         }
 
@@ -35,20 +36,33 @@ namespace CAPAS_Web
                 var integridadBll = new BLL.IntegridadBLL();
                 BLL.ResultadoIntegridad resultadoIntegridad = integridadBll.VerificarTodasLasTablas();
 
-                if (!resultadoIntegridad.EsValido && !u.EsAdmin && !u.EsWebmaster)
+                if (!resultadoIntegridad.EsValido && !u.TienePermiso(BE.Permisos.IngresarConIntegridadInvalida))
                 {
-                    // Usuario común: la base fue manipulada externamente.
+                    // Usuario sin permiso para operar con la base alterada: fue manipulada externamente.
                     // No se revela el detalle de resultadoIntegridad.Errores (eso es
                     // tarea del panel de Webmaster, no implementada acá).
+                    BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
                     BE.SessionManager.getInstane().cerrarSesion();
                     Session["Usuario"] = null;
                     pnlInconsistencia.Visible = true;
                     return;
                 }
 
+                string inicio = PaginaBase.ObtenerPaginaInicio(u);
+                if (inicio == null)
+                {
+                    // El usuario no tiene ningún permiso que le dé una página de inicio.
+                    BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
+                    BE.SessionManager.getInstane().cerrarSesion();
+                    lblError.Text = "Tu cuenta no tiene permisos asignados. Contactá a un administrador.";
+                    lblError.Visible = true;
+                    txtContrasena.Text = "";
+                    return;
+                }
+
                 Session["Usuario"] = u;
                 BE.SessionManager.getInstane().cerrarSesion();
-                Response.Redirect(u.EsWebmaster ? "~/Integridad.aspx" : (u.EsAdmin ? "~/Materias.aspx" : "~/Menu.aspx"));
+                Response.Redirect(inicio);
             }
             else if (resultado == BLL.LoginResultado.UsuarioBloqueado)
             {

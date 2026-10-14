@@ -2,12 +2,12 @@
 
 namespace CAPAS_Web
 {
-    public partial class Perfil : System.Web.UI.Page
+    public partial class Perfil : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.EditarPerfil;
+
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            if ((Session["Usuario"] as BE.USUARIO).EsWebmaster) { Response.Redirect("~/Integridad.aspx"); return; }
             if (!IsPostBack) CargarPerfil();
         }
 

@@ -23,8 +23,7 @@ CREATE TABLE USUARIO (
     ID        INT IDENTITY(1,1) PRIMARY KEY,
     USUARIO   VARCHAR(50)    NOT NULL UNIQUE,
     PASS      VARCHAR(64)    NOT NULL,
-    DIRECCION VARBINARY(256) NULL,
-    ROL       VARCHAR(10)    NOT NULL DEFAULT 'Alumno'
+    DIRECCION VARBINARY(256) NULL
 )
 GO
 
@@ -135,7 +134,7 @@ CREATE PROCEDURE USUARIO_LOGIN
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO, ROL
+    SELECT ID, USUARIO
     FROM   USUARIO
     WHERE  USUARIO = @usuario AND PASS = @pass;
 END
@@ -148,7 +147,7 @@ CREATE PROCEDURE USUARIO_OBTENER
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO, DIRECCION, ROL
+    SELECT ID, USUARIO, DIRECCION
     FROM   USUARIO
     WHERE  USUARIO = @usuario;
 END
@@ -180,15 +179,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('USUARIO_LISTAR_ALUMNOS','P') IS NOT NULL DROP PROCEDURE USUARIO_LISTAR_ALUMNOS
-GO
-CREATE PROCEDURE USUARIO_LISTAR_ALUMNOS
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT ID, USUARIO FROM USUARIO WHERE ROL = 'Alumno' ORDER BY USUARIO;
-END
-GO
+-- USUARIO_LISTAR_ALUMNOS se define en la sección PERFILES Y PERMISOS (al final),
+-- porque depende de USUARIO_PERFIL.
 
 -- =============================================
 -- STORED PROCEDURES — BITACORA
@@ -610,24 +602,10 @@ END
 GO
 
 -- =============================================
--- DATOS INICIALES — USUARIO ADMIN
--- Contraseña: Admin123
+-- DATOS INICIALES — USUARIOS ADMIN Y WEBMASTER
+-- Se siembran en la sección PERFILES Y PERMISOS (al final), junto con
+-- la asignación de su perfil.
 -- =============================================
-
-IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'admin')
-    INSERT INTO USUARIO (USUARIO, PASS, ROL)
-    VALUES ('admin', '3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2', 'Admin');
-GO
-
--- =============================================
--- DATOS INICIALES — USUARIO WEBMASTER
--- Contraseña: Webmaster123
--- =============================================
-
-IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'webmaster')
-    INSERT INTO USUARIO (USUARIO, PASS, ROL)
-    VALUES ('webmaster', '407c21d8ba9449b1f2e7ef81db1cbca0e1a702998de688e42dd468f2079d31f8', 'Webmaster');
-GO
 
 -- =============================================
 -- DATOS INICIALES — PLAN DE ESTUDIOS
@@ -893,7 +871,7 @@ CREATE PROCEDURE USUARIO_LISTAR_PARA_INTEGRIDAD
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO, PASS, DIRECCION, ROL, INTENTOS_FALLIDOS, BLOQUEADO, DVH FROM USUARIO ORDER BY ID;
+    SELECT ID, USUARIO, PASS, DIRECCION, INTENTOS_FALLIDOS, BLOQUEADO, DVH FROM USUARIO ORDER BY ID;
 END
 GO
 
@@ -1189,6 +1167,7 @@ CREATE PROCEDURE USUARIO_ELIMINAR_POR_ID
 AS
 BEGIN
     SET NOCOUNT ON;
+    DELETE FROM USUARIO_PERFIL WHERE USUARIO_ID = @id;
     DELETE FROM USUARIO WHERE ID = @id;
 END
 GO
@@ -1199,19 +1178,18 @@ CREATE PROCEDURE USUARIO_RESTAURAR_FILA
     @id        INT,
     @usuario   VARCHAR(50),
     @pass      VARCHAR(64),
-    @direccion VARBINARY(256),
-    @rol       VARCHAR(10)
+    @direccion VARBINARY(256)
 AS
 BEGIN
     SET NOCOUNT ON;
     IF EXISTS (SELECT 1 FROM USUARIO WHERE ID = @id)
         UPDATE USUARIO
-        SET USUARIO = @usuario, PASS = @pass, DIRECCION = @direccion, ROL = @rol
+        SET USUARIO = @usuario, PASS = @pass, DIRECCION = @direccion
         WHERE ID = @id;
     ELSE
     BEGIN
         SET IDENTITY_INSERT USUARIO ON;
-        INSERT INTO USUARIO (ID, USUARIO, PASS, DIRECCION, ROL) VALUES (@id, @usuario, @pass, @direccion, @rol);
+        INSERT INTO USUARIO (ID, USUARIO, PASS, DIRECCION) VALUES (@id, @usuario, @pass, @direccion);
         SET IDENTITY_INSERT USUARIO OFF;
     END
 END
@@ -1652,4 +1630,521 @@ END
 GO
 
 PRINT '✔ Bitácora: filtros y paginado instalados correctamente.';
+GO
+
+-- =============================================
+-- ===== PERFILES Y PERMISOS (Composite) =====
+-- Bloque idempotente. Reemplaza la columna USUARIO.ROL (texto fijo) por
+-- perfiles dinámicos: un perfil (ROL) agrupa permisos y puede contener otros
+-- perfiles (PADRE_ID); un usuario puede tener varios perfiles
+-- (USUARIO_PERFIL). Los permisos efectivos se resuelven en la capa BLL
+-- recorriendo el árbol (Composite), no con una consulta plana.
+--
+-- Sobre una base existente: crea las tablas, siembra los perfiles base,
+-- migra cada usuario según su USUARIO.ROL y elimina esa columna.
+-- Después de ejecutarlo la aplicación recalcula DVH/DVV de las tablas
+-- nuevas la primera vez que arranca (ver Global.asax.cs).
+-- =============================================
+
+USE BDUNIVERSIDAD
+GO
+
+-- ---------------------------------------------
+-- Tablas. ROL_PERMISO y USUARIO_PERFIL tienen PK compuesta; se les agrega
+-- una columna ID IDENTITY de respaldo (igual que CORRELATIVA) para reutilizar
+-- el motor genérico de integridad, que trabaja con un ID entero por fila.
+-- ---------------------------------------------
+
+IF OBJECT_ID('ROL', 'U') IS NULL
+CREATE TABLE ROL (
+    ID        INT IDENTITY(1,1) NOT NULL,
+    NOMBRE    VARCHAR(100)      NOT NULL,
+    PADRE_ID  INT               NULL,
+    PROTEGIDO BIT               NOT NULL DEFAULT 0,
+    DVH       INT               NOT NULL DEFAULT 0,
+    CONSTRAINT PK_ROL        PRIMARY KEY (ID),
+    CONSTRAINT UQ_ROL_NOMBRE UNIQUE (NOMBRE),
+    CONSTRAINT FK_ROL_PADRE  FOREIGN KEY (PADRE_ID) REFERENCES ROL(ID)
+)
+GO
+
+IF OBJECT_ID('PERMISO', 'U') IS NULL
+CREATE TABLE PERMISO (
+    ID     INT IDENTITY(1,1) NOT NULL,
+    NOMBRE VARCHAR(100)      NOT NULL,
+    DVH    INT               NOT NULL DEFAULT 0,
+    CONSTRAINT PK_PERMISO        PRIMARY KEY (ID),
+    CONSTRAINT UQ_PERMISO_NOMBRE UNIQUE (NOMBRE)
+)
+GO
+
+IF OBJECT_ID('ROL_PERMISO', 'U') IS NULL
+CREATE TABLE ROL_PERMISO (
+    ID         INT IDENTITY(1,1) NOT NULL,
+    ROL_ID     INT               NOT NULL,
+    PERMISO_ID INT               NOT NULL,
+    DVH        INT               NOT NULL DEFAULT 0,
+    CONSTRAINT PK_ROL_PERMISO         PRIMARY KEY (ROL_ID, PERMISO_ID),
+    CONSTRAINT UQ_ROL_PERMISO_ID      UNIQUE (ID),
+    CONSTRAINT FK_ROL_PERMISO_ROL     FOREIGN KEY (ROL_ID)     REFERENCES ROL(ID),
+    CONSTRAINT FK_ROL_PERMISO_PERMISO FOREIGN KEY (PERMISO_ID) REFERENCES PERMISO(ID)
+)
+GO
+
+IF OBJECT_ID('USUARIO_PERFIL', 'U') IS NULL
+CREATE TABLE USUARIO_PERFIL (
+    ID         INT IDENTITY(1,1) NOT NULL,
+    USUARIO_ID INT               NOT NULL,
+    ROL_ID     INT               NOT NULL,
+    DVH        INT               NOT NULL DEFAULT 0,
+    CONSTRAINT PK_USUARIO_PERFIL         PRIMARY KEY (USUARIO_ID, ROL_ID),
+    CONSTRAINT UQ_USUARIO_PERFIL_ID      UNIQUE (ID),
+    CONSTRAINT FK_USUARIO_PERFIL_USUARIO FOREIGN KEY (USUARIO_ID) REFERENCES USUARIO(ID),
+    CONSTRAINT FK_USUARIO_PERFIL_ROL     FOREIGN KEY (ROL_ID)     REFERENCES ROL(ID)
+)
+GO
+
+-- ---------------------------------------------
+-- Catálogo de permisos (los nombres deben coincidir con BE.Permisos)
+-- ---------------------------------------------
+
+INSERT INTO PERMISO (NOMBRE)
+SELECT v.NOMBRE
+FROM (VALUES
+    ('Gestionar materias'),
+    ('Cargar notas'),
+    ('Ver bitacora'),
+    ('Desbloquear usuarios'),
+    ('Gestionar periodos e inscripciones'),
+    ('Verificar integridad'),
+    ('Ingresar con integridad invalida'),
+    ('Gestionar perfiles'),
+    ('Ver menu de alumno'),
+    ('Inscribirse a materias'),
+    ('Ver mis cursadas'),
+    ('Ver dashboard'),
+    ('Exportar PDF'),
+    ('Ver calendario'),
+    ('Editar perfil'),
+    ('Cambiar contrasena')
+) v(NOMBRE)
+WHERE NOT EXISTS (SELECT 1 FROM PERMISO p WHERE p.NOMBRE = v.NOMBRE)
+GO
+
+-- ---------------------------------------------
+-- Perfiles base. Administrador y Webmaster son del sistema (PROTEGIDO).
+-- ---------------------------------------------
+
+INSERT INTO ROL (NOMBRE, PADRE_ID, PROTEGIDO)
+SELECT v.NOMBRE, NULL, v.PROTEGIDO
+FROM (VALUES
+    ('Administrador', 1),
+    ('Webmaster',     1),
+    ('Alumno',        0)
+) v(NOMBRE, PROTEGIDO)
+WHERE NOT EXISTS (SELECT 1 FROM ROL r WHERE r.NOMBRE = v.NOMBRE)
+GO
+
+-- Permisos de cada perfil base. Solo se siembran para un perfil que todavía
+-- no tiene ninguno, así volver a ejecutar el script no pisa cambios hechos
+-- después desde la aplicación.
+INSERT INTO ROL_PERMISO (ROL_ID, PERMISO_ID)
+SELECT r.ID, p.ID
+FROM (VALUES
+    ('Administrador', 'Gestionar materias'),
+    ('Administrador', 'Cargar notas'),
+    ('Administrador', 'Ver bitacora'),
+    ('Administrador', 'Desbloquear usuarios'),
+    ('Administrador', 'Gestionar periodos e inscripciones'),
+    ('Administrador', 'Gestionar perfiles'),
+    ('Administrador', 'Ingresar con integridad invalida'),
+    ('Administrador', 'Editar perfil'),
+    ('Administrador', 'Cambiar contrasena'),
+    ('Webmaster',     'Verificar integridad'),
+    ('Webmaster',     'Ingresar con integridad invalida'),
+    ('Alumno',        'Ver menu de alumno'),
+    ('Alumno',        'Inscribirse a materias'),
+    ('Alumno',        'Ver mis cursadas'),
+    ('Alumno',        'Ver dashboard'),
+    ('Alumno',        'Exportar PDF'),
+    ('Alumno',        'Ver calendario'),
+    ('Alumno',        'Editar perfil'),
+    ('Alumno',        'Cambiar contrasena')
+) m(ROL, PERMISO)
+JOIN ROL     r ON r.NOMBRE = m.ROL
+JOIN PERMISO p ON p.NOMBRE = m.PERMISO
+WHERE NOT EXISTS (SELECT 1 FROM ROL_PERMISO x WHERE x.ROL_ID = r.ID)
+GO
+
+-- ---------------------------------------------
+-- Migración de USUARIO.ROL -> USUARIO_PERFIL, y baja de la columna.
+-- Dinámico porque en una instalación nueva la columna ya no existe.
+-- ---------------------------------------------
+
+IF COL_LENGTH('USUARIO', 'ROL') IS NOT NULL
+BEGIN
+    EXEC sp_executesql N'
+        INSERT INTO USUARIO_PERFIL (USUARIO_ID, ROL_ID)
+        SELECT u.ID, r.ID
+        FROM USUARIO u
+        JOIN ROL r ON r.NOMBRE = CASE u.ROL
+                                     WHEN ''Admin''    THEN ''Administrador''
+                                     WHEN ''Webmaster'' THEN ''Webmaster''
+                                     ELSE ''Alumno''
+                                 END
+        WHERE NOT EXISTS (SELECT 1 FROM USUARIO_PERFIL up
+                          WHERE up.USUARIO_ID = u.ID AND up.ROL_ID = r.ID)';
+
+    DECLARE @df SYSNAME = (
+        SELECT dc.name
+        FROM sys.default_constraints dc
+        JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
+        WHERE dc.parent_object_id = OBJECT_ID('USUARIO') AND c.name = 'ROL');
+    IF @df IS NOT NULL
+        EXEC('ALTER TABLE USUARIO DROP CONSTRAINT [' + @df + ']');
+
+    EXEC('ALTER TABLE USUARIO DROP COLUMN ROL');
+
+    -- El orden de columnas de USUARIO cambió: los DVH/DVV y el snapshot que
+    -- había quedan obsoletos y se regeneran al recalcular la integridad.
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO';
+END
+GO
+
+-- ---------------------------------------------
+-- DATOS INICIALES — USUARIO ADMIN (contraseña: Admin123)
+-- y USUARIO WEBMASTER (contraseña: Webmaster123).
+-- Se siembran acá, después de la migración, para asignarles su perfil.
+-- ---------------------------------------------
+
+IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'admin')
+    INSERT INTO USUARIO (USUARIO, PASS)
+    VALUES ('admin', '3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'webmaster')
+    INSERT INTO USUARIO (USUARIO, PASS)
+    VALUES ('webmaster', '407c21d8ba9449b1f2e7ef81db1cbca0e1a702998de688e42dd468f2079d31f8');
+GO
+
+-- Solo se asigna el perfil a un usuario que todavía no tiene ninguno.
+INSERT INTO USUARIO_PERFIL (USUARIO_ID, ROL_ID)
+SELECT u.ID, r.ID
+FROM (VALUES ('admin', 'Administrador'), ('webmaster', 'Webmaster')) m(USUARIO, ROL)
+JOIN USUARIO u ON u.USUARIO = m.USUARIO
+JOIN ROL     r ON r.NOMBRE  = m.ROL
+WHERE NOT EXISTS (SELECT 1 FROM USUARIO_PERFIL up WHERE up.USUARIO_ID = u.ID)
+GO
+
+-- ---------------------------------------------
+-- STORED PROCEDURES — perfiles y permisos
+-- ---------------------------------------------
+
+IF OBJECT_ID('ROL_LISTAR_TODOS', 'P') IS NOT NULL DROP PROCEDURE ROL_LISTAR_TODOS
+GO
+CREATE PROCEDURE ROL_LISTAR_TODOS
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, NOMBRE, PADRE_ID, PROTEGIDO FROM ROL ORDER BY ID;
+END
+GO
+
+IF OBJECT_ID('ROL_PERMISO_LISTAR_TODOS', 'P') IS NOT NULL DROP PROCEDURE ROL_PERMISO_LISTAR_TODOS
+GO
+CREATE PROCEDURE ROL_PERMISO_LISTAR_TODOS
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT rp.ROL_ID, rp.PERMISO_ID, p.NOMBRE
+    FROM   ROL_PERMISO rp
+    JOIN   PERMISO     p ON p.ID = rp.PERMISO_ID
+    ORDER  BY rp.ROL_ID, p.NOMBRE;
+END
+GO
+
+IF OBJECT_ID('ROL_CAMBIAR_PADRE', 'P') IS NOT NULL DROP PROCEDURE ROL_CAMBIAR_PADRE
+GO
+CREATE PROCEDURE ROL_CAMBIAR_PADRE
+    @id       INT,
+    @padre_id INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE ROL SET PADRE_ID = @padre_id WHERE ID = @id;
+END
+GO
+
+IF OBJECT_ID('USUARIO_PERFIL_LISTAR_POR_USUARIO', 'P') IS NOT NULL DROP PROCEDURE USUARIO_PERFIL_LISTAR_POR_USUARIO
+GO
+CREATE PROCEDURE USUARIO_PERFIL_LISTAR_POR_USUARIO
+    @usuario_id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ROL_ID FROM USUARIO_PERFIL WHERE USUARIO_ID = @usuario_id;
+END
+GO
+
+IF OBJECT_ID('USUARIO_PERFIL_ASIGNAR', 'P') IS NOT NULL DROP PROCEDURE USUARIO_PERFIL_ASIGNAR
+GO
+CREATE PROCEDURE USUARIO_PERFIL_ASIGNAR
+    @usuario_id INT,
+    @rol_id     INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM USUARIO_PERFIL WHERE USUARIO_ID = @usuario_id AND ROL_ID = @rol_id)
+        INSERT INTO USUARIO_PERFIL (USUARIO_ID, ROL_ID) VALUES (@usuario_id, @rol_id);
+END
+GO
+
+-- Alumno es una identidad de dominio (usuario con cursadas), no un permiso:
+-- se lista a quienes tienen asignado el perfil Alumno.
+IF OBJECT_ID('USUARIO_LISTAR_ALUMNOS', 'P') IS NOT NULL DROP PROCEDURE USUARIO_LISTAR_ALUMNOS
+GO
+CREATE PROCEDURE USUARIO_LISTAR_ALUMNOS
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT u.ID, u.USUARIO
+    FROM   USUARIO u
+    WHERE  EXISTS (SELECT 1
+                   FROM   USUARIO_PERFIL up
+                   JOIN   ROL r ON r.ID = up.ROL_ID
+                   WHERE  up.USUARIO_ID = u.ID AND r.NOMBRE = 'Alumno')
+    ORDER  BY u.USUARIO;
+END
+GO
+
+-- ---------------------------------------------
+-- STORED PROCEDURES — integridad y restore de las 4 tablas nuevas
+-- ---------------------------------------------
+
+-- ===== ROL =====
+
+IF OBJECT_ID('ROL_LISTAR_PARA_INTEGRIDAD', 'P') IS NOT NULL DROP PROCEDURE ROL_LISTAR_PARA_INTEGRIDAD
+GO
+CREATE PROCEDURE ROL_LISTAR_PARA_INTEGRIDAD
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, NOMBRE, PADRE_ID, PROTEGIDO, DVH FROM ROL ORDER BY ID;
+END
+GO
+
+IF OBJECT_ID('ROL_ACTUALIZAR_DVH', 'P') IS NOT NULL DROP PROCEDURE ROL_ACTUALIZAR_DVH
+GO
+CREATE PROCEDURE ROL_ACTUALIZAR_DVH
+    @id  INT,
+    @dvh INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE ROL SET DVH = @dvh WHERE ID = @id;
+END
+GO
+
+IF OBJECT_ID('ROL_ELIMINAR_POR_ID', 'P') IS NOT NULL DROP PROCEDURE ROL_ELIMINAR_POR_ID
+GO
+CREATE PROCEDURE ROL_ELIMINAR_POR_ID
+    @id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    -- Se sueltan los hijos para no violar la FK autorreferencia; la fase de
+    -- upsert del restore les vuelve a poner su padre original.
+    UPDATE ROL SET PADRE_ID = NULL WHERE PADRE_ID = @id;
+    DELETE FROM ROL WHERE ID = @id;
+END
+GO
+
+IF OBJECT_ID('ROL_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE ROL_RESTAURAR_FILA
+GO
+CREATE PROCEDURE ROL_RESTAURAR_FILA
+    @id        INT,
+    @nombre    VARCHAR(100),
+    @padreId   INT,
+    @protegido BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM ROL WHERE ID = @id)
+        UPDATE ROL SET NOMBRE = @nombre, PADRE_ID = @padreId, PROTEGIDO = @protegido WHERE ID = @id;
+    ELSE
+    BEGIN
+        SET IDENTITY_INSERT ROL ON;
+        INSERT INTO ROL (ID, NOMBRE, PADRE_ID, PROTEGIDO) VALUES (@id, @nombre, @padreId, @protegido);
+        SET IDENTITY_INSERT ROL OFF;
+    END
+END
+GO
+
+-- ===== PERMISO =====
+
+IF OBJECT_ID('PERMISO_LISTAR_PARA_INTEGRIDAD', 'P') IS NOT NULL DROP PROCEDURE PERMISO_LISTAR_PARA_INTEGRIDAD
+GO
+CREATE PROCEDURE PERMISO_LISTAR_PARA_INTEGRIDAD
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, NOMBRE, DVH FROM PERMISO ORDER BY ID;
+END
+GO
+
+IF OBJECT_ID('PERMISO_ACTUALIZAR_DVH', 'P') IS NOT NULL DROP PROCEDURE PERMISO_ACTUALIZAR_DVH
+GO
+CREATE PROCEDURE PERMISO_ACTUALIZAR_DVH
+    @id  INT,
+    @dvh INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE PERMISO SET DVH = @dvh WHERE ID = @id;
+END
+GO
+
+IF OBJECT_ID('PERMISO_ELIMINAR_POR_ID', 'P') IS NOT NULL DROP PROCEDURE PERMISO_ELIMINAR_POR_ID
+GO
+CREATE PROCEDURE PERMISO_ELIMINAR_POR_ID
+    @id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM PERMISO WHERE ID = @id;
+END
+GO
+
+IF OBJECT_ID('PERMISO_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE PERMISO_RESTAURAR_FILA
+GO
+CREATE PROCEDURE PERMISO_RESTAURAR_FILA
+    @id     INT,
+    @nombre VARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM PERMISO WHERE ID = @id)
+        UPDATE PERMISO SET NOMBRE = @nombre WHERE ID = @id;
+    ELSE
+    BEGIN
+        SET IDENTITY_INSERT PERMISO ON;
+        INSERT INTO PERMISO (ID, NOMBRE) VALUES (@id, @nombre);
+        SET IDENTITY_INSERT PERMISO OFF;
+    END
+END
+GO
+
+-- ===== ROL_PERMISO =====
+
+IF OBJECT_ID('ROL_PERMISO_LISTAR_PARA_INTEGRIDAD', 'P') IS NOT NULL DROP PROCEDURE ROL_PERMISO_LISTAR_PARA_INTEGRIDAD
+GO
+CREATE PROCEDURE ROL_PERMISO_LISTAR_PARA_INTEGRIDAD
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, ROL_ID, PERMISO_ID, DVH FROM ROL_PERMISO ORDER BY ID;
+END
+GO
+
+IF OBJECT_ID('ROL_PERMISO_ACTUALIZAR_DVH', 'P') IS NOT NULL DROP PROCEDURE ROL_PERMISO_ACTUALIZAR_DVH
+GO
+CREATE PROCEDURE ROL_PERMISO_ACTUALIZAR_DVH
+    @id  INT,
+    @dvh INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE ROL_PERMISO SET DVH = @dvh WHERE ID = @id;
+END
+GO
+
+IF OBJECT_ID('ROL_PERMISO_ELIMINAR_POR_ID', 'P') IS NOT NULL DROP PROCEDURE ROL_PERMISO_ELIMINAR_POR_ID
+GO
+CREATE PROCEDURE ROL_PERMISO_ELIMINAR_POR_ID
+    @id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM ROL_PERMISO WHERE ID = @id;
+END
+GO
+
+IF OBJECT_ID('ROL_PERMISO_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE ROL_PERMISO_RESTAURAR_FILA
+GO
+CREATE PROCEDURE ROL_PERMISO_RESTAURAR_FILA
+    @id        INT,
+    @rolId     INT,
+    @permisoId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM ROL_PERMISO WHERE ID = @id)
+        UPDATE ROL_PERMISO SET ROL_ID = @rolId, PERMISO_ID = @permisoId WHERE ID = @id;
+    ELSE
+    BEGIN
+        SET IDENTITY_INSERT ROL_PERMISO ON;
+        INSERT INTO ROL_PERMISO (ID, ROL_ID, PERMISO_ID) VALUES (@id, @rolId, @permisoId);
+        SET IDENTITY_INSERT ROL_PERMISO OFF;
+    END
+END
+GO
+
+-- ===== USUARIO_PERFIL =====
+
+IF OBJECT_ID('USUARIO_PERFIL_LISTAR_PARA_INTEGRIDAD', 'P') IS NOT NULL DROP PROCEDURE USUARIO_PERFIL_LISTAR_PARA_INTEGRIDAD
+GO
+CREATE PROCEDURE USUARIO_PERFIL_LISTAR_PARA_INTEGRIDAD
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, USUARIO_ID, ROL_ID, DVH FROM USUARIO_PERFIL ORDER BY ID;
+END
+GO
+
+IF OBJECT_ID('USUARIO_PERFIL_ACTUALIZAR_DVH', 'P') IS NOT NULL DROP PROCEDURE USUARIO_PERFIL_ACTUALIZAR_DVH
+GO
+CREATE PROCEDURE USUARIO_PERFIL_ACTUALIZAR_DVH
+    @id  INT,
+    @dvh INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE USUARIO_PERFIL SET DVH = @dvh WHERE ID = @id;
+END
+GO
+
+IF OBJECT_ID('USUARIO_PERFIL_ELIMINAR_POR_ID', 'P') IS NOT NULL DROP PROCEDURE USUARIO_PERFIL_ELIMINAR_POR_ID
+GO
+CREATE PROCEDURE USUARIO_PERFIL_ELIMINAR_POR_ID
+    @id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM USUARIO_PERFIL WHERE ID = @id;
+END
+GO
+
+IF OBJECT_ID('USUARIO_PERFIL_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE USUARIO_PERFIL_RESTAURAR_FILA
+GO
+CREATE PROCEDURE USUARIO_PERFIL_RESTAURAR_FILA
+    @id        INT,
+    @usuarioId INT,
+    @rolId     INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM USUARIO_PERFIL WHERE ID = @id)
+        UPDATE USUARIO_PERFIL SET USUARIO_ID = @usuarioId, ROL_ID = @rolId WHERE ID = @id;
+    ELSE
+    BEGIN
+        SET IDENTITY_INSERT USUARIO_PERFIL ON;
+        INSERT INTO USUARIO_PERFIL (ID, USUARIO_ID, ROL_ID) VALUES (@id, @usuarioId, @rolId);
+        SET IDENTITY_INSERT USUARIO_PERFIL OFF;
+    END
+END
+GO
+
+PRINT '✔ Perfiles y permisos (Composite) instalados correctamente.';
+PRINT 'Si la base ya existía, recalcular la integridad desde el panel Webmaster (o reiniciar la aplicación).';
 GO

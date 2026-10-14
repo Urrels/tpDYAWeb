@@ -35,7 +35,7 @@
                     </FooterTemplate>
                 </asp:Repeater>
                 <asp:Label ID="lblSinAlumnos" runat="server" Visible="false"
-                           Text="<p class='text-muted small mt-2'>No se detectaron alteraciones en ninguna de las 9 tablas de negocio.</p>"/>
+                           Text="<p class='text-muted small mt-2'>No se detectaron alteraciones en ninguna de las 13 tablas de negocio.</p>"/>
 
                 <asp:Panel ID="pnlAcciones" runat="server" Visible="false" CssClass="mt-3 pt-3 border-top">
                     <p class="text-muted small mb-2">

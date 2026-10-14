@@ -24,8 +24,7 @@ namespace DAL
                 return new BE.USUARIO
                 {
                     Id      = System.Convert.ToInt32(r["ID"]),
-                    Usuario = r["USUARIO"].ToString(),
-                    Rol     = r["ROL"].ToString()
+                    Usuario = r["USUARIO"].ToString()
                 };
             }
             finally { _acceso.Cerrar(); }
@@ -59,8 +58,7 @@ namespace DAL
                 var u = new BE.USUARIO
                 {
                     Id      = System.Convert.ToInt32(r["ID"]),
-                    Usuario = r["USUARIO"].ToString(),
-                    Rol     = r["ROL"].ToString()
+                    Usuario = r["USUARIO"].ToString()
                 };
                 if (r["DIRECCION"] != System.DBNull.Value)
                 {
@@ -83,8 +81,7 @@ namespace DAL
                     lista.Add(new BE.USUARIO
                     {
                         Id      = System.Convert.ToInt32(r["ID"]),
-                        Usuario = r["USUARIO"].ToString(),
-                        Rol     = "Alumno"
+                        Usuario = r["USUARIO"].ToString()
                     });
             }
             finally { _acceso.Cerrar(); }

@@ -6,15 +6,17 @@ using System.Text;
 
 namespace CAPAS_Web
 {
-    public partial class Inscripcion : System.Web.UI.Page
+    public partial class Inscripcion : PaginaBase
     {
+        // La misma página sirve a quien gestiona periodos y a quien se inscribe.
+        protected override bool TieneAcceso(BE.USUARIO usuario) =>
+            usuario.TienePermiso(BE.Permisos.GestionarPeriodos) || usuario.TienePermiso(BE.Permisos.Inscribirse);
+
         private readonly BLL.InscripcionBLL _bll    = new BLL.InscripcionBLL();
         private readonly BLL.PeriodoBLL     _perBll = new BLL.PeriodoBLL();
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            if ((Session["Usuario"] as BE.USUARIO).EsWebmaster) { Response.Redirect("~/Integridad.aspx"); return; }
             if (!IsPostBack) CargarPagina();
         }
 
@@ -23,7 +25,7 @@ namespace CAPAS_Web
             var u = Session["Usuario"] as BE.USUARIO;
             var periodo = _bll.ObtenerPeriodoActual();
 
-            if (u.EsAdmin)
+            if (u.TienePermiso(BE.Permisos.GestionarPeriodos))
             {
                 pnlAdminAcciones.Visible = true;
                 CargarListaPeriodos();
@@ -117,7 +119,7 @@ namespace CAPAS_Web
         protected void rptPeriodos_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
             if (e.CommandName != "EditarPeriodo") return;
-            if (!(Session["Usuario"] as BE.USUARIO).EsAdmin) return;
+            if (!UsuarioActual.TienePermiso(BE.Permisos.GestionarPeriodos)) return;
 
             int id = int.Parse(e.CommandArgument.ToString());
             var periodo = _perBll.Listar().FirstOrDefault(p => p.Id == id);
@@ -139,7 +141,7 @@ namespace CAPAS_Web
 
         protected void btnMostrarCrear_Click(object sender, EventArgs e)
         {
-            if (!(Session["Usuario"] as BE.USUARIO).EsAdmin) return;
+            if (!UsuarioActual.TienePermiso(BE.Permisos.GestionarPeriodos)) return;
             hfIdPeriodo.Value            = "0";
             lblTituloFormPeriodo.Text    = "Nuevo Período Académico";
             txtAnio.Text                 = DateTime.Today.Year.ToString();
@@ -163,7 +165,7 @@ namespace CAPAS_Web
         protected void btnCrearPeriodo_Click(object sender, EventArgs e)
         {
             var u = Session["Usuario"] as BE.USUARIO;
-            if (!u.EsAdmin) return;
+            if (!u.TienePermiso(BE.Permisos.GestionarPeriodos)) return;
 
             if (!int.TryParse(txtAnio.Text, out int anio) || anio < 2000 || anio > 2100)
             {
@@ -209,6 +211,9 @@ namespace CAPAS_Web
         protected void btnInscribir_Click(object sender, EventArgs e)
         {
             var u = Session["Usuario"] as BE.USUARIO;
+            // La página la comparten quien gestiona periodos y quien se inscribe:
+            // se revalida en el servidor para que no se pueda forjar el POST.
+            if (!u.TienePermiso(BE.Permisos.Inscribirse)) return;
             int idPeriodo = (int)(ViewState["IdPeriodo"] ?? 0);
 
             var valores = Request.Form.GetValues("materiaId");

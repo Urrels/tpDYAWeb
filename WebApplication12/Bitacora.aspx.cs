@@ -3,17 +3,16 @@ using System.Web.UI.WebControls;
 
 namespace CAPAS_Web
 {
-    public partial class Bitacora : System.Web.UI.Page
+    public partial class Bitacora : PaginaBase
     {
+        protected override string PermisoRequerido => BE.Permisos.VerBitacora;
+
         private const int TAMANIO_PAGINA = 50;
 
         private readonly BLL.BitacoraBLL _bll = new BLL.BitacoraBLL();
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["Usuario"] == null) Response.Redirect("~/Login.aspx");
-            var u = Session["Usuario"] as BE.USUARIO;
-            if (!u.EsAdmin) Response.Redirect("~/Menu.aspx");
 
             if (!IsPostBack)
             {
