@@ -179,8 +179,10 @@ BEGIN
 END
 GO
 
--- USUARIO_LISTAR_ALUMNOS se define en la sección PERFILES Y PERMISOS (al final),
--- porque depende de USUARIO_PERFIL.
+-- USUARIO_LISTAR_ALUMNOS ya no existe: los alumnos se determinan en la BLL
+-- según sus permisos efectivos (ver UsuarioBLL.ListarAlumnos).
+IF OBJECT_ID('USUARIO_LISTAR_ALUMNOS','P') IS NOT NULL DROP PROCEDURE USUARIO_LISTAR_ALUMNOS
+GO
 
 -- =============================================
 -- STORED PROCEDURES — BITACORA
@@ -1900,24 +1902,6 @@ BEGIN
 END
 GO
 
--- Alumno es una identidad de dominio (usuario con cursadas), no un permiso:
--- se lista a quienes tienen asignado el perfil Alumno.
-IF OBJECT_ID('USUARIO_LISTAR_ALUMNOS', 'P') IS NOT NULL DROP PROCEDURE USUARIO_LISTAR_ALUMNOS
-GO
-CREATE PROCEDURE USUARIO_LISTAR_ALUMNOS
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT u.ID, u.USUARIO
-    FROM   USUARIO u
-    WHERE  EXISTS (SELECT 1
-                   FROM   USUARIO_PERFIL up
-                   JOIN   ROL r ON r.ID = up.ROL_ID
-                   WHERE  up.USUARIO_ID = u.ID AND r.NOMBRE = 'Alumno')
-    ORDER  BY u.USUARIO;
-END
-GO
-
 -- ---------------------------------------------
 -- STORED PROCEDURES — integridad y restore de las 4 tablas nuevas
 -- ---------------------------------------------
@@ -2147,4 +2131,124 @@ GO
 
 PRINT '✔ Perfiles y permisos (Composite) instalados correctamente.';
 PRINT 'Si la base ya existía, recalcular la integridad desde el panel Webmaster (o reiniciar la aplicación).';
+GO
+
+-- =============================================
+-- ===== GESTIÓN DE PERFILES Y ASIGNACIÓN =====
+-- Procedimientos de escritura y lectura usados por Perfiles.aspx y
+-- AsignarPerfiles.aspx. Las reglas de negocio (ciclos, perfiles
+-- protegidos, último operador) viven en la capa BLL.
+-- =============================================
+
+USE BDUNIVERSIDAD
+GO
+
+IF OBJECT_ID('PERMISO_LISTAR_TODOS', 'P') IS NOT NULL DROP PROCEDURE PERMISO_LISTAR_TODOS
+GO
+CREATE PROCEDURE PERMISO_LISTAR_TODOS
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, NOMBRE FROM PERMISO ORDER BY NOMBRE;
+END
+GO
+
+IF OBJECT_ID('USUARIO_LISTAR_TODOS', 'P') IS NOT NULL DROP PROCEDURE USUARIO_LISTAR_TODOS
+GO
+CREATE PROCEDURE USUARIO_LISTAR_TODOS
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, USUARIO FROM USUARIO ORDER BY USUARIO;
+END
+GO
+
+IF OBJECT_ID('USUARIO_PERFIL_LISTAR_TODOS', 'P') IS NOT NULL DROP PROCEDURE USUARIO_PERFIL_LISTAR_TODOS
+GO
+CREATE PROCEDURE USUARIO_PERFIL_LISTAR_TODOS
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT USUARIO_ID, ROL_ID FROM USUARIO_PERFIL;
+END
+GO
+
+IF OBJECT_ID('ROL_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE ROL_INSERTAR
+GO
+CREATE PROCEDURE ROL_INSERTAR
+    @nombre   VARCHAR(100),
+    @padre_id INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO ROL (NOMBRE, PADRE_ID, PROTEGIDO) VALUES (@nombre, @padre_id, 0);
+    SELECT CAST(SCOPE_IDENTITY() AS INT) AS ID;
+END
+GO
+
+IF OBJECT_ID('ROL_RENOMBRAR', 'P') IS NOT NULL DROP PROCEDURE ROL_RENOMBRAR
+GO
+CREATE PROCEDURE ROL_RENOMBRAR
+    @id     INT,
+    @nombre VARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE ROL SET NOMBRE = @nombre WHERE ID = @id;
+END
+GO
+
+-- Elimina el perfil y sus asignaciones de permisos. La BLL ya verificó que
+-- no sea protegido, no tenga hijos ni usuarios asignados.
+IF OBJECT_ID('ROL_ELIMINAR', 'P') IS NOT NULL DROP PROCEDURE ROL_ELIMINAR
+GO
+CREATE PROCEDURE ROL_ELIMINAR
+    @id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRANSACTION;
+        DELETE FROM ROL_PERMISO WHERE ROL_ID = @id;
+        DELETE FROM ROL WHERE ID = @id;
+    COMMIT TRANSACTION;
+END
+GO
+
+IF OBJECT_ID('ROL_PERMISO_ELIMINAR_POR_ROL', 'P') IS NOT NULL DROP PROCEDURE ROL_PERMISO_ELIMINAR_POR_ROL
+GO
+CREATE PROCEDURE ROL_PERMISO_ELIMINAR_POR_ROL
+    @rol_id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM ROL_PERMISO WHERE ROL_ID = @rol_id;
+END
+GO
+
+IF OBJECT_ID('ROL_PERMISO_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE ROL_PERMISO_INSERTAR
+GO
+CREATE PROCEDURE ROL_PERMISO_INSERTAR
+    @rol_id     INT,
+    @permiso_id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM ROL_PERMISO WHERE ROL_ID = @rol_id AND PERMISO_ID = @permiso_id)
+        INSERT INTO ROL_PERMISO (ROL_ID, PERMISO_ID) VALUES (@rol_id, @permiso_id);
+END
+GO
+
+IF OBJECT_ID('USUARIO_PERFIL_ELIMINAR_POR_USUARIO', 'P') IS NOT NULL DROP PROCEDURE USUARIO_PERFIL_ELIMINAR_POR_USUARIO
+GO
+CREATE PROCEDURE USUARIO_PERFIL_ELIMINAR_POR_USUARIO
+    @usuario_id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM USUARIO_PERFIL WHERE USUARIO_ID = @usuario_id;
+END
+GO
+
+PRINT '✔ Gestión de perfiles y asignación instalada correctamente.';
 GO
