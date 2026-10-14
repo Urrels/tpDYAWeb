@@ -89,6 +89,7 @@
     <Compile Include="LoginBLL.cs" />
     <Compile Include="MateriaBLL.cs" />
     <Compile Include="PerfilBLL.cs" />
+    <Compile Include="SiembraBLL.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

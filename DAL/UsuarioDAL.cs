@@ -24,7 +24,8 @@ namespace DAL
                 return new BE.USUARIO
                 {
                     Id      = System.Convert.ToInt32(r["ID"]),
-                    Usuario = r["USUARIO"].ToString()
+                    Usuario = r["USUARIO"].ToString(),
+                    Activo  = System.Convert.ToBoolean(r["ACTIVO"])
                 };
             }
             finally { _acceso.Cerrar(); }
@@ -70,22 +71,78 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public List<BE.USUARIO> ListarAlumnos()
+        public List<BE.USUARIO> ListarTodos()
         {
             var lista = new List<BE.USUARIO>();
             try
             {
                 _acceso.Abrir();
-                DataTable dt = _acceso.Leer("USUARIO_LISTAR_ALUMNOS");
+                DataTable dt = _acceso.Leer("USUARIO_LISTAR_TODOS");
                 foreach (DataRow r in dt.Rows)
                     lista.Add(new BE.USUARIO
                     {
-                        Id      = System.Convert.ToInt32(r["ID"]),
-                        Usuario = r["USUARIO"].ToString()
+                        Id        = System.Convert.ToInt32(r["ID"]),
+                        Usuario   = r["USUARIO"].ToString(),
+                        Bloqueado = System.Convert.ToBoolean(r["BLOQUEADO"]),
+                        Activo    = System.Convert.ToBoolean(r["ACTIVO"])
                     });
             }
             finally { _acceso.Cerrar(); }
             return lista;
+        }
+
+        /// <summary>
+        /// Alta de usuario y asignación de sus perfiles en una única transacción.
+        /// Devuelve el ID del usuario nuevo. Un nombre repetido (según la
+        /// collation de la base) se informa como InvalidOperationException.
+        /// </summary>
+        public int InsertarConPerfiles(string usuario, string passHash, string direccion, List<int> rolIds)
+        {
+            byte[] encriptado = string.IsNullOrEmpty(direccion) ? null : BE.AESHelper.Encriptar(direccion);
+            try
+            {
+                _acceso.Abrir();
+                _acceso.IniciarTx();
+                try
+                {
+                    object id = _acceso.EscribirConRetorno("USUARIO_INSERTAR", new List<SqlParameter>
+                    {
+                        _acceso.CrearParametro("@usuario",   usuario),
+                        _acceso.CrearParametro("@pass",      passHash),
+                        _acceso.CrearParametro("@direccion", encriptado)
+                    });
+                    int usuarioId = System.Convert.ToInt32(id);
+                    foreach (int rolId in rolIds)
+                        _acceso.Escribir("USUARIO_PERFIL_ASIGNAR", new List<SqlParameter>
+                        {
+                            _acceso.CrearParametro("@usuario_id", usuarioId),
+                            _acceso.CrearParametro("@rol_id",     rolId)
+                        });
+                    _acceso.ConfirmarTX();
+                    return usuarioId;
+                }
+                catch
+                {
+                    _acceso.DeshacerTX();
+                    throw;
+                }
+            }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
+            {
+                throw new System.InvalidOperationException("Ya existe un usuario con ese nombre.", ex);
+            }
+            finally { _acceso.Cerrar(); }
+        }
+
+        public void ActualizarEstado(int id, bool activo)
+        {
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                new SqlParameter("@activo", SqlDbType.Bit) { Value = activo }
+            };
+            try { _acceso.Abrir(); _acceso.Escribir("USUARIO_ACTUALIZAR_ESTADO", p); }
+            finally { _acceso.Cerrar(); }
         }
 
         public bool ActualizarDireccion(string usuario, string direccion)

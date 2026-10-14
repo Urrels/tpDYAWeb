@@ -7,7 +7,7 @@ namespace CAPAS_Web
     {
         protected override string PermisoRequerido => BE.Permisos.DesbloquearUsuarios;
 
-        private readonly BLL.UsuarioBLL _bll = new BLL.UsuarioBLL();
+        private readonly BLL.PerfilBLL _bll = new BLL.PerfilBLL();
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -16,7 +16,7 @@ namespace CAPAS_Web
 
         private void CargarGrilla()
         {
-            var bloqueados = _bll.ListarBloqueados();
+            var bloqueados = _bll.ListarBloqueadosVisiblesPor(UsuarioActual);
             rptBloqueados.DataSource = bloqueados;
             rptBloqueados.DataBind();
             lblSinBloqueados.Visible = bloqueados.Count == 0;
@@ -27,12 +27,18 @@ namespace CAPAS_Web
             if (e.CommandName != "Desbloquear") return;
 
             string usuarioBloqueado = e.CommandArgument.ToString();
-            string admin = (Session["Usuario"] as BE.USUARIO).Usuario;
 
-            _bll.Desbloquear(usuarioBloqueado, admin);
-
-            lblMsg.CssClass = "alert alert-success d-block mb-3";
-            lblMsg.Text = $"Usuario '{usuarioBloqueado}' desbloqueado correctamente.";
+            try
+            {
+                _bll.DesbloquearUsuario(usuarioBloqueado, UsuarioActual);
+                lblMsg.CssClass = "alert alert-success d-block mb-3";
+                lblMsg.Text = $"Usuario '{System.Web.HttpUtility.HtmlEncode(usuarioBloqueado)}' desbloqueado correctamente.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                lblMsg.CssClass = "alert alert-danger d-block mb-3";
+                lblMsg.Text = System.Web.HttpUtility.HtmlEncode(ex.Message);
+            }
             lblMsg.Visible = true;
 
             CargarGrilla();

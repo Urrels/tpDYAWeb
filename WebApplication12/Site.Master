@@ -69,6 +69,21 @@
                                     <a class="nav-link" href="UsuariosBloqueados.aspx"><i class="bi bi-unlock-fill"></i> Usuarios Bloqueados</a>
                                 </li>
                             </asp:PlaceHolder>
+                            <asp:PlaceHolder ID="phNavUsuarios" runat="server">
+                                <li class="nav-item mb-1">
+                                    <a class="nav-link" href="Usuarios.aspx"><i class="bi bi-person-lines-fill"></i> Usuarios</a>
+                                </li>
+                            </asp:PlaceHolder>
+                            <asp:PlaceHolder ID="phNavPerfiles" runat="server">
+                                <li class="nav-item mb-1">
+                                    <a class="nav-link" href="Perfiles.aspx"><i class="bi bi-diagram-3-fill"></i> Perfiles</a>
+                                </li>
+                            </asp:PlaceHolder>
+                            <asp:PlaceHolder ID="phNavAsignarPerfiles" runat="server">
+                                <li class="nav-item mb-1">
+                                    <a class="nav-link" href="AsignarPerfiles.aspx"><i class="bi bi-people-fill"></i> Asignar perfiles</a>
+                                </li>
+                            </asp:PlaceHolder>
                         </asp:PlaceHolder>
 
                         <asp:PlaceHolder ID="phSeccionAcademico" runat="server">
