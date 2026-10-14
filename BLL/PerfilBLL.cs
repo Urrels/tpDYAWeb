@@ -140,6 +140,8 @@ namespace BLL
             public List<Rol> Roles;
             public Dictionary<int, List<string>> PermisosPorRol;
             public List<KeyValuePair<int, int>> Asignaciones;
+            // Usuarios con la cuenta bloqueada: no cuentan como operadores disponibles.
+            public HashSet<int> Bloqueados;
         }
 
         private EstadoPerfiles CargarEstado()
@@ -148,7 +150,8 @@ namespace BLL
             {
                 Roles = _dal.ListarRoles(),
                 PermisosPorRol = new Dictionary<int, List<string>>(),
-                Asignaciones = _dal.ListarAsignaciones()
+                Asignaciones = _dal.ListarAsignaciones(),
+                Bloqueados = new HashSet<int>(new DAL.UsuarioDAL().ListarBloqueados().Select(u => u.Id))
             };
             foreach (Permiso p in _dal.ListarPermisosPorRol())
             {
@@ -187,10 +190,11 @@ namespace BLL
         private static void ExigirOperadorDePerfiles(EstadoPerfiles estadoResultante)
         {
             bool hayOperador = PermisosEfectivosPorUsuario(estadoResultante)
-                .Any(par => par.Value.Contains(Permisos.GestionarPerfiles));
+                .Any(par => par.Value.Contains(Permisos.GestionarPerfiles)
+                            && !estadoResultante.Bloqueados.Contains(par.Key));
             if (!hayOperador)
                 throw new InvalidOperationException(
-                    "El cambio dejaría al sistema sin ningún usuario con permiso para gestionar perfiles.");
+                    "El cambio dejaría al sistema sin ningún usuario activo (no bloqueado) con permiso para gestionar perfiles.");
         }
 
         private static Rol BuscarRol(EstadoPerfiles estado, int rolId)
@@ -221,129 +225,175 @@ namespace BLL
                 throw new InvalidOperationException($"El perfil {rol.Nombre} es del sistema: no se puede {accion}.");
         }
 
-        // La bitácora guarda ACCION en 100 caracteres.
+        // La bitácora guarda ACCION en 100 caracteres: se corta el detalle (nunca el
+        // prefijo) y no se deja un par surrogate partido al final.
         private static string Accion(string prefijo, string detalle)
         {
             string texto = prefijo + ":" + detalle;
-            return texto.Length <= 100 ? texto : texto.Substring(0, 100);
+            if (texto.Length <= 100) return texto;
+            texto = texto.Substring(0, 100);
+            return char.IsHighSurrogate(texto[texto.Length - 1]) ? texto.Substring(0, 99) : texto;
         }
 
         // =====================================================
         // Escritura
         // =====================================================
 
+        // Serializa las escrituras: la guarda de "último operador" simula el
+        // resultado antes de escribir, y sin este lock dos operadores podrían
+        // quitarse el permiso mutuamente en paralelo. Alcanza con un único
+        // proceso de aplicación (pool único); con varios haría falta bloqueo en la base.
+        private static readonly object _lockEscritura = new object();
+
+        /// <summary>
+        /// Pasos posteriores a la escritura ya confirmada: recalcula la integridad
+        /// primero (para acortar la ventana con DVH desactualizado), luego registra
+        /// en bitácora, e invalida los permisos de las sesiones siempre. Si algún
+        /// paso falla se intentan igual los demás y al final se informa el error.
+        /// Queda una ventana residual: entre el commit y el recálculo los DVH están
+        /// desactualizados (el motor de integridad no participa de la transacción,
+        /// igual que en el resto del proyecto).
+        /// </summary>
+        private void PostEscritura(string actor, string accion, params Action[] recalculos)
+        {
+            Exception primerError = null;
+            try
+            {
+                foreach (Action recalcular in recalculos)
+                {
+                    try { recalcular(); }
+                    catch (Exception ex) { primerError = primerError ?? ex; }
+                }
+                try { _bitacora.RegistrarAccion(actor, accion); }
+                catch (Exception ex) { primerError = primerError ?? ex; }
+            }
+            finally { InvalidarPermisos(); }
+
+            if (primerError != null)
+                throw new InvalidOperationException(
+                    "El cambio se guardó, pero falló un paso posterior (integridad o bitácora): " + primerError.Message,
+                    primerError);
+        }
+
         public int CrearRol(string nombre, int? padreId, string actor)
         {
             nombre = NormalizarNombre(nombre);
-            EstadoPerfiles estado = CargarEstado();
-            ExigirNombreLibre(estado, nombre, null);
-            if (padreId.HasValue) BuscarRol(estado, padreId.Value);
+            lock (_lockEscritura)
+            {
+                EstadoPerfiles estado = CargarEstado();
+                ExigirNombreLibre(estado, nombre, null);
+                if (padreId.HasValue) BuscarRol(estado, padreId.Value);
 
-            int id = _dal.InsertarRol(nombre, padreId);
-            _bitacora.RegistrarAccion(actor, Accion("ALTA_PERFIL", nombre));
-            _integridad.RecalcularRol();
-            InvalidarPermisos();
-            return id;
+                int id = _dal.InsertarRol(nombre, padreId);
+                PostEscritura(actor, Accion("ALTA_PERFIL", nombre), _integridad.RecalcularRol);
+                return id;
+            }
         }
 
         public void RenombrarRol(int rolId, string nombre, string actor)
         {
             nombre = NormalizarNombre(nombre);
-            EstadoPerfiles estado = CargarEstado();
-            Rol rol = BuscarRol(estado, rolId);
-            ExigirNoProtegido(rol, "renombrar");
-            ExigirNombreLibre(estado, nombre, rolId);
+            lock (_lockEscritura)
+            {
+                EstadoPerfiles estado = CargarEstado();
+                Rol rol = BuscarRol(estado, rolId);
+                ExigirNoProtegido(rol, "renombrar");
+                ExigirNombreLibre(estado, nombre, rolId);
 
-            _dal.RenombrarRol(rolId, nombre);
-            _bitacora.RegistrarAccion(actor, Accion("RENOMBRE_PERFIL", rol.Nombre + ">" + nombre));
-            _integridad.RecalcularRol();
-            InvalidarPermisos();
+                _dal.RenombrarRol(rolId, nombre);
+                PostEscritura(actor, Accion("RENOMBRE_PERFIL", rol.Nombre + ">" + nombre), _integridad.RecalcularRol);
+            }
         }
 
         public void CambiarPadre(int rolId, int? nuevoPadreId, string actor)
         {
-            EstadoPerfiles estado = CargarEstado();
-            Rol rol = BuscarRol(estado, rolId);
-            ExigirNoProtegido(rol, "mover");
-
-            if (nuevoPadreId.HasValue)
+            lock (_lockEscritura)
             {
-                BuscarRol(estado, nuevoPadreId.Value);
-                if (GenerariaCiclo(rolId, nuevoPadreId.Value, estado.Roles))
-                    throw new InvalidOperationException(
-                        "No se puede asignar ese padre: generaría una referencia circular.");
+                EstadoPerfiles estado = CargarEstado();
+                Rol rol = BuscarRol(estado, rolId);
+                ExigirNoProtegido(rol, "mover");
+
+                if (nuevoPadreId.HasValue)
+                {
+                    BuscarRol(estado, nuevoPadreId.Value);
+                    if (GenerariaCiclo(rolId, nuevoPadreId.Value, estado.Roles))
+                        throw new InvalidOperationException(
+                            "No se puede asignar ese padre: generaría una referencia circular.");
+                }
+
+                rol.PadreId = nuevoPadreId; // simulación sobre la copia en memoria
+                ExigirOperadorDePerfiles(estado);
+
+                _dal.CambiarPadre(rolId, nuevoPadreId);
+                PostEscritura(actor, Accion("CAMBIO_JERARQUIA_PERFIL", rol.Nombre), _integridad.RecalcularRol);
             }
-
-            rol.PadreId = nuevoPadreId; // simulación sobre la copia en memoria
-            ExigirOperadorDePerfiles(estado);
-
-            _dal.CambiarPadre(rolId, nuevoPadreId);
-            _bitacora.RegistrarAccion(actor, Accion("CAMBIO_JERARQUIA_PERFIL", rol.Nombre));
-            _integridad.RecalcularRol();
-            InvalidarPermisos();
         }
 
         public void EliminarRol(int rolId, string actor)
         {
-            EstadoPerfiles estado = CargarEstado();
-            Rol rol = BuscarRol(estado, rolId);
-            ExigirNoProtegido(rol, "eliminar");
-            if (estado.Roles.Any(r => r.PadreId == rolId))
-                throw new InvalidOperationException(
-                    "El perfil tiene perfiles hijos: moverlos o eliminarlos primero.");
-            if (estado.Asignaciones.Any(a => a.Value == rolId))
-                throw new InvalidOperationException(
-                    "El perfil tiene usuarios asignados: reasignarlos primero.");
+            lock (_lockEscritura)
+            {
+                EstadoPerfiles estado = CargarEstado();
+                Rol rol = BuscarRol(estado, rolId);
+                ExigirNoProtegido(rol, "eliminar");
+                if (estado.Roles.Any(r => r.PadreId == rolId))
+                    throw new InvalidOperationException(
+                        "El perfil tiene perfiles hijos: moverlos o eliminarlos primero.");
+                if (estado.Asignaciones.Any(a => a.Value == rolId))
+                    throw new InvalidOperationException(
+                        "El perfil tiene usuarios asignados: reasignarlos primero.");
 
-            estado.Roles.Remove(rol);
-            estado.PermisosPorRol.Remove(rolId);
-            ExigirOperadorDePerfiles(estado);
+                estado.Roles.Remove(rol);
+                estado.PermisosPorRol.Remove(rolId);
+                ExigirOperadorDePerfiles(estado);
 
-            _dal.EliminarRol(rolId);
-            _bitacora.RegistrarAccion(actor, Accion("BAJA_PERFIL", rol.Nombre));
-            _integridad.RecalcularRolPermiso();
-            _integridad.RecalcularRol();
-            InvalidarPermisos();
+                _dal.EliminarRol(rolId);
+                PostEscritura(actor, Accion("BAJA_PERFIL", rol.Nombre),
+                    _integridad.RecalcularRolPermiso, _integridad.RecalcularRol);
+            }
         }
 
         /// <summary>Reemplaza los permisos directos del perfil (en una sola transacción).</summary>
         public void GuardarPermisosDeRol(int rolId, List<int> permisoIds, string actor)
         {
-            EstadoPerfiles estado = CargarEstado();
-            Rol rol = BuscarRol(estado, rolId);
-            ExigirNoProtegido(rol, "modificar sus permisos");
+            lock (_lockEscritura)
+            {
+                EstadoPerfiles estado = CargarEstado();
+                Rol rol = BuscarRol(estado, rolId);
+                ExigirNoProtegido(rol, "modificar sus permisos");
 
-            Dictionary<int, string> catalogo = _dal.ListarPermisosDisponibles().ToDictionary(p => p.Id, p => p.Nombre);
-            var ids = permisoIds.Distinct().ToList();
-            if (ids.Any(id => !catalogo.ContainsKey(id)))
-                throw new InvalidOperationException("Se indicó un permiso que no existe.");
+                Dictionary<int, string> catalogo = _dal.ListarPermisosDisponibles().ToDictionary(p => p.Id, p => p.Nombre);
+                var ids = permisoIds.Distinct().ToList();
+                if (ids.Any(id => !catalogo.ContainsKey(id)))
+                    throw new InvalidOperationException("Se indicó un permiso que no existe.");
 
-            estado.PermisosPorRol[rolId] = ids.Select(id => catalogo[id]).ToList();
-            ExigirOperadorDePerfiles(estado);
+                estado.PermisosPorRol[rolId] = ids.Select(id => catalogo[id]).ToList();
+                ExigirOperadorDePerfiles(estado);
 
-            _dal.GuardarPermisosDeRol(rolId, ids);
-            _bitacora.RegistrarAccion(actor, Accion("MODIF_PERMISOS_PERFIL", rol.Nombre));
-            _integridad.RecalcularRolPermiso();
-            InvalidarPermisos();
+                _dal.GuardarPermisosDeRol(rolId, ids);
+                PostEscritura(actor, Accion("MODIF_PERMISOS_PERFIL", rol.Nombre), _integridad.RecalcularRolPermiso);
+            }
         }
 
         /// <summary>Reemplaza los perfiles del usuario (en una sola transacción).</summary>
         public void AsignarPerfilesAUsuario(int usuarioId, List<int> rolIds, string actor)
         {
-            EstadoPerfiles estado = CargarEstado();
-            var ids = rolIds.Distinct().ToList();
-            if (ids.Any(id => estado.Roles.All(r => r.Id != id)))
-                throw new InvalidOperationException("Se indicó un perfil que no existe.");
+            lock (_lockEscritura)
+            {
+                EstadoPerfiles estado = CargarEstado();
+                var ids = rolIds.Distinct().ToList();
+                if (ids.Any(id => estado.Roles.All(r => r.Id != id)))
+                    throw new InvalidOperationException("Se indicó un perfil que no existe.");
 
-            estado.Asignaciones.RemoveAll(a => a.Key == usuarioId);
-            foreach (int id in ids)
-                estado.Asignaciones.Add(new KeyValuePair<int, int>(usuarioId, id));
-            ExigirOperadorDePerfiles(estado);
+                estado.Asignaciones.RemoveAll(a => a.Key == usuarioId);
+                foreach (int id in ids)
+                    estado.Asignaciones.Add(new KeyValuePair<int, int>(usuarioId, id));
+                ExigirOperadorDePerfiles(estado);
 
-            _dal.ReemplazarPerfilesDeUsuario(usuarioId, ids);
-            _bitacora.RegistrarAccion(actor, Accion("ASIGNACION_PERFIL", usuarioId + "/" + string.Join(",", ids)));
-            _integridad.RecalcularUsuarioPerfil();
-            InvalidarPermisos();
+                _dal.ReemplazarPerfilesDeUsuario(usuarioId, ids);
+                PostEscritura(actor, Accion("ASIGNACION_PERFIL", usuarioId + "/" + string.Join(",", ids)),
+                    _integridad.RecalcularUsuarioPerfil);
+            }
         }
 
         /// <summary>

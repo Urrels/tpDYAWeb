@@ -79,6 +79,10 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
+        // 2627 / 2601: violación de restricción o índice único (UQ_ROL_NOMBRE).
+        // La base decide qué nombres son iguales según su collation.
+        private static bool EsNombreDuplicado(SqlException ex) => ex.Number == 2627 || ex.Number == 2601;
+
         public List<BE.Permiso> ListarPermisosDisponibles()
         {
             var lista = new List<BE.Permiso>();
@@ -120,6 +124,10 @@ namespace DAL
                 _acceso.Abrir();
                 return Convert.ToInt32(_acceso.EscribirConRetorno("ROL_INSERTAR", p));
             }
+            catch (SqlException ex) when (EsNombreDuplicado(ex))
+            {
+                throw new InvalidOperationException("Ya existe un perfil con ese nombre.", ex);
+            }
             finally { _acceso.Cerrar(); }
         }
 
@@ -131,6 +139,10 @@ namespace DAL
                 _acceso.CrearParametro("@nombre", nombre)
             };
             try { _acceso.Abrir(); _acceso.Escribir("ROL_RENOMBRAR", p); }
+            catch (SqlException ex) when (EsNombreDuplicado(ex))
+            {
+                throw new InvalidOperationException("Ya existe un perfil con ese nombre.", ex);
+            }
             finally { _acceso.Cerrar(); }
         }
 
