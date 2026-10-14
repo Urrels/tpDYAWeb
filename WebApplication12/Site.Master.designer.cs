@@ -105,6 +105,33 @@ namespace CAPAS_Web
         protected global::System.Web.UI.WebControls.PlaceHolder phNavBloqueados;
 
         /// <summary>
+        /// phNavUsuarios control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.PlaceHolder phNavUsuarios;
+
+        /// <summary>
+        /// phNavPerfiles control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.PlaceHolder phNavPerfiles;
+
+        /// <summary>
+        /// phNavAsignarPerfiles control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.PlaceHolder phNavAsignarPerfiles;
+
+        /// <summary>
         /// phSeccionAcademico control.
         /// </summary>
         /// <remarks>

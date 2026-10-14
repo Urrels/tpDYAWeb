@@ -34,11 +34,37 @@ namespace CAPAS_Web
             return PermisoRequerido == null || usuario.TienePermiso(PermisoRequerido);
         }
 
+        protected override void OnInit(EventArgs e)
+        {
+            // Protege el ViewState contra CSRF atándolo a la sesión. El SessionID es
+            // estable porque Login guarda Session["Usuario"] (una sesión con datos
+            // no regenera su ID); Login no hereda de esta clase.
+            ViewStateUserKey = Session.SessionID;
+            base.OnInit(e);
+        }
+
         protected override void OnLoad(EventArgs e)
         {
             BE.USUARIO usuario = UsuarioActual;
             if (usuario == null)
             {
+                Response.Redirect("~/Login.aspx", true);
+                return;
+            }
+
+            // Sesión revocada desde el servidor (baja o restablecimiento de contraseña).
+            if (BLL.PerfilBLL.SesionRevocada(usuario))
+            {
+                Session.Abandon();
+                Response.Redirect("~/Login.aspx", true);
+                return;
+            }
+
+            // Si algún perfil cambió desde que se calcularon los permisos de la sesión, se recalculan.
+            if (!new BLL.PerfilBLL().RefrescarPermisosSiHaceFalta(usuario))
+            {
+                // El usuario fue dado de baja mientras tenía la sesión abierta.
+                Session.Abandon();
                 Response.Redirect("~/Login.aspx", true);
                 return;
             }

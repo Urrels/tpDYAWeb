@@ -46,7 +46,25 @@ namespace BE
             lock (_lock) { _sesionesActivas[usuario] = sessionId; }
         }
 
-        public void CerrarSesion(string usuario)
+        /// <summary>
+        /// Libera el registro del usuario solo si sigue apuntando a esta sesión:
+        /// así el cierre tardío de una sesión vieja (por ejemplo Session_End de una
+        /// sesión revocada) no borra el registro de una sesión más nueva.
+        /// </summary>
+        public void CerrarSesion(string usuario, string sessionId)
+        {
+            lock (_lock)
+            {
+                if (_sesionesActivas.TryGetValue(usuario, out string registrada) && registrada == sessionId)
+                    _sesionesActivas.Remove(usuario);
+            }
+        }
+
+        /// <summary>
+        /// Libera el registro del usuario sea cual sea la sesión (revocación
+        /// administrativa: baja o restablecimiento de contraseña).
+        /// </summary>
+        public void ForzarCierre(string usuario)
         {
             lock (_lock) { _sesionesActivas.Remove(usuario); }
         }

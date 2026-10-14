@@ -47,7 +47,7 @@ namespace BLL
         // vez que haya datos guardados (cambiar el orden invalida todos los
         // DVH/DVV ya calculados).
         private static readonly string[] ColumnasUsuario =
-            { "ID", "USUARIO", "PASS", "DIRECCION", "INTENTOS_FALLIDOS", "BLOQUEADO" };
+            { "ID", "USUARIO", "PASS", "DIRECCION", "INTENTOS_FALLIDOS", "BLOQUEADO", "ACTIVO" };
 
         private static readonly string[] ColumnasBitacora =
             { "ID", "USUARIO", "ACCION", "FECHA", "CRITICIDAD" };
@@ -304,7 +304,7 @@ namespace BLL
         private static string[] ExtraerUsuario(DataRow r) => new[]
         {
             IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["PASS"]), Base64Str(r["DIRECCION"]),
-            IntStr(r["INTENTOS_FALLIDOS"]), BitStr(r["BLOQUEADO"])
+            IntStr(r["INTENTOS_FALLIDOS"]), BitStr(r["BLOQUEADO"]), BitStr(r["ACTIVO"])
         };
 
         private static string[] ExtraerBitacora(DataRow r) => new[]
@@ -604,42 +604,62 @@ namespace BLL
             RecalcularUsuarioPerfil();
         }
 
-        /// <summary>
-        /// Arranque único tras migrar la base al modelo de perfiles: las
-        /// tablas nuevas (y USUARIO, cuyo orden de columnas cambió al quitar
-        /// ROL) llegan sin DVH/DVV ni snapshot. Solo las tablas que no tienen
-        /// ninguno de los dos se calculan por primera vez; si alguna ya tiene
-        /// datos de integridad, no se toca (una alteración se sigue
-        /// detectando como siempre).
-        /// </summary>
         private static readonly object _lockInit = new object();
-        private static bool _perfilesInicializados;
+        private static bool _datosBaseInicializados;
         private static string _errorInicializacion;
 
+        /// <summary>Qué tablas sin DVV/snapshot puede inicializar el arranque.</summary>
+        public enum ModoInicializacion
+        {
+            /// <summary>Ninguna: base en uso (hay marcador de siembra).</summary>
+            Ninguna,
+            /// <summary>Solo USUARIO y las tablas de perfiles (base previa a los perfiles, sin marcador).</summary>
+            Perfiles,
+            /// <summary>Las 13 tablas (instalación nueva: sin marcador y sin usuarios).</summary>
+            Todas
+        }
+
+        // Se determina una sola vez, ANTES de que la siembra inserte nada, y se conserva
+        // entre reintentos (la siembra escribe el marcador y cambiaría la respuesta).
+        private static ModoInicializacion? _modoInicial;
+
+        private ModoInicializacion DeterminarModoInicial()
+        {
+            if (new DAL.SiembraDAL().ExisteMarcadorSiembra()) return ModoInicializacion.Ninguna;
+            return _dal.ListarParaIntegridad("USUARIO").Rows.Count == 0
+                ? ModoInicializacion.Todas
+                : ModoInicializacion.Perfiles;
+        }
+
         /// <summary>
-        /// Último error del cálculo inicial de integridad de las tablas de
-        /// perfiles, o null si no hubo error o ya se resolvió. El panel
-        /// Webmaster lo muestra para que la falla no pase inadvertida.
+        /// Último error de la inicialización de datos base (siembra o cálculo
+        /// inicial de integridad), o null si no hubo error o ya se resolvió. El
+        /// panel Webmaster lo muestra para que la falla no pase inadvertida.
         /// </summary>
-        public static string ErrorInicializacionPerfiles
+        public static string ErrorInicializacionDatosBase
         {
             get { lock (_lockInit) { return _errorInicializacion; } }
         }
 
         /// <summary>
-        /// Intenta el cálculo inicial una sola vez con éxito: si falla guarda
-        /// el error, lo registra en bitácora (la primera vez) y deja el
-        /// reintento para el próximo login o la próxima visita a Integridad.
+        /// Inicialización de arranque, hasta lograrla una vez: primero siembra los
+        /// datos base de seguridad (<see cref="SiembraBLL"/>) y luego calcula la
+        /// integridad de las tablas que nunca la tuvieron. Si falla guarda el
+        /// error, lo registra en bitácora (la primera vez) y deja el reintento para
+        /// el próximo login o la próxima visita a Integridad.
         /// </summary>
-        public static void IntentarInicializarTablasDePerfiles()
+        public static void IntentarInicializarDatosBase()
         {
             lock (_lockInit)
             {
-                if (_perfilesInicializados) return;
+                if (_datosBaseInicializados) return;
                 try
                 {
-                    new IntegridadBLL().InicializarTablasDePerfiles();
-                    _perfilesInicializados = true;
+                    var integridad = new IntegridadBLL();
+                    if (_modoInicial == null) _modoInicial = integridad.DeterminarModoInicial();
+                    new SiembraBLL().SembrarDatosBase();
+                    integridad.InicializarTablasNuncaCalculadas(_modoInicial.Value);
+                    _datosBaseInicializados = true;
                     _errorInicializacion = null;
                 }
                 catch (Exception ex)
@@ -648,20 +668,45 @@ namespace BLL
                     _errorInicializacion = ex.Message;
                     if (esNuevo)
                     {
-                        try { new BitacoraBLL().RegistrarAccion("SISTEMA", "ERROR_INICIALIZAR_INTEGRIDAD_PERFILES"); }
+                        try { new BitacoraBLL().RegistrarAccion("SISTEMA", "ERROR_INICIALIZAR_DATOS_BASE"); }
                         catch { /* sin base disponible no hay donde registrar */ }
                     }
                 }
             }
         }
 
-        public void InicializarTablasDePerfiles()
+        /// <summary>
+        /// Calcula por primera vez la integridad de tablas sin DVV ni snapshot, solo
+        /// donde es legítimo:
+        ///  - Todas: instalación nueva (sin marcador de siembra y sin usuarios); las
+        ///    tablas que carga el script (MATERIA, CORRELATIVA, ...) nunca se calcularon.
+        ///  - Perfiles: base previa sin marcador pero con usuarios (migración desde la
+        ///    versión con USUARIO.ROL): el script descartó el DVV de USUARIO y las tablas
+        ///    de perfiles son nuevas; es lo único que se inicializaba antes de esta versión.
+        ///  - Ninguna: base en uso. Una tabla sin DVV se informa como inválida, no se
+        ///    "cura" sola, porque sería aceptar una alteración. Las tablas que la propia
+        ///    siembra descarta las recalcula <see cref="SiembraBLL"/>.
+        /// Una tabla que ya tiene datos de integridad no se toca en ningún modo.
+        /// </summary>
+        public void InicializarTablasNuncaCalculadas(ModoInicializacion modo)
         {
+            if (modo == ModoInicializacion.Ninguna) return;
+
             InicializarSiNuncaCalculada("USUARIO", RecalcularUsuario);
             InicializarSiNuncaCalculada("ROL", RecalcularRol);
             InicializarSiNuncaCalculada("PERMISO", RecalcularPermiso);
             InicializarSiNuncaCalculada("ROL_PERMISO", RecalcularRolPermiso);
             InicializarSiNuncaCalculada("USUARIO_PERFIL", RecalcularUsuarioPerfil);
+            if (modo != ModoInicializacion.Todas) return;
+
+            InicializarSiNuncaCalculada("BITACORA", RecalcularBitacora);
+            InicializarSiNuncaCalculada("MATERIA", RecalcularMateria);
+            InicializarSiNuncaCalculada("CORRELATIVA", RecalcularCorrelativa);
+            InicializarSiNuncaCalculada("ALUMNO_MATERIA", RecalcularAlumnoMateria);
+            InicializarSiNuncaCalculada("EVENTO_ACADEMICO", RecalcularEventoAcademico);
+            InicializarSiNuncaCalculada("PERIODO_ACADEMICO", RecalcularPeriodoAcademico);
+            InicializarSiNuncaCalculada("INSCRIPCION", RecalcularInscripcion);
+            InicializarSiNuncaCalculada("INSCRIPCION_DETALLE", RecalcularInscripcionDetalle);
         }
 
         private void InicializarSiNuncaCalculada(string nombreTabla, Action recalcular)
@@ -781,23 +826,36 @@ namespace BLL
             object filas, Dictionary<int, string> rolesViejos, List<string> avisos)
         {
             var lista = serializer.Deserialize<List<FilaSnapshot>>(serializer.Serialize(filas));
-            int largoActual = ColumnasUsuario.Length;
+            int largoActual = ColumnasUsuario.Length; // 7: ..., INTENTOS_FALLIDOS, BLOQUEADO, ACTIVO
+            bool adaptado = false;
             foreach (var f in lista)
             {
-                if (f.Atributos != null && f.Atributos.Length == largoActual) continue;
-                if (f.Atributos != null && f.Atributos.Length == largoActual + 1)
+                int n = f.Atributos == null ? -1 : f.Atributos.Length;
+
+                // Layout anterior a los perfiles dinámicos: 7 atributos con ROL (texto) en la
+                // posición 4 -> se quita el rol y se agrega ACTIVO. Se distingue del layout
+                // actual (también de 7) porque ahí la posición 4 es INTENTOS_FALLIDOS (numérico).
+                if (n == largoActual && !int.TryParse(f.Atributos[4], out _))
                 {
                     rolesViejos[f.Id] = f.Atributos[4];
-                    var nuevos = new List<string>(f.Atributos);
-                    nuevos.RemoveAt(4);
-                    f.Atributos = nuevos.ToArray();
-                    continue;
+                    var sinRol = new List<string>(f.Atributos);
+                    sinRol.RemoveAt(4);
+                    sinRol.Add("1");
+                    f.Atributos = sinRol.ToArray();
+                    adaptado = true;
                 }
-                throw new ArgumentException("El backup tiene un formato de USUARIO que no se reconoce; no se restauró nada.");
+                // Layout de perfiles dinámicos sin ACTIVO: 6 atributos -> se agrega ACTIVO activo.
+                else if (n == largoActual - 1)
+                {
+                    f.Atributos = f.Atributos.Concat(new[] { "1" }).ToArray();
+                    adaptado = true;
+                }
+                else if (n != largoActual)
+                    throw new ArgumentException("El backup tiene un formato de USUARIO que no se reconoce; no se restauró nada.");
             }
-            if (rolesViejos.Count > 0)
-                avisos.Add("El backup tiene el formato anterior de USUARIO (con columna ROL): se adaptó. " +
-                           "Los usuarios sin perfil se reasignan según su rol de entonces.");
+            if (adaptado)
+                avisos.Add("El backup tiene un formato anterior de USUARIO: se adaptó (los usuarios quedan activos" +
+                           (rolesViejos.Count > 0 ? " y los que no tienen perfil se reasignan según su rol de entonces" : "") + ").");
             return lista;
         }
 
@@ -951,6 +1009,7 @@ namespace BLL
             public string Usuario;
             public string Pass;
             public byte[] Direccion;
+            public bool Activo;
         }
 
         private class FilaRolRestaurada
@@ -1061,7 +1120,8 @@ namespace BLL
             Id = ParseInt(a[0]),
             Usuario = a[1],
             Pass = a[2],
-            Direccion = ParseBase64(a[3])
+            Direccion = ParseBase64(a[3]),
+            Activo = ParseBit(a[6])
         };
 
         private static FilaRolRestaurada RehidratarRol(string[] a) => new FilaRolRestaurada
@@ -1177,7 +1237,7 @@ namespace BLL
             foreach (var f in ObtenerSnapshot("USUARIO"))
             {
                 var u = RehidratarUsuario(f.Atributos);
-                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion);
+                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion, u.Activo);
             }
         }
 

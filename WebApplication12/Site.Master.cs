@@ -11,7 +11,15 @@ namespace CAPAS_Web
                 Response.Redirect("~/Login.aspx");
                 return;
             }
+        }
+
+        // El menú se arma al final del ciclo para reflejar cambios de perfiles
+        // hechos durante este mismo pedido (por ejemplo desde Perfiles.aspx).
+        protected void Page_PreRender(object sender, EventArgs e)
+        {
             var u = Session["Usuario"] as BE.USUARIO;
+            if (u == null) return;
+            new BLL.PerfilBLL().RefrescarPermisosSiHaceFalta(u);
             lblUsuarioNav.Text  = u.Usuario;
             lnkInicio.NavigateUrl = PaginaBase.ObtenerPaginaInicio(u) ?? "~/Login.aspx";
 
@@ -20,6 +28,9 @@ namespace CAPAS_Web
             phNavPeriodos.Visible    = u.TienePermiso(BE.Permisos.GestionarPeriodos);
             phNavBitacora.Visible    = u.TienePermiso(BE.Permisos.VerBitacora);
             phNavBloqueados.Visible  = u.TienePermiso(BE.Permisos.DesbloquearUsuarios);
+            phNavUsuarios.Visible    = u.TienePermiso(BE.Permisos.GestionarUsuarios);
+            phNavPerfiles.Visible    = u.TienePermiso(BE.Permisos.GestionarPerfiles);
+            phNavAsignarPerfiles.Visible = phNavPerfiles.Visible;
             phNavInscripcion.Visible = u.TienePermiso(BE.Permisos.Inscribirse);
             phNavMisCursadas.Visible = u.TienePermiso(BE.Permisos.VerMisCursadas);
             phNavCalendario.Visible  = u.TienePermiso(BE.Permisos.VerCalendario);
@@ -30,7 +41,8 @@ namespace CAPAS_Web
 
             // Cada sección solo se muestra si alguno de sus enlaces es visible.
             phSeccionGestion.Visible       = phNavMaterias.Visible || phNavNotas.Visible || phNavPeriodos.Visible
-                                             || phNavBitacora.Visible || phNavBloqueados.Visible;
+                                             || phNavBitacora.Visible || phNavBloqueados.Visible || phNavPerfiles.Visible
+                                             || phNavUsuarios.Visible;
             phSeccionAcademico.Visible     = phNavInscripcion.Visible || phNavMisCursadas.Visible || phNavCalendario.Visible;
             phSeccionHerramientas.Visible  = phNavDashboard.Visible;
             phSeccionMantenimiento.Visible = phNavIntegridad.Visible;
@@ -45,7 +57,7 @@ namespace CAPAS_Web
                 // El logueo de logout se centraliza en Global.asax.cs (Session_End),
                 // que Session.Abandon() dispara siempre (modo InProc) — cubre tanto
                 // este botón como el timeout por inactividad, de forma uniforme.
-                BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario);
+                BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario, Session.SessionID);
             }
             Session.Abandon();
             Response.Redirect("~/Login.aspx");

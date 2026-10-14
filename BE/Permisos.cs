@@ -16,6 +16,7 @@ namespace BE
         public const string VerificarIntegridad = "Verificar integridad";
         public const string IngresarConIntegridadInvalida = "Ingresar con integridad invalida";
         public const string GestionarPerfiles = "Gestionar perfiles";
+        public const string GestionarUsuarios = "Gestionar usuarios";
         public const string VerMenuAlumno = "Ver menu de alumno";
         public const string Inscribirse = "Inscribirse a materias";
         public const string VerMisCursadas = "Ver mis cursadas";
@@ -24,6 +25,10 @@ namespace BE
         public const string VerCalendario = "Ver calendario";
         public const string EditarPerfil = "Editar perfil";
         public const string CambiarContrasena = "Cambiar contrasena";
+
+        // Perfiles base (no son permisos: el catálogo de permisos excluye los que empiezan con "Perfil").
+        public const string PerfilAdministrador = "Administrador";
+        public const string PerfilWebmaster = "Webmaster";
 
         /// <summary>Nombre del perfil de alumno (identidad de dominio, no permiso).</summary>
         public const string PerfilAlumno = "Alumno";

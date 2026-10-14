@@ -11,7 +11,7 @@ namespace CAPAS_Web
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            BLL.IntegridadBLL.IntentarInicializarTablasDePerfiles();
+            BLL.IntegridadBLL.IntentarInicializarDatosBase();
             if (!IsPostBack)
                 MostrarResultado(_bll.VerificarTodasLasTablas());
         }
@@ -105,11 +105,11 @@ namespace CAPAS_Web
 
         private void MostrarResultado(BLL.ResultadoIntegridad resultado)
         {
-            string errorInicio = BLL.IntegridadBLL.ErrorInicializacionPerfiles;
+            string errorInicio = BLL.IntegridadBLL.ErrorInicializacionDatosBase;
             if (errorInicio != null)
             {
                 resultado.EsValido = false;
-                resultado.Errores.Insert(0, "No se pudo calcular la integridad inicial de las tablas de perfiles: " + errorInicio);
+                resultado.Errores.Insert(0, "No se pudieron sembrar los datos base o calcular su integridad inicial: " + errorInicio);
             }
 
             rptResultados.DataSource = resultado.Errores;

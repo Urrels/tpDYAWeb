@@ -84,6 +84,7 @@
     <Compile Include="InscripcionDAL.cs" />
     <Compile Include="MateriaDAL.cs" />
     <Compile Include="PerfilDAL.cs" />
+    <Compile Include="SiembraDAL.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UsuarioDAL.cs" />
   </ItemGroup>
