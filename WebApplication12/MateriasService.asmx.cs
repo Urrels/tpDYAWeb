@@ -23,6 +23,7 @@ namespace CAPAS_Web
     /// </summary>
     [WebService(Namespace = "http://tpdyaweb.uai.edu.ar/", Description = "Consulta del plan de estudios (materias y correlativas).")]
     [WebServiceBinding(ConformsTo = WsiProfiles.BasicProfile1_1)]
+    [System.Web.Script.Services.ScriptService]
     public class MateriasService : WebService
     {
         private readonly BLL.MateriaBLL _bll = new BLL.MateriaBLL();

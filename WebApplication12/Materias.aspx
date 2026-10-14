@@ -63,6 +63,56 @@
         </div>
     </asp:Panel>
 
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-3">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <h6 class="card-section-title mb-0 me-3">Plan de estudios vía Web Service</h6>
+                <button type="button" id="btnConsultarWs" class="btn btn-outline-secondary btn-sm">Consultar MateriasService</button>
+            </div>
+            <div id="wsEstado" class="small text-muted"></div>
+            <div id="wsResultado" class="table-responsive"></div>
+        </div>
+    </div>
+    <script>
+        // Consume MateriasService.asmx desde el navegador (JSON); la cookie de sesión viaja sola.
+        document.getElementById('btnConsultarWs').addEventListener('click', function () {
+            var estado = document.getElementById('wsEstado');
+            var cont = document.getElementById('wsResultado');
+            estado.textContent = 'Consultando…';
+            cont.textContent = '';
+            fetch('MateriasService.asmx/ListarMaterias', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                body: '{}'
+            }).then(function (r) {
+                if (!r.ok) throw new Error('El servicio respondió ' + r.status + '.');
+                return r.json();
+            }).then(function (datos) {
+                var materias = datos.d;
+                var tabla = document.createElement('table');
+                tabla.className = 'table table-sm';
+                var cab = tabla.createTHead().insertRow();
+                ['Código', 'Nombre', 'Modalidad', 'Peso', 'Correlativas'].forEach(function (t) {
+                    cab.insertCell().textContent = t;
+                });
+                var cuerpo = tabla.createTBody();
+                materias.forEach(function (m) {
+                    var f = cuerpo.insertRow();
+                    f.insertCell().textContent = m.Codigo;
+                    f.insertCell().textContent = m.Nombre;
+                    f.insertCell().textContent = m.Modalidad;
+                    f.insertCell().textContent = m.Peso;
+                    f.insertCell().textContent = m.Correlativas.join(', ');
+                });
+                cont.appendChild(tabla);
+                estado.textContent = materias.length + ' materias recibidas del servicio.';
+            }).catch(function (e) {
+                estado.textContent = 'No se pudo consultar el servicio: ' + e.message;
+            });
+        });
+    </script>
+
     <div class="card shadow-sm border-0 table-card">
         <asp:GridView ID="gvMaterias" runat="server"
                       CssClass="table table-hover"
