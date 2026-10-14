@@ -19,6 +19,8 @@ namespace BLL
     ///  - Ningún cambio puede dejar al sistema sin al menos un usuario cuyos
     ///    permisos efectivos incluyan "Gestionar perfiles".
     ///  - No se elimina un perfil que tenga perfiles hijos o usuarios asignados.
+    ///  - Quien gestiona perfiles no puede otorgar, quitar ni tocar permisos
+    ///    privilegiados (Permisos.Privilegiados) que no posee (ver "Regla de escalada").
     ///
     /// También concentra el alta, modificación y baja lógica de usuarios porque
     /// comparten con los perfiles el lock de escritura y la guarda del último
@@ -63,11 +65,74 @@ namespace BLL
 
         public List<Rol> ListarRoles() => _dal.ListarRoles();
 
+        // Un perfil es gestionable por el actor si él y todos sus ancestros son visibles (el
+        // actor cubre sus permisos efectivos). Un cambio en un perfil altera los permisos
+        // efectivos de toda su cadena de ancestros, por eso no alcanza con mirar al perfil ni
+        // a su padre inmediato: la visibilidad es monótona hacia abajo (si un perfil es visible,
+        // también lo son sus descendientes), no hacia arriba, y un padre visible puede colgar
+        // de un abuelo oculto. Equivale a que la raíz de la cadena sea visible.
+        private static bool EsGestionable(Dictionary<int, Rol> mapa, HashSet<string> permisosActor, int rolId)
+        {
+            var visitados = new HashSet<int>();
+            int? actual = rolId;
+            while (actual.HasValue)
+            {
+                if (!mapa.TryGetValue(actual.Value, out Rol rol) || !visitados.Add(rol.Id)) return false;
+                if (!Cubre(permisosActor, rol.ObtenerPermisos())) return false;
+                actual = rol.PadreId;
+            }
+            return true;
+        }
+
+        // Los perfiles gestionables por el actor, siempre a partir de un mismo estado en memoria.
+        private static Dictionary<int, Rol> RolesGestionables(EstadoPerfiles estado, HashSet<string> permisosActor)
+        {
+            Dictionary<int, Rol> mapa = ConstruirMapaDeEstado(estado);
+            return mapa.Values.Where(r => EsGestionable(mapa, permisosActor, r.Id)).ToDictionary(r => r.Id);
+        }
+
+        /// <summary>
+        /// Perfiles que el actor puede ver y modificar en Perfiles.aspx: los que él y todos sus
+        /// ancestros cubren. Un perfil que cuelga de uno oculto no se muestra.
+        /// </summary>
+        public List<Rol> ListarRolesGestionablesPor(BE.USUARIO actor)
+        {
+            EstadoPerfiles estado = CargarEstado();
+            return RolesGestionables(estado, ExigirGestorDePerfiles(estado, actor)).Values.ToList();
+        }
+
+        /// <summary>
+        /// Árbol de los perfiles gestionables. Si un perfil es visible lo es todo su subárbol, así
+        /// que lo gestionable son los subárboles completos de las raíces visibles (sin huérfanos).
+        /// </summary>
+        public List<Rol> ObtenerArbolGestionablePor(BE.USUARIO actor)
+        {
+            EstadoPerfiles estado = CargarEstado();
+            Dictionary<int, Rol> gestionables = RolesGestionables(estado, ExigirGestorDePerfiles(estado, actor));
+            return gestionables.Values.Where(r => !r.PadreId.HasValue).OrderBy(r => r.Id).ToList();
+        }
+
+        /// <summary>El perfil con su subárbol, o null si no existe o el actor no puede gestionarlo.</summary>
+        public Rol ObtenerRolGestionablePor(int rolId, BE.USUARIO actor)
+        {
+            EstadoPerfiles estado = CargarEstado();
+            Dictionary<int, Rol> gestionables = RolesGestionables(estado, ExigirGestorDePerfiles(estado, actor));
+            return gestionables.TryGetValue(rolId, out Rol rol) ? rol : null;
+        }
+
+        /// <summary>Permisos del catálogo que el actor puede otorgar (para mostrar solo esos en pantalla).</summary>
+        public List<Permiso> ListarPermisosOtorgablesPor(BE.USUARIO actor)
+        {
+            HashSet<string> permisos = ExigirGestorDePerfiles(CargarEstado(), actor);
+            return _dal.ListarPermisosDisponibles().Where(p => Cubre(permisos, new[] { p.Nombre })).ToList();
+        }
+
         public List<Permiso> ListarPermisosDisponibles() => _dal.ListarPermisosDisponibles();
 
-        /// <summary>IDs de los permisos asignados directamente al rol.</summary>
-        public List<int> ObtenerIdsPermisosDirectos(int rolId)
+        /// <summary>IDs de los permisos asignados directamente a un perfil que el actor puede gestionar.</summary>
+        public List<int> ObtenerIdsPermisosDirectosPor(int rolId, BE.USUARIO actor)
         {
+            if (ObtenerRolGestionablePor(rolId, actor) == null) throw new InvalidOperationException(MensajePerfilNoExiste);
             return _dal.ListarPermisosPorRol().Where(p => p.PadreId == rolId).Select(p => p.Id).ToList();
         }
 
@@ -217,10 +282,24 @@ namespace BLL
                     "El cambio dejaría al sistema sin ningún usuario activo y no bloqueado con permiso para gestionar perfiles.");
         }
 
+        // Un perfil que el actor no puede ver se trata igual que uno inexistente: el mismo mensaje.
+        private const string MensajePerfilNoExiste = "El perfil no existe.";
+
         private static Rol BuscarRol(EstadoPerfiles estado, int rolId)
         {
             Rol rol = estado.Roles.FirstOrDefault(r => r.Id == rolId);
-            if (rol == null) throw new InvalidOperationException("El perfil no existe.");
+            if (rol == null) throw new InvalidOperationException(MensajePerfilNoExiste);
+            return rol;
+        }
+
+        // Como BuscarRol, pero también falla si el actor no puede gestionar el perfil: él y toda su
+        // cadena de ancestros deben ser visibles (ver EsGestionable), porque modificarlo cambia los
+        // permisos efectivos de los ancestros.
+        private static Rol BuscarRolGestionable(EstadoPerfiles estado, HashSet<string> permisosActor, int rolId)
+        {
+            Rol rol = BuscarRol(estado, rolId);
+            if (!EsGestionable(ConstruirMapaDeEstado(estado), permisosActor, rolId))
+                throw new InvalidOperationException(MensajePerfilNoExiste);
             return rol;
         }
 
@@ -301,9 +380,9 @@ namespace BLL
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
-                ExigirGestorDePerfiles(estado, actor);
+                HashSet<string> permisosActor = ExigirGestorDePerfiles(estado, actor);
+                if (padreId.HasValue) BuscarRolGestionable(estado, permisosActor, padreId.Value);
                 ExigirNombreLibre(estado, nombre, null);
-                if (padreId.HasValue) BuscarRol(estado, padreId.Value);
 
                 int id = _dal.InsertarRol(nombre, padreId);
                 PostEscritura(actor.Usuario, Accion("ALTA_PERFIL", nombre), _integridad.RecalcularRol);
@@ -317,8 +396,8 @@ namespace BLL
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
-                ExigirGestorDePerfiles(estado, actor);
-                Rol rol = BuscarRol(estado, rolId);
+                HashSet<string> permisosActor = ExigirGestorDePerfiles(estado, actor);
+                Rol rol = BuscarRolGestionable(estado, permisosActor, rolId);
                 ExigirNoProtegido(rol, "renombrar");
                 ExigirNombreLibre(estado, nombre, rolId);
 
@@ -332,13 +411,14 @@ namespace BLL
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
-                ExigirGestorDePerfiles(estado, actor);
-                Rol rol = BuscarRol(estado, rolId);
+                HashSet<string> permisosActor = ExigirGestorDePerfiles(estado, actor);
+                // Visible = el actor cubre los permisos efectivos del perfil (y los de su subárbol).
+                Rol rol = BuscarRolGestionable(estado, permisosActor, rolId);
                 ExigirNoProtegido(rol, "mover");
 
                 if (nuevoPadreId.HasValue)
                 {
-                    BuscarRol(estado, nuevoPadreId.Value);
+                    BuscarRolGestionable(estado, permisosActor, nuevoPadreId.Value);
                     if (GenerariaCiclo(rolId, nuevoPadreId.Value, estado.Roles))
                         throw new InvalidOperationException(
                             "No se puede asignar ese padre: generaría una referencia circular.");
@@ -357,8 +437,8 @@ namespace BLL
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
-                ExigirGestorDePerfiles(estado, actor);
-                Rol rol = BuscarRol(estado, rolId);
+                HashSet<string> permisosActor = ExigirGestorDePerfiles(estado, actor);
+                Rol rol = BuscarRolGestionable(estado, permisosActor, rolId);
                 ExigirNoProtegido(rol, "eliminar");
                 if (estado.Roles.Any(r => r.PadreId == rolId))
                     throw new InvalidOperationException(
@@ -383,8 +463,9 @@ namespace BLL
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
-                ExigirGestorDePerfiles(estado, actor);
-                Rol rol = BuscarRol(estado, rolId);
+                HashSet<string> permisosActor = ExigirGestorDePerfiles(estado, actor);
+                // Visible = ya cubre lo que el perfil concede (propio o heredado); abajo se exige cubrir lo que se le va a conceder.
+                Rol rol = BuscarRolGestionable(estado, permisosActor, rolId);
                 ExigirNoProtegido(rol, "modificar sus permisos");
 
                 Dictionary<int, string> catalogo = _dal.ListarPermisosDisponibles().ToDictionary(p => p.Id, p => p.Nombre);
@@ -392,7 +473,12 @@ namespace BLL
                 if (ids.Any(id => !catalogo.ContainsKey(id)))
                     throw new InvalidOperationException("Se indicó un permiso que no existe.");
 
-                estado.PermisosPorRol[rolId] = ids.Select(id => catalogo[id]).ToList();
+                List<string> otorgados = ids.Select(id => catalogo[id]).ToList();
+                // Un permiso que el actor no puede otorgar se trata como inexistente (no figura en su listado).
+                if (!otorgados.All(n => Cubre(permisosActor, new[] { n })))
+                    throw new InvalidOperationException("Se indicó un permiso que no existe.");
+
+                estado.PermisosPorRol[rolId] = otorgados;
                 ExigirOperadorDePerfiles(estado);
 
                 _dal.GuardarPermisosDeRol(rolId, ids);
@@ -410,8 +496,14 @@ namespace BLL
             lock (_lockEscritura)
             {
                 EstadoPerfiles estado = CargarEstado();
-                if (!PermisosDelActor(estado, actor).Contains(Permisos.GestionarPerfiles))
+                HashSet<string> permisosActor = PermisosDelActor(estado, actor);
+                if (!permisosActor.Contains(Permisos.GestionarPerfiles))
                     throw new InvalidOperationException("No tenés permiso para asignar perfiles.");
+                // Misma regla de escalada que en Usuarios: sobre el usuario y sobre los perfiles que cambian.
+                ExigirPuedeActuarSobre(estado, permisosActor, usuarioId);
+                var actuales = new HashSet<int>(estado.Asignaciones.Where(a => a.Key == usuarioId).Select(a => a.Value));
+                var nuevos = new HashSet<int>(rolIds ?? new List<int>());
+                ExigirPuedeAsignar(estado, permisosActor, actuales.Union(nuevos).Except(actuales.Intersect(nuevos)));
                 AsignarPerfilesInterno(estado, usuarioId, rolIds, actor.Usuario);
             }
         }
@@ -438,14 +530,17 @@ namespace BLL
         //
         // Regla de escalada: nadie puede otorgar, quitar ni actuar sobre algo que
         // exceda sus propios permisos. Se comprueba siempre acá (la página solo lo
-        // refleja en pantalla):
-        //  - Asignar o quitar un perfil R: solo con "Gestionar perfiles", o si los
-        //    permisos efectivos de R están contenidos en los del actor.
-        //  - Actuar sobre un usuario (editar, restablecer contraseña, baja o
-        //    reactivación): solo si sus permisos efectivos están contenidos en los
-        //    del actor; quien tiene un perfil protegido solo puede ser objeto de
-        //    acción de quien tiene "Gestionar perfiles".
-        //  - Nadie cambia sus propios perfiles ni su contraseña desde esta gestión.
+        // refleja en pantalla). "Cubrir" significa:
+        //  - Sin "Gestionar perfiles": el actor posee todos los permisos efectivos
+        //    del perfil o usuario involucrado (subconjunto).
+        //  - Con "Gestionar perfiles": alcanza con poseer los permisos privilegiados
+        //    (Permisos.Privilegiados) involucrados; los demás los administra libremente,
+        //    para que Administrador gestione alumnos sin tener sus permisos.
+        // Se aplica a: asignar o quitar un perfil (permisos efectivos del perfil);
+        // actuar sobre un usuario (editar, restablecer contraseña, baja, reactivación,
+        // asignar perfiles; sus permisos efectivos); y a los perfiles (otorgar un permiso,
+        // modificar, mover o eliminar uno cuyos permisos efectivos incluyen privilegiados).
+        // Nadie cambia sus propios perfiles ni su contraseña desde Usuarios.
         // =====================================================
 
         private const string PoliticaContrasena = @"^(?=.*[A-Z])(?=.*\d).{6,}$";
@@ -488,11 +583,29 @@ namespace BLL
         }
 
         // Operaciones sobre perfiles: exigen "Gestionar perfiles" en la BLL, no solo en la página.
-        private static void ExigirGestorDePerfiles(EstadoPerfiles estado, BE.USUARIO actor)
+        private static HashSet<string> ExigirGestorDePerfiles(EstadoPerfiles estado, BE.USUARIO actor)
         {
-            if (!PermisosDelActor(estado, actor).Contains(Permisos.GestionarPerfiles))
+            HashSet<string> permisos = PermisosDelActor(estado, actor);
+            if (!permisos.Contains(Permisos.GestionarPerfiles))
                 throw new InvalidOperationException("No tenés permiso para gestionar perfiles.");
+            return permisos;
         }
+
+        // Regla de escalada: ¿el actor cubre estos permisos? Con "Gestionar perfiles" alcanza
+        // con poseer los privilegiados involucrados (el resto lo administra libremente, así
+        // Administrador sigue gestionando alumnos aunque no tenga sus permisos). Sin él, el
+        // actor debe poseer todos.
+        private static bool Cubre(HashSet<string> permisosActor, IEnumerable<string> permisosObjetivo)
+        {
+            if (permisosActor.Contains(Permisos.GestionarPerfiles))
+                permisosObjetivo = permisosObjetivo.Where(Permisos.EsPrivilegiado);
+            return permisosActor.IsSupersetOf(permisosObjetivo);
+        }
+
+        // Permisos efectivos del perfil (incluye los de sus perfiles hijos).
+        private static HashSet<string> PermisosDeRol(EstadoPerfiles estado, int rolId) =>
+            ConstruirMapaDeEstado(estado).TryGetValue(rolId, out Rol rol)
+                ? new HashSet<string>(rol.ObtenerPermisos()) : new HashSet<string>();
 
         // Permisos del actor para las operaciones de gestión de usuarios: además exige "Gestionar usuarios".
         private static HashSet<string> PermisosDelGestor(EstadoPerfiles estado, BE.USUARIO actor)
@@ -503,6 +616,16 @@ namespace BLL
             return permisos;
         }
 
+        // Lecturas de usuarios y perfiles asignables: las usan Usuarios.aspx (Gestionar usuarios)
+        // y AsignarPerfiles.aspx (Gestionar perfiles), así que alcanza con cualquiera de los dos.
+        private static HashSet<string> PermisosDeLectorDeUsuarios(EstadoPerfiles estado, BE.USUARIO actor)
+        {
+            HashSet<string> permisos = PermisosDelActor(estado, actor);
+            if (!permisos.Contains(Permisos.GestionarUsuarios) && !permisos.Contains(Permisos.GestionarPerfiles))
+                throw new InvalidOperationException("No tenés permiso para ver usuarios.");
+            return permisos;
+        }
+
         private static HashSet<string> PermisosDeUsuario(EstadoPerfiles estado, int usuarioId) =>
             PermisosEfectivosPorUsuario(estado).TryGetValue(usuarioId, out HashSet<string> permisos)
                 ? permisos : new HashSet<string>();
@@ -510,10 +633,8 @@ namespace BLL
         // IDs de los perfiles que el actor puede asignar o quitar.
         private static List<int> RolesAsignables(EstadoPerfiles estado, HashSet<string> permisosActor)
         {
-            if (permisosActor.Contains(Permisos.GestionarPerfiles))
-                return estado.Roles.Select(r => r.Id).ToList();
             Dictionary<int, Rol> mapa = ConstruirMapaDeEstado(estado);
-            return mapa.Values.Where(r => permisosActor.IsSupersetOf(r.ObtenerPermisos())).Select(r => r.Id).ToList();
+            return mapa.Values.Where(r => Cubre(permisosActor, r.ObtenerPermisos())).Select(r => r.Id).ToList();
         }
 
         private static void ExigirPuedeAsignar(EstadoPerfiles estado, HashSet<string> permisosActor, IEnumerable<int> rolIds)
@@ -522,58 +643,136 @@ namespace BLL
             foreach (int rolId in rolIds)
                 if (!permitidos.Contains(rolId))
                 {
-                    Rol rol = estado.Roles.FirstOrDefault(r => r.Id == rolId);
-                    throw new InvalidOperationException(
-                        $"No podés asignar ni quitar el perfil {(rol != null ? rol.Nombre : rolId.ToString())}: " +
-                        "incluye permisos que vos no tenés.");
+                    // Mismo mensaje que para un perfil inexistente: no se revela que existe.
+                    throw new InvalidOperationException("Se indicó un perfil que no existe.");
                 }
         }
 
         private static bool PuedeActuarSobre(EstadoPerfiles estado, HashSet<string> permisosActor, int usuarioId)
         {
-            if (permisosActor.Contains(Permisos.GestionarPerfiles)) return true;
-            bool tienePerfilProtegido = estado.Asignaciones.Where(a => a.Key == usuarioId)
-                .Any(a => estado.Roles.Any(r => r.Id == a.Value && r.Protegido));
-            return !tienePerfilProtegido && permisosActor.IsSupersetOf(PermisosDeUsuario(estado, usuarioId));
+            // No hay excepción por perfil protegido: los permisos de un perfil protegido ya
+            // están en los efectivos del usuario, así que quien no los posee (o, si gestiona
+            // perfiles, no posee los privilegiados) queda fuera, y quien sí los posee no
+            // escala nada al actuar sobre alguien con esos mismos permisos.
+            return Cubre(permisosActor, PermisosDeUsuario(estado, usuarioId));
         }
+
+        // Un usuario que el actor no puede ver se trata igual que uno inexistente: el mismo
+        // mensaje, para que los errores no revelen que existe.
+        private const string MensajeUsuarioNoExiste = "El usuario no existe.";
 
         private static void ExigirPuedeActuarSobre(EstadoPerfiles estado, HashSet<string> permisosActor, int usuarioId)
         {
-            if (!PuedeActuarSobre(estado, permisosActor, usuarioId))
-                throw new InvalidOperationException(
-                    "No podés operar sobre este usuario: tiene permisos que vos no tenés.");
+            if (!estado.Existentes.Contains(usuarioId) || !PuedeActuarSobre(estado, permisosActor, usuarioId))
+                throw new InvalidOperationException(MensajeUsuarioNoExiste);
         }
 
         /// <summary>Perfiles que el actor puede asignar (para mostrar solo esos en pantalla).</summary>
         public List<int> ListarRolesAsignablesPor(BE.USUARIO actor)
         {
             EstadoPerfiles estado = CargarEstado();
-            return RolesAsignables(estado, PermisosDelActor(estado, actor));
+            return RolesAsignables(estado, PermisosDeLectorDeUsuarios(estado, actor));
         }
 
         /// <summary>IDs de los usuarios sobre los que el actor puede operar (para mostrar solo esas acciones).</summary>
         public HashSet<int> ListarUsuariosActuablesPor(BE.USUARIO actor)
         {
             EstadoPerfiles estado = CargarEstado();
-            HashSet<string> permisos = PermisosDelActor(estado, actor);
+            HashSet<string> permisos = PermisosDeLectorDeUsuarios(estado, actor);
             return new HashSet<int>(_usuarioDal.ListarTodos().Select(u => u.Id)
                 .Where(id => PuedeActuarSobre(estado, permisos, id)));
         }
 
-        /// <summary>Usuarios para la grilla de gestión, con sus perfiles y estado.</summary>
-        public List<BE.USUARIO> ListarUsuariosParaGestion()
+        /// <summary>
+        /// Usuarios para la grilla de gestión, con sus perfiles y estado. Solo incluye los
+        /// que el actor puede ver (los mismos sobre los que puede operar): los demás no
+        /// aparecen, así no se revela que existen.
+        /// </summary>
+        public List<BE.USUARIO> ListarUsuariosVisiblesPor(BE.USUARIO actor)
         {
-            List<BE.USUARIO> usuarios = _usuarioDal.ListarTodos();
+            EstadoPerfiles estado = CargarEstado();
+            HashSet<string> permisos = PermisosDeLectorDeUsuarios(estado, actor);
+            List<BE.USUARIO> usuarios = _usuarioDal.ListarTodos()
+                .Where(u => PuedeActuarSobre(estado, permisos, u.Id)).ToList();
             Dictionary<int, string> nombresRol = _dal.ListarRoles().ToDictionary(r => r.Id, r => r.Nombre);
-            ILookup<int, int> asignaciones = _dal.ListarAsignaciones().ToLookup(a => a.Key, a => a.Value);
+            ILookup<int, int> asignaciones = estado.Asignaciones.ToLookup(a => a.Key, a => a.Value);
             foreach (BE.USUARIO u in usuarios)
                 u.PerfilesTexto = string.Join(", ", asignaciones[u.Id]
                     .Where(nombresRol.ContainsKey).Select(id => nombresRol[id]).OrderBy(n => n));
             return usuarios;
         }
 
-        /// <summary>Dirección ya desencriptada del usuario (null si no tiene).</summary>
-        public string ObtenerDireccion(string usuario) => _usuarioDal.ObtenerPorNombre(usuario)?.DireccionVisible;
+        // Lecturas por usuario: exigen que el actor pueda ver al usuario (mismo error que si no existiera).
+        private BE.USUARIO ExigirVisible(int usuarioId, BE.USUARIO actor, bool soloGestorDeUsuarios, out EstadoPerfiles estado)
+        {
+            estado = CargarEstado();
+            HashSet<string> permisos = soloGestorDeUsuarios
+                ? PermisosDelGestor(estado, actor) : PermisosDeLectorDeUsuarios(estado, actor);
+            BE.USUARIO u = BuscarUsuario(_usuarioDal.ListarTodos(), usuarioId);
+            ExigirPuedeActuarSobre(estado, permisos, usuarioId);
+            return u;
+        }
+
+        /// <summary>IDs de los perfiles asignados a un usuario que el actor puede ver.</summary>
+        public List<int> ObtenerIdsRolesDeUsuarioPor(int usuarioId, BE.USUARIO actor)
+        {
+            ExigirVisible(usuarioId, actor, false, out _);
+            return _dal.ListarRolesDeUsuario(usuarioId);
+        }
+
+        /// <summary>Permisos efectivos de un usuario que el actor puede ver.</summary>
+        public List<string> ObtenerPermisosEfectivosPor(int usuarioId, BE.USUARIO actor)
+        {
+            ExigirVisible(usuarioId, actor, false, out _);
+            return ObtenerPermisosEfectivos(usuarioId);
+        }
+
+        /// <summary>Dirección ya desencriptada de un usuario que el actor puede ver (null si no tiene).</summary>
+        public string ObtenerDireccion(string usuario, BE.USUARIO actor)
+        {
+            // La dirección solo la ve quien gestiona usuarios (Usuarios.aspx), nunca un lector cualquiera.
+            PermisosDelGestor(CargarEstado(), actor);
+            BE.USUARIO u = _usuarioDal.ListarTodos().FirstOrDefault(x =>
+                string.Equals(x.Usuario, usuario, StringComparison.OrdinalIgnoreCase));
+            if (u == null) throw new InvalidOperationException(MensajeUsuarioNoExiste);
+            ExigirVisible(u.Id, actor, true, out _);
+            return _usuarioDal.ObtenerPorNombre(u.Usuario)?.DireccionVisible;
+        }
+
+        // Desbloqueo: exige "Desbloquear usuarios" y que el actor pueda ver al usuario.
+        private BE.USUARIO ExigirDesbloqueable(BE.USUARIO actor, string usuario, out EstadoPerfiles estado)
+        {
+            estado = CargarEstado();
+            HashSet<string> permisos = PermisosDelActor(estado, actor);
+            if (!permisos.Contains(Permisos.DesbloquearUsuarios))
+                throw new InvalidOperationException("No tenés permiso para desbloquear usuarios.");
+            BE.USUARIO u = _usuarioDal.ListarTodos().FirstOrDefault(x =>
+                string.Equals(x.Usuario, usuario, StringComparison.OrdinalIgnoreCase));
+            if (u == null) throw new InvalidOperationException(MensajeUsuarioNoExiste);
+            ExigirPuedeActuarSobre(estado, permisos, u.Id);
+            return u;
+        }
+
+        /// <summary>Usuarios bloqueados que el actor puede ver (y por lo tanto desbloquear).</summary>
+        public List<BE.USUARIO> ListarBloqueadosVisiblesPor(BE.USUARIO actor)
+        {
+            EstadoPerfiles estado = CargarEstado();
+            HashSet<string> permisos = PermisosDelActor(estado, actor);
+            if (!permisos.Contains(Permisos.DesbloquearUsuarios))
+                throw new InvalidOperationException("No tenés permiso para desbloquear usuarios.");
+            return _usuarioDal.ListarBloqueados().Where(u => PuedeActuarSobre(estado, permisos, u.Id)).ToList();
+        }
+
+        /// <summary>Desbloquea una cuenta bloqueada por intentos fallidos.</summary>
+        public void DesbloquearUsuario(string usuario, BE.USUARIO actor)
+        {
+            lock (_lockEscritura)
+            {
+                BE.USUARIO u = ExigirDesbloqueable(actor, usuario, out _);
+                _usuarioDal.Desbloquear(u.Usuario);
+                PostEscritura(actor.Usuario, "DESBLOQUEO_USUARIO:" + u.Usuario, _integridad.RecalcularUsuario);
+            }
+        }
 
         private static void ValidarContrasena(string contrasena, string confirmacion)
         {
@@ -595,7 +794,7 @@ namespace BLL
         private static BE.USUARIO BuscarUsuario(List<BE.USUARIO> usuarios, int usuarioId)
         {
             BE.USUARIO u = usuarios.FirstOrDefault(x => x.Id == usuarioId);
-            if (u == null) throw new InvalidOperationException("El usuario no existe.");
+            if (u == null) throw new InvalidOperationException(MensajeUsuarioNoExiste);
             return u;
         }
 

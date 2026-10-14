@@ -53,10 +53,12 @@ namespace BLL
                     Permisos.DesbloquearUsuarios, Permisos.GestionarPeriodos, Permisos.GestionarPerfiles,
                     Permisos.GestionarUsuarios, Permisos.EditarPerfil, Permisos.CambiarContrasena
                 } },
-            // Solo el Webmaster puede ingresar con la integridad inválida.
+            // Solo el Webmaster puede ingresar con la integridad inválida. Gestiona y desbloquea
+            // las cuentas webmaster (el Administrador no las cubre y no puede hacerlo).
             { Permisos.PerfilWebmaster, new[]
                 {
-                    Permisos.VerificarIntegridad, Permisos.IngresarConIntegridadInvalida
+                    Permisos.VerificarIntegridad, Permisos.IngresarConIntegridadInvalida, Permisos.GestionarUsuarios,
+                    Permisos.DesbloquearUsuarios
                 } },
             { Permisos.PerfilAlumno, new[]
                 {

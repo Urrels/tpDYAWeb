@@ -40,13 +40,13 @@ namespace CAPAS_Web
 
         private void RecargarInterno()
         {
-            List<BE.Rol> raices = _bll.ObtenerArbol();
+            List<BE.Rol> raices = _bll.ObtenerArbolGestionablePor(UsuarioActual);
             tvPerfiles.Nodes.Clear();
             foreach (BE.Rol raiz in raices)
                 tvPerfiles.Nodes.Add(ConstruirNodo(raiz));
 
-            // Si el perfil seleccionado ya no existe (por ejemplo, se eliminó), se limpia la selección.
-            BE.Rol seleccionado = RolSeleccionadoId.HasValue ? _bll.ObtenerRol(RolSeleccionadoId.Value) : null;
+            // Si el perfil seleccionado ya no existe o no es visible para el actor, se limpia la selección.
+            BE.Rol seleccionado = RolSeleccionadoId.HasValue ? _bll.ObtenerRolGestionablePor(RolSeleccionadoId.Value, UsuarioActual) : null;
             if (seleccionado == null) RolSeleccionadoId = null;
 
             if (seleccionado != null)
@@ -73,7 +73,7 @@ namespace CAPAS_Web
                     nodo.ChildNodes.Add(new TreeNode
                     {
                         Text = "<i class='bi bi-key'></i> <span class='text-muted'>" + HttpUtility.HtmlEncode(hijo.Nombre) + "</span>",
-                        Value = "P:" + rol.Id + ":" + hijo.Id,
+                        Value = "P:" + rol.Id + ":" + hijo.Nombre,
                         SelectAction = TreeNodeSelectAction.None
                     });
             }
@@ -102,8 +102,8 @@ namespace CAPAS_Web
             lblProtegido.Visible = rol.Protegido;
             txtRenombrar.Text = rol.Nombre;
 
-            // Padres posibles: cualquier perfil que no genere un ciclo (no él mismo ni sus descendientes).
-            List<BE.Rol> todos = _bll.ListarRoles();
+            // Padres posibles: cualquier perfil gestionable que no genere un ciclo (no él mismo ni sus descendientes).
+            List<BE.Rol> todos = _bll.ListarRolesGestionablesPor(UsuarioActual);
             ddlPadre.Items.Clear();
             ddlPadre.Items.Add(new ListItem("(raíz — sin padre)", ""));
             foreach (BE.Rol r in todos.OrderBy(x => x.Nombre))
@@ -111,9 +111,9 @@ namespace CAPAS_Web
                     ddlPadre.Items.Add(new ListItem(r.Nombre, r.Id.ToString()));
             ddlPadre.SelectedValue = rol.PadreId.HasValue ? rol.PadreId.Value.ToString() : "";
 
-            List<int> propios = _bll.ObtenerIdsPermisosDirectos(rol.Id);
+            List<int> propios = _bll.ObtenerIdsPermisosDirectosPor(rol.Id, UsuarioActual);
             cblPermisos.Items.Clear();
-            foreach (BE.Permiso p in _bll.ListarPermisosDisponibles())
+            foreach (BE.Permiso p in _bll.ListarPermisosOtorgablesPor(UsuarioActual))
                 cblPermisos.Items.Add(new ListItem(p.Nombre, p.Id.ToString()) { Selected = propios.Contains(p.Id) });
 
             blEfectivos.Items.Clear();

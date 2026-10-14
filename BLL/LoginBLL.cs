@@ -131,22 +131,6 @@ namespace BLL
             return ok;
         }
 
-        /// <summary>
-        /// Acción de Admin: desbloquea una cuenta bloqueada por intentos
-        /// fallidos. El proyecto usa Session["Usuario"] de ASP.NET (no un
-        /// SessionManager persistente entre requests) como mecanismo real de
-        /// sesión, por eso el admin que ejecuta la acción se recibe como
-        /// parámetro desde la página en vez de leerse acá.
-        /// </summary>
-        public void Desbloquear(string usuario, string admin)
-        {
-            _dal.Desbloquear(usuario);
-            _bitacora.RegistrarAccion(admin, "DESBLOQUEO_USUARIO:" + usuario);
-            _integridad.RecalcularUsuario();
-        }
-
-        public List<BE.USUARIO> ListarBloqueados() => _dal.ListarBloqueados();
-
         public List<BE.USUARIO> ListarTodos() => _dal.ListarTodos();
 
         /// <summary>

@@ -16,29 +16,55 @@ namespace CAPAS_Web
         {
             if (IsPostBack) return;
 
-            foreach (BE.USUARIO u in new BLL.UsuarioBLL().ListarTodos())
+            // Solo los usuarios y perfiles que el actor puede ver; la BLL vuelve a comprobarlo al guardar.
+            foreach (BE.USUARIO u in _bll.ListarUsuariosVisiblesPor(UsuarioActual))
                 ddlUsuario.Items.Add(new ListItem(u.Usuario, u.Id.ToString()));
 
-            foreach (BE.Rol r in _bll.ListarRoles().OrderBy(x => x.Nombre))
+            List<int> asignables = _bll.ListarRolesAsignablesPor(UsuarioActual);
+            foreach (BE.Rol r in _bll.ListarRoles().Where(x => asignables.Contains(x.Id)).OrderBy(x => x.Nombre))
                 cblRoles.Items.Add(new ListItem(r.Nombre, r.Id.ToString()));
 
             CargarUsuario();
         }
 
-        private void CargarUsuario()
+        // Carga perfiles y permisos del usuario elegido. Si la BLL lo rechaza (por ejemplo ya no
+        // existe o dejó de ser visible) se muestra el motivo, se rearma la lista de usuarios y se
+        // vuelve a intentar con el primero; nunca se deja la vista de otro usuario sin tildes.
+        private void CargarUsuario(bool reintentar = true)
         {
             if (ddlUsuario.Items.Count == 0) return;
-            int usuarioId = int.Parse(ddlUsuario.SelectedValue);
+            try
+            {
+                int usuarioId = int.Parse(ddlUsuario.SelectedValue);
 
-            List<int> asignados = _bll.ObtenerIdsRolesDeUsuario(usuarioId);
-            foreach (ListItem item in cblRoles.Items)
-                item.Selected = asignados.Contains(int.Parse(item.Value));
+                List<int> asignados = _bll.ObtenerIdsRolesDeUsuarioPor(usuarioId, UsuarioActual);
+                foreach (ListItem item in cblRoles.Items)
+                    item.Selected = asignados.Contains(int.Parse(item.Value));
 
-            blEfectivos.Items.Clear();
-            List<string> permisos = _bll.ObtenerPermisosEfectivos(usuarioId);
-            foreach (string nombre in permisos.OrderBy(n => n))
-                blEfectivos.Items.Add(nombre);
-            lblSinPermisos.Visible = permisos.Count == 0;
+                blEfectivos.Items.Clear();
+                List<string> permisos = _bll.ObtenerPermisosEfectivosPor(usuarioId, UsuarioActual);
+                foreach (string nombre in permisos.OrderBy(n => n))
+                    blEfectivos.Items.Add(nombre);
+                lblSinPermisos.Visible = permisos.Count == 0;
+            }
+            catch (InvalidOperationException ex)
+            {
+                lblMsg.CssClass = "alert alert-danger d-block mb-3";
+                lblMsg.Text = HttpUtility.HtmlEncode(ex.Message);
+                lblMsg.Visible = true;
+                blEfectivos.Items.Clear();
+                lblSinPermisos.Visible = false;
+                foreach (ListItem item in cblRoles.Items) item.Selected = false;
+
+                ddlUsuario.Items.Clear();
+                try
+                {
+                    foreach (BE.USUARIO u in _bll.ListarUsuariosVisiblesPor(UsuarioActual))
+                        ddlUsuario.Items.Add(new ListItem(u.Usuario, u.Id.ToString()));
+                }
+                catch (InvalidOperationException) { }
+                if (reintentar) CargarUsuario(false);
+            }
         }
 
         protected void ddlUsuario_SelectedIndexChanged(object sender, EventArgs e)
