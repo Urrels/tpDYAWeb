@@ -604,42 +604,62 @@ namespace BLL
             RecalcularUsuarioPerfil();
         }
 
-        /// <summary>
-        /// Arranque único tras migrar la base al modelo de perfiles: las
-        /// tablas nuevas (y USUARIO, cuyo orden de columnas cambió al quitar
-        /// ROL) llegan sin DVH/DVV ni snapshot. Solo las tablas que no tienen
-        /// ninguno de los dos se calculan por primera vez; si alguna ya tiene
-        /// datos de integridad, no se toca (una alteración se sigue
-        /// detectando como siempre).
-        /// </summary>
         private static readonly object _lockInit = new object();
-        private static bool _perfilesInicializados;
+        private static bool _datosBaseInicializados;
         private static string _errorInicializacion;
 
+        /// <summary>Qué tablas sin DVV/snapshot puede inicializar el arranque.</summary>
+        public enum ModoInicializacion
+        {
+            /// <summary>Ninguna: base en uso (hay marcador de siembra).</summary>
+            Ninguna,
+            /// <summary>Solo USUARIO y las tablas de perfiles (base previa a los perfiles, sin marcador).</summary>
+            Perfiles,
+            /// <summary>Las 13 tablas (instalación nueva: sin marcador y sin usuarios).</summary>
+            Todas
+        }
+
+        // Se determina una sola vez, ANTES de que la siembra inserte nada, y se conserva
+        // entre reintentos (la siembra escribe el marcador y cambiaría la respuesta).
+        private static ModoInicializacion? _modoInicial;
+
+        private ModoInicializacion DeterminarModoInicial()
+        {
+            if (new DAL.SiembraDAL().ExisteMarcadorSiembra()) return ModoInicializacion.Ninguna;
+            return _dal.ListarParaIntegridad("USUARIO").Rows.Count == 0
+                ? ModoInicializacion.Todas
+                : ModoInicializacion.Perfiles;
+        }
+
         /// <summary>
-        /// Último error del cálculo inicial de integridad de las tablas de
-        /// perfiles, o null si no hubo error o ya se resolvió. El panel
-        /// Webmaster lo muestra para que la falla no pase inadvertida.
+        /// Último error de la inicialización de datos base (siembra o cálculo
+        /// inicial de integridad), o null si no hubo error o ya se resolvió. El
+        /// panel Webmaster lo muestra para que la falla no pase inadvertida.
         /// </summary>
-        public static string ErrorInicializacionPerfiles
+        public static string ErrorInicializacionDatosBase
         {
             get { lock (_lockInit) { return _errorInicializacion; } }
         }
 
         /// <summary>
-        /// Intenta el cálculo inicial una sola vez con éxito: si falla guarda
-        /// el error, lo registra en bitácora (la primera vez) y deja el
-        /// reintento para el próximo login o la próxima visita a Integridad.
+        /// Inicialización de arranque, hasta lograrla una vez: primero siembra los
+        /// datos base de seguridad (<see cref="SiembraBLL"/>) y luego calcula la
+        /// integridad de las tablas que nunca la tuvieron. Si falla guarda el
+        /// error, lo registra en bitácora (la primera vez) y deja el reintento para
+        /// el próximo login o la próxima visita a Integridad.
         /// </summary>
-        public static void IntentarInicializarTablasDePerfiles()
+        public static void IntentarInicializarDatosBase()
         {
             lock (_lockInit)
             {
-                if (_perfilesInicializados) return;
+                if (_datosBaseInicializados) return;
                 try
                 {
-                    new IntegridadBLL().InicializarTablasDePerfiles();
-                    _perfilesInicializados = true;
+                    var integridad = new IntegridadBLL();
+                    if (_modoInicial == null) _modoInicial = integridad.DeterminarModoInicial();
+                    new SiembraBLL().SembrarDatosBase();
+                    integridad.InicializarTablasNuncaCalculadas(_modoInicial.Value);
+                    _datosBaseInicializados = true;
                     _errorInicializacion = null;
                 }
                 catch (Exception ex)
@@ -648,20 +668,45 @@ namespace BLL
                     _errorInicializacion = ex.Message;
                     if (esNuevo)
                     {
-                        try { new BitacoraBLL().RegistrarAccion("SISTEMA", "ERROR_INICIALIZAR_INTEGRIDAD_PERFILES"); }
+                        try { new BitacoraBLL().RegistrarAccion("SISTEMA", "ERROR_INICIALIZAR_DATOS_BASE"); }
                         catch { /* sin base disponible no hay donde registrar */ }
                     }
                 }
             }
         }
 
-        public void InicializarTablasDePerfiles()
+        /// <summary>
+        /// Calcula por primera vez la integridad de tablas sin DVV ni snapshot, solo
+        /// donde es legítimo:
+        ///  - Todas: instalación nueva (sin marcador de siembra y sin usuarios); las
+        ///    tablas que carga el script (MATERIA, CORRELATIVA, ...) nunca se calcularon.
+        ///  - Perfiles: base previa sin marcador pero con usuarios (migración desde la
+        ///    versión con USUARIO.ROL): el script descartó el DVV de USUARIO y las tablas
+        ///    de perfiles son nuevas; es lo único que se inicializaba antes de esta versión.
+        ///  - Ninguna: base en uso. Una tabla sin DVV se informa como inválida, no se
+        ///    "cura" sola, porque sería aceptar una alteración. Las tablas que la propia
+        ///    siembra descarta las recalcula <see cref="SiembraBLL"/>.
+        /// Una tabla que ya tiene datos de integridad no se toca en ningún modo.
+        /// </summary>
+        public void InicializarTablasNuncaCalculadas(ModoInicializacion modo)
         {
+            if (modo == ModoInicializacion.Ninguna) return;
+
             InicializarSiNuncaCalculada("USUARIO", RecalcularUsuario);
             InicializarSiNuncaCalculada("ROL", RecalcularRol);
             InicializarSiNuncaCalculada("PERMISO", RecalcularPermiso);
             InicializarSiNuncaCalculada("ROL_PERMISO", RecalcularRolPermiso);
             InicializarSiNuncaCalculada("USUARIO_PERFIL", RecalcularUsuarioPerfil);
+            if (modo != ModoInicializacion.Todas) return;
+
+            InicializarSiNuncaCalculada("BITACORA", RecalcularBitacora);
+            InicializarSiNuncaCalculada("MATERIA", RecalcularMateria);
+            InicializarSiNuncaCalculada("CORRELATIVA", RecalcularCorrelativa);
+            InicializarSiNuncaCalculada("ALUMNO_MATERIA", RecalcularAlumnoMateria);
+            InicializarSiNuncaCalculada("EVENTO_ACADEMICO", RecalcularEventoAcademico);
+            InicializarSiNuncaCalculada("PERIODO_ACADEMICO", RecalcularPeriodoAcademico);
+            InicializarSiNuncaCalculada("INSCRIPCION", RecalcularInscripcion);
+            InicializarSiNuncaCalculada("INSCRIPCION_DETALLE", RecalcularInscripcionDetalle);
         }
 
         private void InicializarSiNuncaCalculada(string nombreTabla, Action recalcular)

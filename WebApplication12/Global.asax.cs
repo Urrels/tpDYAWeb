@@ -13,11 +13,11 @@ namespace CAPAS_Web
                 Application["DBError"] = ex.Message;
             }
 
-            // Tras migrar al modelo de perfiles, las tablas nuevas llegan sin
-            // DVH/DVV: se calculan por primera vez (solo si nunca se calcularon).
-            // Si falla, el error queda en IntegridadBLL.ErrorInicializacionPerfiles
+            // Siembra los datos base de seguridad (permisos, perfiles, admin y webmaster)
+            // y calcula la integridad de lo que nunca la tuvo.
+            // Si falla, el error queda en IntegridadBLL.ErrorInicializacionDatosBase
             // (visible en Integridad.aspx) y se reintenta en el próximo login.
-            BLL.IntegridadBLL.IntentarInicializarTablasDePerfiles();
+            BLL.IntegridadBLL.IntentarInicializarDatosBase();
         }
 
         protected void Session_End(object sender, EventArgs e)

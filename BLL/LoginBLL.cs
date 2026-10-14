@@ -25,6 +25,11 @@ namespace BLL
             if (string.IsNullOrEmpty(usuario) || string.IsNullOrEmpty(contrasena))
                 return LoginResultado.CredencialesInvalidas;
 
+            // Reintenta (si hace falta) la siembra de datos base. Va primero: en una
+            // base nueva donde falló al iniciar la aplicación todavía no existen los
+            // usuarios iniciales, y sin este reintento nadie podría ingresar.
+            IntegridadBLL.IntentarInicializarDatosBase();
+
             // Se chequea el bloqueo ANTES de validar credenciales: no gasta el
             // hash ni le da al atacante ninguna pista sobre si la contraseña
             // ingresada era correcta.
@@ -45,9 +50,6 @@ namespace BLL
 
                 _dal.ResetearIntentos(usuario);
 
-                // Reintenta (si hace falta) el cálculo inicial de integridad de
-                // las tablas de perfiles antes de recalcular USUARIO.
-                IntegridadBLL.IntentarInicializarTablasDePerfiles();
                 _integridad.RecalcularUsuario();
 
                 if (BE.SessionRegistry.Instancia.TieneSesionActiva(usuario))

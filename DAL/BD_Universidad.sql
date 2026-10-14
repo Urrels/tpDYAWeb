@@ -734,8 +734,7 @@ END
 GO
 
 PRINT '✔ BDUNIVERSIDAD creada y configurada correctamente.';
-PRINT 'Admin: usuario=admin | contraseña=Admin123';
-PRINT 'Webmaster: usuario=webmaster | contraseña=Webmaster123';
+PRINT 'Los usuarios admin (Admin123) y webmaster (Webmaster123) los crea la aplicación en su primer arranque.';
 GO
 
 -- =============================================
@@ -1657,15 +1656,20 @@ GO
 -- (USUARIO_PERFIL). Los permisos efectivos se resuelven en la capa BLL
 -- recorriendo el árbol (Composite), no con una consulta plana.
 --
--- Sobre una base existente: crea las tablas, siembra los perfiles base,
--- migra cada usuario según su USUARIO.ROL y elimina esa columna.
--- Después de ejecutarlo la aplicación recalcula DVH/DVV de las tablas
--- nuevas la primera vez que arranca (ver Global.asax.cs).
+-- Este script solo define esquema y procedimientos. Los DATOS de seguridad
+-- (catálogo de permisos, perfiles base Administrador/Webmaster/Alumno con sus
+-- permisos, y los usuarios admin y webmaster) los siembra la aplicación al
+-- iniciar (BLL.SiembraBLL), para que cada fila nazca con su DVH/DVV calculado
+-- por el motor de integridad de C#.
 --
--- REGLA: todo seed idempotente que inserta filas en una tabla con integridad
--- (DVH/DVV) descarta el DVV y el snapshot de esa tabla solo si insertó algo
--- (@@ROWCOUNT > 0). Así el arranque de la aplicación la recalcula; de lo
--- contrario la verificación vería las filas nuevas como alteraciones.
+-- Sobre una base existente: crea las tablas, anota en MIGRACION_USUARIO_ROL el
+-- perfil que corresponde a cada usuario según su USUARIO.ROL y elimina esa
+-- columna; la aplicación asigna esos perfiles en su primer arranque.
+--
+-- REGLA: toda sentencia de este script que cambie filas de una tabla con
+-- integridad (DVH/DVV) descarta el DVV y el snapshot de esa tabla solo si
+-- cambió algo (@@ROWCOUNT > 0); el arranque de la aplicación la recalcula.
+-- Si no, la verificación vería esos cambios como alteraciones.
 -- =============================================
 
 USE BDUNIVERSIDAD
@@ -1727,112 +1731,37 @@ CREATE TABLE USUARIO_PERFIL (
 GO
 
 -- ---------------------------------------------
--- Catálogo de permisos (los nombres deben coincidir con BE.Permisos)
+-- Tabla de paso para migrar USUARIO.ROL -> USUARIO_PERFIL. Los perfiles base
+-- (ROL) y sus permisos ya no se siembran en este script: los crea la aplicación
+-- al iniciar (SiembraBLL). Como al migrar todavía no existen, se guarda acá el
+-- nombre del perfil que le corresponde a cada usuario y la aplicación lo asigna
+-- (y vacía la tabla) en su primer arranque.
 -- ---------------------------------------------
 
-INSERT INTO PERMISO (NOMBRE)
-SELECT v.NOMBRE
-FROM (VALUES
-    ('Gestionar materias'),
-    ('Cargar notas'),
-    ('Ver bitacora'),
-    ('Desbloquear usuarios'),
-    ('Gestionar periodos e inscripciones'),
-    ('Verificar integridad'),
-    ('Ingresar con integridad invalida'),
-    ('Gestionar perfiles'),
-    ('Ver menu de alumno'),
-    ('Inscribirse a materias'),
-    ('Ver mis cursadas'),
-    ('Ver dashboard'),
-    ('Exportar PDF'),
-    ('Ver calendario'),
-    ('Editar perfil'),
-    ('Cambiar contrasena')
-) v(NOMBRE)
-WHERE NOT EXISTS (SELECT 1 FROM PERMISO p WHERE p.NOMBRE = v.NOMBRE)
-
-IF @@ROWCOUNT > 0
-BEGIN
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'PERMISO';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'PERMISO';
-END
+IF OBJECT_ID('MIGRACION_USUARIO_ROL', 'U') IS NULL
+CREATE TABLE MIGRACION_USUARIO_ROL (
+    USUARIO_ID INT          NOT NULL PRIMARY KEY,
+    ROL_NOMBRE VARCHAR(100) NOT NULL
+)
 GO
 
 -- ---------------------------------------------
--- Perfiles base. Administrador y Webmaster son del sistema (PROTEGIDO).
--- ---------------------------------------------
-
-INSERT INTO ROL (NOMBRE, PADRE_ID, PROTEGIDO)
-SELECT v.NOMBRE, NULL, v.PROTEGIDO
-FROM (VALUES
-    ('Administrador', 1),
-    ('Webmaster',     1),
-    ('Alumno',        0)
-) v(NOMBRE, PROTEGIDO)
-WHERE NOT EXISTS (SELECT 1 FROM ROL r WHERE r.NOMBRE = v.NOMBRE)
-
-IF @@ROWCOUNT > 0
-BEGIN
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'ROL';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'ROL';
-END
-GO
-
--- Permisos de cada perfil base. Solo se siembran para un perfil que todavía
--- no tiene ninguno, así volver a ejecutar el script no pisa cambios hechos
--- después desde la aplicación.
-INSERT INTO ROL_PERMISO (ROL_ID, PERMISO_ID)
-SELECT r.ID, p.ID
-FROM (VALUES
-    ('Administrador', 'Gestionar materias'),
-    ('Administrador', 'Cargar notas'),
-    ('Administrador', 'Ver bitacora'),
-    ('Administrador', 'Desbloquear usuarios'),
-    ('Administrador', 'Gestionar periodos e inscripciones'),
-    ('Administrador', 'Gestionar perfiles'),
-    ('Administrador', 'Editar perfil'),
-    ('Administrador', 'Cambiar contrasena'),
-    ('Webmaster',     'Verificar integridad'),
-    ('Webmaster',     'Ingresar con integridad invalida'),
-    ('Alumno',        'Ver menu de alumno'),
-    ('Alumno',        'Inscribirse a materias'),
-    ('Alumno',        'Ver mis cursadas'),
-    ('Alumno',        'Ver dashboard'),
-    ('Alumno',        'Exportar PDF'),
-    ('Alumno',        'Ver calendario'),
-    ('Alumno',        'Editar perfil'),
-    ('Alumno',        'Cambiar contrasena')
-) m(ROL, PERMISO)
-JOIN ROL     r ON r.NOMBRE = m.ROL
-JOIN PERMISO p ON p.NOMBRE = m.PERMISO
-WHERE NOT EXISTS (SELECT 1 FROM ROL_PERMISO x WHERE x.ROL_ID = r.ID)
-
-IF @@ROWCOUNT > 0
-BEGIN
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'ROL_PERMISO';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'ROL_PERMISO';
-END
-GO
-
--- ---------------------------------------------
--- Migración de USUARIO.ROL -> USUARIO_PERFIL, y baja de la columna.
+-- Migración de USUARIO.ROL (a MIGRACION_USUARIO_ROL), y baja de la columna.
 -- Dinámico porque en una instalación nueva la columna ya no existe.
 -- ---------------------------------------------
 
 IF COL_LENGTH('USUARIO', 'ROL') IS NOT NULL
 BEGIN
     EXEC sp_executesql N'
-        INSERT INTO USUARIO_PERFIL (USUARIO_ID, ROL_ID)
-        SELECT u.ID, r.ID
+        INSERT INTO MIGRACION_USUARIO_ROL (USUARIO_ID, ROL_NOMBRE)
+        SELECT u.ID, CASE u.ROL
+                         WHEN ''Admin''     THEN ''Administrador''
+                         WHEN ''Webmaster'' THEN ''Webmaster''
+                         ELSE ''Alumno''
+                     END
         FROM USUARIO u
-        JOIN ROL r ON r.NOMBRE = CASE u.ROL
-                                     WHEN ''Admin''    THEN ''Administrador''
-                                     WHEN ''Webmaster'' THEN ''Webmaster''
-                                     ELSE ''Alumno''
-                                 END
-        WHERE NOT EXISTS (SELECT 1 FROM USUARIO_PERFIL up
-                          WHERE up.USUARIO_ID = u.ID AND up.ROL_ID = r.ID)';
+        WHERE NOT EXISTS (SELECT 1 FROM MIGRACION_USUARIO_ROL m WHERE m.USUARIO_ID = u.ID)
+          AND NOT EXISTS (SELECT 1 FROM USUARIO_PERFIL up WHERE up.USUARIO_ID = u.ID)';
 
     DECLARE @df SYSNAME = (
         SELECT dc.name
@@ -1848,45 +1777,6 @@ BEGIN
     -- había quedan obsoletos y se regeneran al recalcular la integridad.
     DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
     DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO';
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO_PERFIL';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO_PERFIL';
-END
-GO
-
--- ---------------------------------------------
--- DATOS INICIALES — USUARIO ADMIN (contraseña: Admin123)
--- y USUARIO WEBMASTER (contraseña: Webmaster123).
--- Se siembran acá, después de la migración, para asignarles su perfil.
--- ---------------------------------------------
-
-IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'admin')
-BEGIN
-    INSERT INTO USUARIO (USUARIO, PASS)
-    VALUES ('admin', '3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2');
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO';
-END
-GO
-
-IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE USUARIO = 'webmaster')
-BEGIN
-    INSERT INTO USUARIO (USUARIO, PASS)
-    VALUES ('webmaster', '407c21d8ba9449b1f2e7ef81db1cbca0e1a702998de688e42dd468f2079d31f8');
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO';
-END
-GO
-
--- Solo se asigna el perfil a un usuario que todavía no tiene ninguno.
-INSERT INTO USUARIO_PERFIL (USUARIO_ID, ROL_ID)
-SELECT u.ID, r.ID
-FROM (VALUES ('admin', 'Administrador'), ('webmaster', 'Webmaster')) m(USUARIO, ROL)
-JOIN USUARIO u ON u.USUARIO = m.USUARIO
-JOIN ROL     r ON r.NOMBRE  = m.ROL
-WHERE NOT EXISTS (SELECT 1 FROM USUARIO_PERFIL up WHERE up.USUARIO_ID = u.ID)
-
-IF @@ROWCOUNT > 0
-BEGIN
     DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO_PERFIL';
     DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO_PERFIL';
 END
@@ -2183,7 +2073,7 @@ END
 GO
 
 PRINT '✔ Perfiles y permisos (Composite) instalados correctamente.';
-PRINT 'Si la base ya existía, recalcular la integridad desde el panel Webmaster (o reiniciar la aplicación).';
+PRINT 'Iniciar la aplicación para sembrar los datos base y calcular la integridad.';
 GO
 
 -- =============================================
@@ -2229,12 +2119,13 @@ GO
 IF OBJECT_ID('ROL_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE ROL_INSERTAR
 GO
 CREATE PROCEDURE ROL_INSERTAR
-    @nombre   VARCHAR(100),
-    @padre_id INT = NULL
+    @nombre    VARCHAR(100),
+    @padre_id  INT = NULL,
+    @protegido BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO ROL (NOMBRE, PADRE_ID, PROTEGIDO) VALUES (@nombre, @padre_id, 0);
+    INSERT INTO ROL (NOMBRE, PADRE_ID, PROTEGIDO) VALUES (@nombre, @padre_id, @protegido);
     SELECT CAST(SCOPE_IDENTITY() AS INT) AS ID;
 END
 GO
@@ -2307,33 +2198,6 @@ GO
 -- Gestión de usuarios (alta, baja lógica)
 -- ---------------------------------------------
 
-INSERT INTO PERMISO (NOMBRE)
-SELECT 'Gestionar usuarios'
-WHERE NOT EXISTS (SELECT 1 FROM PERMISO WHERE NOMBRE = 'Gestionar usuarios')
-
-IF @@ROWCOUNT > 0
-BEGIN
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'PERMISO';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'PERMISO';
-END
-GO
-
--- Administrador es un perfil protegido (solo lectura desde la aplicación):
--- el permiso se agrega acá, por script.
-INSERT INTO ROL_PERMISO (ROL_ID, PERMISO_ID)
-SELECT r.ID, p.ID
-FROM ROL r
-JOIN PERMISO p ON p.NOMBRE = 'Gestionar usuarios'
-WHERE r.NOMBRE = 'Administrador'
-  AND NOT EXISTS (SELECT 1 FROM ROL_PERMISO x WHERE x.ROL_ID = r.ID AND x.PERMISO_ID = p.ID)
-
-IF @@ROWCOUNT > 0
-BEGIN
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'ROL_PERMISO';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'ROL_PERMISO';
-END
-GO
-
 -- Con la integridad inválida solo el Webmaster puede ingresar: se le quita el permiso
 -- "Ingresar con integridad invalida" al Administrador en bases que lo tenían sembrado.
 -- El permiso sigue existiendo (un perfil propio puede recibirlo).
@@ -2347,6 +2211,70 @@ IF @@ROWCOUNT > 0
 BEGIN
     DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'ROL_PERMISO';
     DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'ROL_PERMISO';
+END
+GO
+
+IF OBJECT_ID('PERMISO_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE PERMISO_INSERTAR
+GO
+CREATE PROCEDURE PERMISO_INSERTAR
+    @nombre VARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO PERMISO (NOMBRE) VALUES (@nombre);
+    SELECT CAST(SCOPE_IDENTITY() AS INT) AS ID;
+END
+GO
+
+IF OBJECT_ID('MIGRACION_USUARIO_ROL_LISTAR', 'P') IS NOT NULL DROP PROCEDURE MIGRACION_USUARIO_ROL_LISTAR
+GO
+CREATE PROCEDURE MIGRACION_USUARIO_ROL_LISTAR
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT USUARIO_ID, ROL_NOMBRE FROM MIGRACION_USUARIO_ROL;
+END
+GO
+
+IF OBJECT_ID('MIGRACION_USUARIO_ROL_ELIMINAR', 'P') IS NOT NULL DROP PROCEDURE MIGRACION_USUARIO_ROL_ELIMINAR
+GO
+CREATE PROCEDURE MIGRACION_USUARIO_ROL_ELIMINAR
+    @usuario_id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM MIGRACION_USUARIO_ROL WHERE USUARIO_ID = @usuario_id;
+END
+GO
+
+-- Marcador de siembra: existe una entrada SIEMBRA_DATOS_BASE en la bitácora.
+-- Mientras no exista, la aplicación siembra perfiles y usuarios iniciales; una vez
+-- que existe, nunca los vuelve a crear (el administrador pudo borrarlos a propósito).
+IF OBJECT_ID('BITACORA_EXISTE_ACCION', 'P') IS NOT NULL DROP PROCEDURE BITACORA_EXISTE_ACCION
+GO
+CREATE PROCEDURE BITACORA_EXISTE_ACCION
+    @accion VARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT CASE WHEN EXISTS (SELECT 1 FROM BITACORA WHERE ACCION = @accion) THEN 1 ELSE 0 END AS EXISTE;
+END
+GO
+
+-- Descarta el DVV y el snapshot de una tabla con integridad, dentro de la misma
+-- transacción de un seed que le insertó filas: si el recálculo posterior falla, la
+-- tabla queda sin DVV: la aplicación la recalcula en el próximo intento del mismo
+-- proceso; si el proceso se reinicia antes, queda inválida hasta que el Webmaster la
+-- recalcule desde Integridad.aspx.
+IF OBJECT_ID('INTEGRIDAD_INVALIDAR_TABLA', 'P') IS NOT NULL DROP PROCEDURE INTEGRIDAD_INVALIDAR_TABLA
+GO
+CREATE PROCEDURE INTEGRIDAD_INVALIDAR_TABLA
+    @tabla VARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = @tabla;
+    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = @tabla;
 END
 GO
 

@@ -26,6 +26,10 @@ namespace BE
         public const string EditarPerfil = "Editar perfil";
         public const string CambiarContrasena = "Cambiar contrasena";
 
+        // Perfiles base (no son permisos: el catálogo de permisos excluye los que empiezan con "Perfil").
+        public const string PerfilAdministrador = "Administrador";
+        public const string PerfilWebmaster = "Webmaster";
+
         /// <summary>Nombre del perfil de alumno (identidad de dominio, no permiso).</summary>
         public const string PerfilAlumno = "Alumno";
     }
