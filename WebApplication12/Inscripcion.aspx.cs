@@ -211,6 +211,9 @@ namespace CAPAS_Web
         protected void btnInscribir_Click(object sender, EventArgs e)
         {
             var u = Session["Usuario"] as BE.USUARIO;
+            // La página la comparten quien gestiona periodos y quien se inscribe:
+            // se revalida en el servidor para que no se pueda forjar el POST.
+            if (!u.TienePermiso(BE.Permisos.Inscribirse)) return;
             int idPeriodo = (int)(ViewState["IdPeriodo"] ?? 0);
 
             var valores = Request.Form.GetValues("materiaId");
