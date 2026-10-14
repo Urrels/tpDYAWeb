@@ -125,6 +125,67 @@ namespace DAL
             return lista;
         }
 
+        /// <summary>
+        /// Aplica una importación completa en una sola transacción: las materias con Id 0 se insertan,
+        /// las demás se actualizan, y después se agregan las correlativas (pares código de materia /
+        /// código de correlativa). Si algo falla no queda nada a medias.
+        /// </summary>
+        public void Importar(List<BE.MATERIA> materias, Dictionary<string, int> idPorCodigo,
+                             List<KeyValuePair<string, string>> correlativas)
+        {
+            try
+            {
+                _acceso.Abrir();
+                _acceso.IniciarTx();
+                try
+                {
+                    foreach (var m in materias)
+                    {
+                        if (m.Id == 0)
+                        {
+                            var pi = new List<SqlParameter>
+                            {
+                                _acceso.CrearParametro("@nombre",    m.Nombre),
+                                _acceso.CrearParametro("@codigo",    m.Codigo),
+                                _acceso.CrearParametro("@modalidad", m.Modalidad),
+                                _acceso.CrearParametro("@peso",      m.Peso)
+                            };
+                            idPorCodigo[m.Codigo] = System.Convert.ToInt32(_acceso.EscribirConRetorno("MATERIA_INSERTAR", pi));
+                        }
+                        else
+                        {
+                            var pa = new List<SqlParameter>
+                            {
+                                _acceso.CrearParametro("@id",        m.Id),
+                                _acceso.CrearParametro("@nombre",    m.Nombre),
+                                _acceso.CrearParametro("@codigo",    m.Codigo),
+                                _acceso.CrearParametro("@modalidad", m.Modalidad),
+                                _acceso.CrearParametro("@peso",      m.Peso)
+                            };
+                            _acceso.EscribirConRetorno("MATERIA_ACTUALIZAR", pa);
+                        }
+                    }
+
+                    foreach (var par in correlativas)
+                    {
+                        var pc = new List<SqlParameter>
+                        {
+                            _acceso.CrearParametro("@id_materia",     idPorCodigo[par.Key]),
+                            _acceso.CrearParametro("@id_correlativa", idPorCodigo[par.Value])
+                        };
+                        _acceso.Escribir("CORRELATIVA_INSERTAR", pc);
+                    }
+                    _acceso.ConfirmarTX();
+                }
+                catch
+                {
+                    _acceso.DeshacerTX();
+                    throw;
+                }
+            }
+            finally { _acceso.Cerrar(); }
+        }
+
         private BE.MATERIA MapearFila(DataRow r)
         {
             return new BE.MATERIA

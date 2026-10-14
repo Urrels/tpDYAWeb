@@ -11,6 +11,18 @@
 
     <asp:Label ID="lblMsg" runat="server" CssClass="alert d-block mb-3" Visible="false"/>
 
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-3 d-flex flex-wrap align-items-center gap-2">
+            <h6 class="card-section-title mb-0 me-3">Plan de estudios en XML</h6>
+            <asp:Button ID="btnExportarXml" runat="server" Text="Exportar XML"
+                        CssClass="btn btn-outline-primary btn-sm" OnClick="btnExportarXml_Click"/>
+            <asp:FileUpload ID="fileXml" runat="server" CssClass="form-control form-control-sm w-auto" accept=".xml"/>
+            <asp:Button ID="btnImportarXml" runat="server" Text="Importar XML"
+                        CssClass="btn btn-outline-success btn-sm" OnClick="btnImportarXml_Click"
+                        OnClientClick="return confirm('Se crearán o actualizarán materias según el archivo. ¿Continuar?')"/>
+        </div>
+    </div>
+
     <asp:Panel ID="pnlForm" runat="server" Visible="false" CssClass="card shadow-sm border-0 mb-4">
         <div class="card-body p-4">
             <h6 class="card-section-title"><asp:Label ID="lblTituloForm" runat="server" Text="Nueva Materia"/></h6>
