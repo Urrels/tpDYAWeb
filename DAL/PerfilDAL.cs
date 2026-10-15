@@ -9,7 +9,6 @@ namespace DAL
     {
         private readonly Acceso _acceso = new Acceso();
 
-        /// <summary>Todos los roles, sin hijos cargados (el árbol se arma en la BLL).</summary>
         public List<BE.Rol> ListarRoles()
         {
             var lista = new List<BE.Rol>();
@@ -30,10 +29,6 @@ namespace DAL
             return lista;
         }
 
-        /// <summary>
-        /// Asignaciones rol-permiso como hojas del Composite: cada Permiso
-        /// devuelto lleva en PadreId el rol al que pertenece.
-        /// </summary>
         public List<BE.Permiso> ListarPermisosPorRol()
         {
             var lista = new List<BE.Permiso>();
@@ -79,8 +74,6 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        // 2627 / 2601: violación de restricción o índice único (UQ_ROL_NOMBRE).
-        // La base decide qué nombres son iguales según su collation.
         private static bool EsNombreDuplicado(SqlException ex) => ex.Number == 2627 || ex.Number == 2601;
 
         public List<BE.Permiso> ListarPermisosDisponibles()
@@ -97,7 +90,6 @@ namespace DAL
             return lista;
         }
 
-        /// <summary>Todas las asignaciones usuario-perfil como pares (usuarioId, rolId).</summary>
         public List<KeyValuePair<int, int>> ListarAsignaciones()
         {
             var lista = new List<KeyValuePair<int, int>>();
@@ -153,10 +145,6 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        /// <summary>
-        /// Reemplaza los permisos directos del rol (borra los actuales e inserta
-        /// los nuevos) dentro de una única transacción.
-        /// </summary>
         public void GuardarPermisosDeRol(int rolId, List<int> permisoIds)
         {
             try
@@ -184,9 +172,6 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        /// <summary>
-        /// Reemplaza los perfiles asignados al usuario dentro de una única transacción.
-        /// </summary>
         public void ReemplazarPerfilesDeUsuario(int usuarioId, List<int> rolIds)
         {
             try

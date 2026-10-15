@@ -11,10 +11,6 @@ namespace BLL
 
         public const string MensajeCodigoDuplicado = DAL.MateriaDAL.MensajeCodigoDuplicado;
 
-        /// <summary>
-        /// El CODIGO es UNIQUE en la base (sin distinguir mayúsculas): se compara igual para avisar antes
-        /// de insertar. <paramref name="idExcluir"/> es la materia que se está editando (0 si es nueva).
-        /// </summary>
         public static bool CodigoDuplicado(IEnumerable<BE.MATERIA> existentes, string codigo, int idExcluir)
         {
             string buscado = (codigo ?? "").Trim();

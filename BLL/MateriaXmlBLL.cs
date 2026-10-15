@@ -7,7 +7,6 @@ using System.Xml;
 
 namespace BLL
 {
-    /// <summary>Resumen de una importación XML de materias. Si hay Errores no se tocó la base.</summary>
     public class ResultadoImportacionXml
     {
         public int Creadas { get; set; }
@@ -17,12 +16,6 @@ namespace BLL
         public bool Ok => Errores.Count == 0;
     }
 
-    /// <summary>
-    /// Exporta e importa el plan de estudios (materias y correlativas) como XML con XmlDocument.
-    /// La importación identifica cada materia por su código: si existe se actualiza, si no se crea.
-    /// Las correlativas solo se agregan (nunca se quitan las que ya estaban). Todo se valida antes
-    /// de escribir y se aplica en una única transacción.
-    /// </summary>
     public class MateriaXmlBLL
     {
         public const int TamanioMaximoBytes = 1024 * 1024;
@@ -90,7 +83,6 @@ namespace BLL
             var entrantes = LeerMaterias(doc, resultado);
             if (!resultado.Ok) return resultado;
 
-            // Las comparaciones por código ignoran mayúsculas, igual que el índice UNIQUE de CODIGO.
             var existentes = _dal.Listar().ToDictionary(m => m.Codigo, StringComparer.OrdinalIgnoreCase);
             var correlativasActuales = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (BE.MATERIA m in existentes.Values)
@@ -172,7 +164,6 @@ namespace BLL
 
         private static string Par(string materia, string correlativa) => materia + "|" + correlativa;
 
-        /// <summary>Carga el XML sin DTD ni resolución externa, para evitar ataques XXE.</summary>
         private static XmlDocument Cargar(byte[] contenido, ResultadoImportacionXml resultado)
         {
             var config = new XmlReaderSettings
@@ -251,10 +242,6 @@ namespace BLL
             return lista;
         }
 
-        /// <summary>
-        /// Busca ciclos en el grafo materia → correlativa resultante de unir lo que ya hay en el
-        /// sistema con lo que se va a agregar. Devuelve el camino del ciclo o null si no hay.
-        /// </summary>
         private static string BuscarCiclo(HashSet<string> actuales, List<KeyValuePair<string, string>> nuevos)
         {
             var aristas = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -270,7 +257,7 @@ namespace BLL
             }
             foreach (var n in nuevos) Agregar(n.Key, n.Value);
 
-            var estado = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase); // 1 = en curso, 2 = terminado
+            var estado = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var camino = new List<string>();
 
             string Visitar(string nodo)

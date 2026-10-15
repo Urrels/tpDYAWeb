@@ -12,7 +12,6 @@ namespace CAPAS_Web
 
         private readonly BLL.PerfilBLL _bll = new BLL.PerfilBLL();
 
-        // Perfil seleccionado en el árbol; sobrevive a los postbacks.
         private int? RolSeleccionadoId
         {
             get => ViewState["RolId"] as int?;
@@ -24,11 +23,6 @@ namespace CAPAS_Web
             if (!IsPostBack) Recargar();
         }
 
-        // =====================================================
-        // Carga de la pantalla
-        // =====================================================
-
-        // Evita reentrancia si al seleccionar un nodo por código se dispara el evento del árbol.
         private bool _recargando;
 
         private void Recargar()
@@ -45,7 +39,6 @@ namespace CAPAS_Web
             foreach (BE.Rol raiz in raices)
                 tvPerfiles.Nodes.Add(ConstruirNodo(raiz));
 
-            // Si el perfil seleccionado ya no existe o no es visible para el actor, se limpia la selección.
             BE.Rol seleccionado = RolSeleccionadoId.HasValue ? _bll.ObtenerRolGestionablePor(RolSeleccionadoId.Value, UsuarioActual) : null;
             if (seleccionado == null) RolSeleccionadoId = null;
 
@@ -102,7 +95,6 @@ namespace CAPAS_Web
             lblProtegido.Visible = rol.Protegido;
             txtRenombrar.Text = rol.Nombre;
 
-            // Padres posibles: cualquier perfil gestionable que no genere un ciclo (no él mismo ni sus descendientes).
             List<BE.Rol> todos = _bll.ListarRolesGestionablesPor(UsuarioActual);
             ddlPadre.Items.Clear();
             ddlPadre.Items.Add(new ListItem(Textos.T("Perfiles.sinPadre", "(raíz — sin padre)"), ""));
@@ -126,10 +118,6 @@ namespace CAPAS_Web
             cblPermisos.Enabled = btnGuardarPermisos.Enabled = editable;
             btnEliminar.Enabled = editable;
         }
-
-        // =====================================================
-        // Eventos
-        // =====================================================
 
         protected void tvPerfiles_SelectedNodeChanged(object sender, EventArgs e)
         {
@@ -181,10 +169,6 @@ namespace CAPAS_Web
                 () => RolSeleccionadoId = null);
         }
 
-        /// <summary>
-        /// Ejecuta una operación de la BLL: muestra el mensaje de éxito o el
-        /// motivo del rechazo, y siempre vuelve a cargar el árbol.
-        /// </summary>
         private void Ejecutar(Action operacion, string mensajeExito, Action alExito = null)
         {
             try
@@ -205,7 +189,6 @@ namespace CAPAS_Web
             Recargar();
         }
 
-        // Deja constancia en bitácora; si la base no responde no se agrega otro error.
         private void RegistrarErrorInesperado()
         {
             try { new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "ERROR_GESTION_PERFILES"); }

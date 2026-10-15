@@ -5,7 +5,6 @@ using System.Web.UI.WebControls;
 
 namespace CAPAS_Web
 {
-    // Gestión de idiomas y de sus traducciones (equivale a frmIdiomas de la versión de escritorio).
     public partial class Idiomas : PaginaBase
     {
         protected override string PermisoRequerido => BE.Permisos.GestionarIdiomas;
@@ -20,8 +19,6 @@ namespace CAPAS_Web
 
         private string Usuario => (Session["Usuario"] as BE.USUARIO).Usuario;
 
-        // Las grillas se enlazan al final, con el estado ya modificado por el evento y el idioma ya cambiado,
-        // para que los textos que arma el código salgan en el idioma vigente.
         protected override void OnPreRender(EventArgs e)
         {
             Cargar();
@@ -87,7 +84,6 @@ namespace CAPAS_Web
             }
             catch (InvalidOperationException ex)
             {
-                // Los mensajes de la BLL son reglas de negocio en español.
                 MostrarError(Textos.MH(ex.Message));
             }
         }
@@ -133,14 +129,12 @@ namespace CAPAS_Web
             try
             {
                 int guardadas = _bll.GuardarTraducciones(IdiomaSeleccionado, textos, Usuario);
-                // Si se editó el idioma que se está usando, se aplica enseguida.
                 IdiomaWeb.Fachada.RefrescarSiHaceFalta();
                 Exito(Textos.TH("Idiomas.msgGuardadas", "Traducciones guardadas: {0}.", guardadas));
             }
             catch (InvalidOperationException ex) { MostrarError(Textos.MH(ex.Message)); }
         }
 
-        // Estos métodos reciben texto ya codificado para HTML (lblMsg es un Label, que no codifica).
         private void Exito(string html) => Mostrar("alert-success", html);
         private void MostrarError(string html) => Mostrar("alert-danger", html);
 

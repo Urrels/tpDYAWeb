@@ -5,12 +5,6 @@ using System.Data.SqlClient;
 
 namespace DAL
 {
-    /// <summary>
-    /// Capa fina sobre <see cref="Acceso"/> para el mecanismo genérico de
-    /// integridad (DVH por fila / DVV por columna) de las 13 tablas de negocio.
-    /// Los nombres de tabla usados como clave (@tabla) son los mismos nombres
-    /// físicos de la tabla en SQL Server (USUARIO, ALUMNO_MATERIA, etc.).
-    /// </summary>
     public class IntegridadDAL
     {
         private readonly Acceso _acceso = new Acceso();
@@ -106,10 +100,6 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        /// <summary>
-        /// Snapshot JSON del último estado válido conocido de la tabla, o
-        /// null si todavía no se guardó ninguno (tabla nunca recalculada).
-        /// </summary>
         public string ObtenerSnapshot(string tabla)
         {
             var p = new List<SqlParameter> { _acceso.CrearParametro("@tabla", tabla) };
@@ -124,9 +114,6 @@ namespace DAL
 
         public void GuardarSnapshot(string tabla, string datosJson)
         {
-            // NVARCHAR(MAX) no tiene overload en Acceso.CrearParametro (todos
-            // tienen tamaño fijo); se arma el SqlParameter a mano con
-            // tamaño -1 para que ADO.NET lo mapee a MAX en vez de truncarlo.
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@tabla", tabla),
@@ -135,12 +122,6 @@ namespace DAL
             try { _acceso.Abrir(); _acceso.Escribir("SNAPSHOT_GUARDAR", p); }
             finally { _acceso.Cerrar(); }
         }
-
-        // =====================================================
-        // Restore — mecanismo de "Restaurar base de datos" (Webmaster).
-        // Fase de borrado (uniforme, por ID) + fase de upsert (una firma
-        // distinta por tabla, ver BLL.IntegridadBLL.RestaurarTodasLasTablas).
-        // =====================================================
 
         private static readonly Dictionary<string, string> SpEliminarPorId = new Dictionary<string, string>
         {
@@ -159,11 +140,6 @@ namespace DAL
             { "USUARIO_PERFIL",       "USUARIO_PERFIL_ELIMINAR_POR_ID" }
         };
 
-        /// <summary>
-        /// Borra por ID una fila que fue agregada externamente (no está en el
-        /// snapshot del último estado válido conocido). Usado en la fase de
-        /// borrado del restore, en orden hijo→padre.
-        /// </summary>
         public void EliminarPorId(string tabla, int id)
         {
             string sp = SpDe(SpEliminarPorId, tabla);

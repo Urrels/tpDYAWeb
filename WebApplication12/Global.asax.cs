@@ -13,10 +13,6 @@ namespace CAPAS_Web
                 Application["DBError"] = ex.Message;
             }
 
-            // Siembra los datos base de seguridad (permisos, perfiles, admin y webmaster)
-            // y calcula la integridad de lo que nunca la tuvo.
-            // Si falla, el error queda en IntegridadBLL.ErrorInicializacionDatosBase
-            // (visible en Integridad.aspx) y se reintenta en el próximo login.
             BLL.IntegridadBLL.IntentarInicializarDatosBase();
         }
 

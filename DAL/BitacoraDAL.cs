@@ -57,8 +57,8 @@ namespace DAL
         {
             var p = new List<SqlParameter>
             {
-                _acceso.CrearParametro("@usuario", usuario),       // puede ser null -> sin filtro
-                _acceso.CrearParametro("@criticidad", criticidad), // puede ser null -> sin filtro
+                _acceso.CrearParametro("@usuario", usuario),
+                _acceso.CrearParametro("@criticidad", criticidad),
                 _acceso.CrearParametro("@fecha_desde", fechaDesde),
                 _acceso.CrearParametro("@fecha_hasta", fechaHasta),
                 _acceso.CrearParametro("@pagina", pagina),

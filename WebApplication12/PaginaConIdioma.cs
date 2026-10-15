@@ -10,24 +10,6 @@ using System.Web.UI.WebControls;
 
 namespace CAPAS_Web
 {
-    /// <summary>
-    /// ConcreteObserver del multiidioma (equivale a FormBase en la versión de escritorio).
-    /// Al iniciar recorre los controles de la página, su master y sus controles de usuario, guarda
-    /// el texto original de cada uno ("slot") y se registra en el IdiomaManager de la sesión.
-    /// Cuando cambia el idioma (y en cada pedido, antes de dibujar) vuelve a poner el texto
-    /// traducido, o el original si la clave no tiene traducción.
-    ///
-    /// Qué se traduce (siempre en controles con ID; la clave es "Pagina.IdDelControl"):
-    ///  - Literal, Button, LinkButton (se conserva un ícono &lt;i&gt; inicial) y CheckBox/RadioButton: su Text.
-    ///  - El mensaje de confirm('...') de OnClientClick.
-    ///  - El atributo placeholder de los TextBox.
-    ///  - Los ítems fijos de los DropDownList / ListBox / CheckBoxList / RadioButtonList (por su Value).
-    ///  - Los encabezados y el EmptyDataText de los GridView.
-    ///  - El título de la página.
-    /// Los controles dentro de GridView y Repeater se leen cuando se crean cada fila o ítem
-    /// (RowCreated / ItemCreated), que es cuando todavía tienen el texto del markup.
-    /// Los Label quedan fuera a propósito: guardan valores que arma el código.
-    /// </summary>
     public class PaginaConIdioma : Page, BE.IObservadorIdioma
     {
         private sealed class Slot
@@ -49,7 +31,6 @@ namespace CAPAS_Web
             IdiomaWeb.Fachada.AplicarPredeterminadoSiHaceFalta();
 
             Recolectar(Controls);
-            // Page.Title lanza una excepción si el <head> no es runat="server" (como en Login.aspx).
             if (Header != null && !string.IsNullOrWhiteSpace(Title))
                 Agregar(GetType().BaseType.Name, Title, t => Title = t);
 
@@ -67,12 +48,10 @@ namespace CAPAS_Web
 
         protected override void OnUnload(EventArgs e)
         {
-            // El manager vive toda la sesión: la página debe salir de su lista al terminar el pedido.
             if (_registrado) IdiomaWeb.Manager.Desregistrar(this);
             base.OnUnload(e);
         }
 
-        /// <summary>Hook para textos que no son controles con ID (los arma el código).</summary>
         protected virtual void ActualizarTextosDinamicos() { }
 
         public void ActualizarIdioma()
@@ -82,8 +61,6 @@ namespace CAPAS_Web
                 s.Escribir(idiomas.Traducir(s.Clave) ?? s.Original);
             ActualizarTextosDinamicos();
         }
-
-        // ---------- Recolección ----------
 
         private void Recolectar(ControlCollection controles)
         {
@@ -104,7 +81,6 @@ namespace CAPAS_Web
                 AgregarEncabezados(gv);
                 if (!string.IsNullOrWhiteSpace(gv.EmptyDataText) && !string.IsNullOrEmpty(gv.ID))
                     {
-                    // El texto de "sin datos" lo lee el GridView al enlazarse (antes del PreRender): se escribe ahora.
                     string claveVacio = Clave(gv) + ".vacio";
                     string originalVacio = gv.EmptyDataText;
                     Textos.Registrar(claveVacio, originalVacio);
@@ -127,7 +103,6 @@ namespace CAPAS_Web
                 Agregar(clave, lit.Text, t => { lit.Mode = LiteralMode.Encode; lit.Text = t; });
             else if (c is Button btn)
             {
-                // data-i18n="manual": el código le pone el texto (no se pisa con el del markup).
                 if (!string.IsNullOrWhiteSpace(btn.Text) && btn.Attributes["data-i18n"] != "manual") Agregar(clave, btn.Text, t => btn.Text = t);
                 AgregarConfirmacion(clave, btn);
             }
@@ -150,7 +125,6 @@ namespace CAPAS_Web
                 Agregar(clave + ".placeholder", txt.Attributes["placeholder"], t => txt.Attributes["placeholder"] = t);
         }
 
-        // Controles creados por una fila o un ítem de plantilla: acá todavía tienen el texto del markup.
         private void RecolectarPlantilla(Control raiz)
         {
             Examinar(raiz);
@@ -172,7 +146,6 @@ namespace CAPAS_Web
 
         private void AgregarItems(string clave, ListControl lista)
         {
-            // Solo los ítems fijos del markup (los que cargó el código tienen datos, no texto de interfaz).
             foreach (ListItem item in lista.Items.Cast<ListItem>().ToList())
             {
                 if (string.IsNullOrWhiteSpace(item.Text) || !Regex.IsMatch(item.Text, @"\p{L}")) continue;
@@ -208,11 +181,9 @@ namespace CAPAS_Web
             _slots.Add(new Slot { Clave = clave, Original = original, Escribir = escribir });
         }
 
-        // Página, master o control de usuario donde se declaró el control + su ID.
         private static string Clave(Control c) =>
             (c.TemplateControl ?? c.Page).GetType().BaseType.Name + "." + c.ID;
 
-        // Parte del texto de un encabezado que se usa dentro de la clave.
         private static string Compacto(string texto)
         {
             string sin = texto.Normalize(NormalizationForm.FormD);

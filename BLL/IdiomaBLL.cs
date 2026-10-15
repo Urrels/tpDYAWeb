@@ -12,11 +12,6 @@ namespace BLL
 
         private static int _versionTraducciones;
 
-        /// <summary>
-        /// Se incrementa cada vez que cambia alguna traducción o idioma. Las sesiones comparan su
-        /// IdiomaManager.VersionAplicada con este valor y recargan el diccionario si quedó viejo
-        /// (mismo mecanismo que PerfilBLL.VersionPermisos). Solo vale con sesiones InProc.
-        /// </summary>
         public static int VersionTraducciones => Volatile.Read(ref _versionTraducciones);
 
         private static void Invalidar() => Interlocked.Increment(ref _versionTraducciones);
@@ -100,7 +95,6 @@ namespace BLL
         public List<CONTROL_IDIOMA> ListarControlesConTraduccion(int idiomaId) =>
             _dal.ListarControlesConTraduccion(idiomaId);
 
-        /// <summary>Guarda varias traducciones de un idioma (id de control → texto) y deja una sola entrada en la bitácora.</summary>
         public int GuardarTraducciones(int idiomaId, Dictionary<int, string> textos, string usuarioAccion)
         {
             IDIOMA idioma = _dal.ObtenerPorId(idiomaId);

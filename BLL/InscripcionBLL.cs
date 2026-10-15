@@ -13,7 +13,6 @@ namespace BLL
 
         public const string MensajePeriodoDuplicado = DAL.PeriodoDAL.MensajePeriodoDuplicado;
 
-        /// <summary>(ANIO, CUATRIMESTRE) es UNIQUE en la base: se avisa antes de insertar o modificar.</summary>
         public static bool PeriodoDuplicado(IEnumerable<BE.PERIODO_ACADEMICO> existentes, BE.PERIODO_ACADEMICO p)
         {
             return existentes.Any(x => x.Id != p.Id && x.Anio == p.Anio && x.Cuatrimestre == p.Cuatrimestre);

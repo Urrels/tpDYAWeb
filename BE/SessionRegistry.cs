@@ -2,15 +2,6 @@ using System.Collections.Generic;
 
 namespace BE
 {
-    /// <summary>
-    /// Singleton thread-safe (double-checked locking) que registra qué
-    /// usuarios tienen una sesión web activa en este momento, para
-    /// garantizar sesión única por usuario. No reemplaza a Session["Usuario"]
-    /// de ASP.NET (que sigue siendo el estado real por usuario/request) — es
-    /// solo un registro compartido entre todos los usuarios concurrentes de
-    /// la app para poder rechazar un segundo login del mismo usuario
-    /// mientras el primero sigue activo.
-    /// </summary>
     public sealed class SessionRegistry
     {
         private static volatile SessionRegistry _instancia;
@@ -46,11 +37,6 @@ namespace BE
             lock (_lock) { _sesionesActivas[usuario] = sessionId; }
         }
 
-        /// <summary>
-        /// Libera el registro del usuario solo si sigue apuntando a esta sesión:
-        /// así el cierre tardío de una sesión vieja (por ejemplo Session_End de una
-        /// sesión revocada) no borra el registro de una sesión más nueva.
-        /// </summary>
         public void CerrarSesion(string usuario, string sessionId)
         {
             lock (_lock)
@@ -60,10 +46,6 @@ namespace BE
             }
         }
 
-        /// <summary>
-        /// Libera el registro del usuario sea cual sea la sesión (revocación
-        /// administrativa: baja o restablecimiento de contraseña).
-        /// </summary>
         public void ForzarCierre(string usuario)
         {
             lock (_lock) { _sesionesActivas.Remove(usuario); }

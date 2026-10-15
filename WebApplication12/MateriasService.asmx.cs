@@ -5,7 +5,6 @@ using System.Web.Services;
 
 namespace CAPAS_Web
 {
-    /// <summary>Materia tal como la expone el servicio: sin ids internos, con las correlativas por código.</summary>
     public class MateriaDto
     {
         public string Codigo { get; set; }
@@ -15,12 +14,6 @@ namespace CAPAS_Web
         public string[] Correlativas { get; set; }
     }
 
-    /// <summary>
-    /// Servicio web de consulta del plan de estudios (solo lectura). No tiene un inicio de sesión
-    /// propio: usa la sesión del sitio (el cliente primero ingresa por Login.aspx y envía la misma
-    /// cookie), así valen las mismas reglas que en las páginas: sesión revocada, permisos al día
-    /// y permiso "Gestionar materias".
-    /// </summary>
     [WebService(Namespace = "http://tpdyaweb.uai.edu.ar/", Description = "Consulta del plan de estudios (materias y correlativas).")]
     [WebServiceBinding(ConformsTo = WsiProfiles.BasicProfile1_1)]
     [System.Web.Script.Services.ScriptService]
@@ -48,7 +41,6 @@ namespace CAPAS_Web
         [WebMethod(EnableSession = true, Description = "Resumen académico del alumno de la sesión: cantidades por estado y promedio ponderado.")]
         public BLL.ResumenAcademico ObtenerResumenAcademico()
         {
-            // Solo devuelve los datos del usuario de la sesión: no recibe ningún id.
             BE.USUARIO usuario = ExigirPermiso(BE.Permisos.VerDashboard);
             return new BLL.AlumnoMateriaBLL().ObtenerResumen(usuario.Id);
         }
@@ -62,7 +54,6 @@ namespace CAPAS_Web
             Correlativas = _bll.ListarCorrelativas(m.Id).OrderBy(c => c.Id).Select(c => c.Codigo).ToArray()
         };
 
-        /// <summary>Mismas comprobaciones que PaginaBase, pero fallando con una excepción en vez de redirigir.</summary>
         private BE.USUARIO ExigirPermiso(string permiso = BE.Permisos.GestionarMaterias)
         {
             var usuario = Session["Usuario"] as BE.USUARIO;

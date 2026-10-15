@@ -91,11 +91,6 @@ namespace DAL
             return lista;
         }
 
-        /// <summary>
-        /// Alta de usuario y asignación de sus perfiles en una única transacción.
-        /// Devuelve el ID del usuario nuevo. Un nombre repetido (según la
-        /// collation de la base) se informa como InvalidOperationException.
-        /// </summary>
         public int InsertarConPerfiles(string usuario, string passHash, string direccion, List<int> rolIds)
         {
             byte[] encriptado = string.IsNullOrEmpty(direccion) ? null : BE.AESHelper.Encriptar(direccion);
@@ -174,7 +169,6 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        // Devuelve true si el usuario quedó bloqueado con este intento.
         public bool IncrementarIntentos(string usuario)
         {
             var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", usuario) };

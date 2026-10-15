@@ -15,10 +15,8 @@ namespace CAPAS_Web
             if (!IsPostBack) CargarGrilla();
         }
 
-
         private void CargarGrilla()
         {
-            // La BLL ajusta la página a la última real (p. ej. tras dar de baja la única fila de la última).
             var resultado = _bll.ListarPaginado(paginador.PaginaActual, paginador.TamanioPagina);
             gvMaterias.DataSource = resultado.Filas;
             gvMaterias.DataBind();
@@ -55,14 +53,12 @@ namespace CAPAS_Web
             }
             catch (InvalidOperationException ex)
             {
-                // Regla de negocio (código repetido): se avisa y el formulario queda abierto para corregir.
                 MostrarMsg("alert-danger", Textos.MH(ex.Message));
                 return;
             }
             MostrarMsg(ok ? "alert-success" : "alert-danger",
                        ok ? Textos.TH("Materias.msgGuardado", "✔ Guardado.") : Textos.TH("Materias.msgErrorGuardar", "✖ Error al guardar."));
             pnlForm.Visible = false;
-            // Una materia nueva queda al final (ORDER BY ID): se salta a la página donde caería con una fila más.
             if (ok && m.Id == 0)
                 paginador.PaginaActual = (paginador.TotalFilas + paginador.TamanioPagina) / paginador.TamanioPagina;
             CargarGrilla();
@@ -115,7 +111,6 @@ namespace CAPAS_Web
                 CargarGrilla();
                 return;
             }
-            // Se lee como máximo el tope + 1 byte para no cargar en memoria un archivo enorme.
             byte[] contenido;
             using (var ms = new System.IO.MemoryStream())
             {
@@ -134,7 +129,6 @@ namespace CAPAS_Web
                     "✔ Importación completa: {0} materias nuevas, {1} actualizadas, {2} correlativas agregadas.",
                     r.Creadas, r.Actualizadas, r.CorrelativasAgregadas));
             else
-                // Los errores los arma la BLL en español y se muestran tal cual (codificados).
                 MostrarMsg("alert-danger", Textos.TH("Materias.msgImportacionError", "✖ No se importó nada:") + "<br/>" +
                     string.Join("<br/>", r.Errores.Take(20).Select(Textos.MH)) +
                     (r.Errores.Count > 20 ? "<br/>" + Textos.TH("Materias.msgMasErrores", "… y {0} errores más.", r.Errores.Count - 20) : ""));

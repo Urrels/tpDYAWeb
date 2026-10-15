@@ -12,14 +12,8 @@ namespace BLL
 
         public List<BE.ALUMNO_MATERIA> Listar(int idUsuario) => _dal.Listar(idUsuario);
 
-        /// <summary>Mensaje que la página muestra cuando una nota no es un número entre 0 y 10.</summary>
         public const string MensajeNotaInvalida = "Las notas deben ser números entre 0 y 10.";
 
-        /// <summary>
-        /// Interpreta una nota cargada a mano. Vacía = sin cargar (true, null). Devuelve false si no es un
-        /// número o está fuera de 0 a 10: no se recorta ni se lanza excepción, la página rechaza el guardado.
-        /// Solo admite signo y punto/coma decimal según la cultura (sin separador de miles ni notación científica).
-        /// </summary>
         public static bool TryParsearNota(string texto, out decimal? nota)
         {
             nota = null;
@@ -33,12 +27,6 @@ namespace BLL
             return true;
         }
 
-        // El DVH/DVV de ALUMNO_MATERIA ahora se calcula con el mecanismo
-        // genérico de integridad (BE.CalculadorDVH + IntegridadBLL), con el
-        // mismo orden canónico de columnas usado por
-        // IntegridadDAL/IntegridadBLL.ColumnasAlumnoMateria. Ya no se escribe
-        // a DVV_NOTAS (tabla vieja, de propósito único) sino a
-        // DIGITO_VERIFICADOR_VERTICAL vía IntegridadBLL.RecalcularAlumnoMateria().
         public bool ActualizarNotas(BE.ALUMNO_MATERIA am, string usuarioAccion)
         {
             am.DVH = _integridad.CalcularDVHAlumnoMateria(am);
@@ -113,7 +101,6 @@ namespace BLL
             am.MensajeRiesgo = "🟢 Vas bien. Seguí así.";
         }
 
-        /// <summary>Cantidades por estado y promedio ponderado de un alumno; lo comparten el dashboard, el PDF y el servicio web.</summary>
         public ResumenAcademico ObtenerResumen(int idUsuario)
         {
             var cursadas = Listar(idUsuario);

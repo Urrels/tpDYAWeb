@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 namespace BE
 {
-    // Una página de resultados más el total de filas que cumplen el filtro.
     public class PaginaResultado<T>
     {
         public List<T> Filas { get; set; } = new List<T>();

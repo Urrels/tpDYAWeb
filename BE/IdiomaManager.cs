@@ -2,12 +2,6 @@ using System.Collections.Generic;
 
 namespace BE
 {
-    /// <summary>
-    /// Subject del patrón Observer: guarda el idioma activo, sus traducciones y los observadores
-    /// registrados. En una aplicación de escritorio alcanza con un Singleton; en la web cada usuario
-    /// tiene su idioma, así que hay una instancia por sesión (la crea y guarda IdiomaWeb).
-    /// ASP.NET serializa los pedidos de una misma sesión, por eso no necesita bloqueos.
-    /// </summary>
     public sealed class IdiomaManager
     {
         private readonly List<IObservadorIdioma> _observers = new List<IObservadorIdioma>();
@@ -16,7 +10,6 @@ namespace BE
 
         public IDIOMA IdiomaActivo => _idiomaActivo;
 
-        /// <summary>Versión de traducciones con la que se cargó el idioma activo (ver IdiomaBLL.VersionTraducciones).</summary>
         public int VersionAplicada { get; set; }
 
         public void Registrar(IObservadorIdioma obs)

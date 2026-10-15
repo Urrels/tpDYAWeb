@@ -16,7 +16,6 @@ namespace CAPAS_Web
         {
             if (IsPostBack) return;
 
-            // Solo los usuarios y perfiles que el actor puede ver; la BLL vuelve a comprobarlo al guardar.
             foreach (BE.USUARIO u in _bll.ListarUsuariosVisiblesPor(UsuarioActual))
                 ddlUsuario.Items.Add(new ListItem(u.Usuario, u.Id.ToString()));
 
@@ -27,9 +26,6 @@ namespace CAPAS_Web
             CargarUsuario();
         }
 
-        // Carga perfiles y permisos del usuario elegido. Si la BLL lo rechaza (por ejemplo ya no
-        // existe o dejó de ser visible) se muestra el motivo, se rearma la lista de usuarios y se
-        // vuelve a intentar con el primero; nunca se deja la vista de otro usuario sin tildes.
         private void CargarUsuario(bool reintentar = true)
         {
             if (ddlUsuario.Items.Count == 0) return;

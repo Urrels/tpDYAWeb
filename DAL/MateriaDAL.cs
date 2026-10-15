@@ -10,10 +10,8 @@ namespace DAL
 
         public const string MensajeCodigoDuplicado = "El código de materia ya existe.";
 
-        // Red de seguridad ante carreras: si el UNIQUE(CODIGO) salta igual, la UI ve la misma regla de negocio.
         private static bool EsClaveDuplicada(SqlException ex) => ex.Number == 2627 || ex.Number == 2601;
 
-        /// <summary>Todas las materias, incluso las dadas de baja lógica: el UNIQUE(CODIGO) también las cubre.</summary>
         public List<BE.MATERIA> ListarTodasConInactivas()
         {
             var lista = new List<BE.MATERIA>();
@@ -153,11 +151,6 @@ namespace DAL
             return lista;
         }
 
-        /// <summary>
-        /// Aplica una importación completa en una sola transacción: las materias con Id 0 se insertan,
-        /// las demás se actualizan, y después se agregan las correlativas (pares código de materia /
-        /// código de correlativa). Si algo falla no queda nada a medias.
-        /// </summary>
         public void Importar(List<BE.MATERIA> materias, Dictionary<string, int> idPorCodigo,
                              List<KeyValuePair<string, string>> correlativas)
         {
