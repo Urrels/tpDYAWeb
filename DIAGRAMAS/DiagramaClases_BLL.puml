@@ -6,6 +6,7 @@ skinparam classAttributeIconSize 0
 skinparam classFontSize 10
 skinparam packageFontSize 12
 skinparam shadowing false
+skinparam linetype ortho
 skinparam ranksep 40
 skinparam nodesep 25
 
@@ -20,7 +21,7 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   }
 
   class LoginBLL {
-    +AutenticarUsuario(usuario, contrasena, sessionId) : LoginResultado
+    +AutenticarUsuario(usuario, contrasena, sessionId, out usuario) : LoginResultado
   }
 
   class UsuarioBLL {
@@ -28,14 +29,13 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     +CambiarContrasena() : bool
     +ObtenerPerfil() : USUARIO
     +ActualizarDireccion() : bool
-    +Desbloquear(usuario, admin)
-    +ListarBloqueados() : List<USUARIO>
     +ListarTodos() : List<USUARIO>
     +ListarAlumnos() : List<USUARIO>
   }
 
   class MateriaBLL {
     +Insertar() / Actualizar() / Eliminar()
+    +CodigoDuplicado(existentes, codigo, idExcluir) : bool {static}
     +Listar() : List<MATERIA>
     +ListarPaginado(pagina, tamanio) : PaginaResultado<MATERIA>
     +Obtener(id) : MATERIA
@@ -44,6 +44,7 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
 
   class AlumnoMateriaBLL {
     +Listar(idUsuario) : List<ALUMNO_MATERIA>
+    +TryParsearNota(texto, out nota) : bool {static}
     +ActualizarNotas() : bool
     +ListarConRiesgo() : List<ALUMNO_MATERIA>
     +CalcularPromedioPonderado() : (decimal, string)
@@ -86,6 +87,7 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     +Listar() : List<PERIODO_ACADEMICO>
     +Insertar() : int
     +Actualizar() : bool
+    +PeriodoDuplicado(existentes, periodo) : bool {static}
   }
 
   class BitacoraBLL {
@@ -124,7 +126,9 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     +GuardarPermisosDeRol(rolId, permisoIds, actor)
     +AsignarPerfilesAUsuario(usuarioId, rolIds, actor)
     +CrearUsuario() / ModificarUsuario() / CambiarEstadoUsuario()
-    +ResetearContrasena() / DesbloquearUsuario()
+    +ResetearContrasena() / DesbloquearUsuario(usuario, actor)
+    +ListarBloqueadosVisiblesPor(actor) : List<USUARIO>
+    +ValidarAsignacionDePerfiles(usuarioId, actor, actuales, nuevos) {static}
     +ListarUsuariosVisiblesPor(actor) : List<USUARIO>
     +ListarUsuariosVisiblesPor(actor, pagina, tamanio) : PaginaResultado<USUARIO>
     +SesionRevocada(usuario) : bool {static}

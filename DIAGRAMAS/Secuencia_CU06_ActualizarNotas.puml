@@ -21,6 +21,10 @@ database "SQL Server" as DB <<BD>>
 ADM -> PAGE : elige alumno (ddlAlumno), elige cursada (gvCursadas), edita notas, click "Guardar"
 activate PAGE
 
+PAGE -> BLL : TryParsearNota(texto) por cada nota (Parcial 1, Parcial 2, Recuperatorio, Final)
+alt alguna nota no es numérica o está fuera de 0–10
+  PAGE --> ADM : "Las notas deben ser números entre 0 y 10." (no se guarda nada)
+else notas válidas
 PAGE -> BLL : ActualizarNotas(am, admin.Usuario)
 activate BLL
 
@@ -72,6 +76,7 @@ deactivate BLL
 
 PAGE --> ADM : muestra "Notas actualizadas" / "Error", recarga grilla
 deactivate PAGE
+end
 
 alt alumno seleccionado no tiene cursadas
   PAGE --> ADM : gvCursadas queda vacía, no hay nada para editar

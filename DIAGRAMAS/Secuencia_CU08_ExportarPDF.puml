@@ -20,11 +20,11 @@ A -> PAGE : solicita exportar Resumen Academico (GET ExportarPDF.aspx)
 activate PAGE
 
 note right of PAGE
-  Page_Load valida rol antes de generar el PDF:
+  PaginaBase.OnLoad valida antes de generar el PDF:
   sin sesion -> redirige a Login.aspx
-  EsWebmaster -> redirige a Integridad.aspx
-  EsAdmin -> redirige a Materias.aspx
-  Solo el Alumno llega a GenerarPDF()
+  sin el permiso "Exportar PDF" -> redirige a la
+  pagina de inicio del usuario (PermisoRequerido)
+  Solo quien tiene el permiso llega a GenerarPDF()
 end note
 
 PAGE -> BLL : Listar(u.Id)
@@ -40,12 +40,11 @@ deactivate DAL
 BLL --> PAGE : cursadas (detalle de materias)
 deactivate BLL
 
-PAGE -> BLL : CalcularPromedioPonderado(u.Id)
+PAGE -> BLL : ObtenerResumen(u.Id)
 activate BLL
 note right of BLL
-  CalcularPromedioPonderado vuelve a
-  invocar Listar(idUsuario) internamente
-  (no reutiliza la lista "cursadas" ya obtenida)
+  ObtenerResumen vuelve a invocar Listar(idUsuario)
+  internamente (cantidades por estado y promedio)
   -> segunda consulta a ALUMNO_MATERIA_LISTAR
 end note
 BLL -> DAL : Listar(idUsuario)
@@ -57,14 +56,14 @@ deactivate DB
 DAL --> BLL : List<ALUMNO_MATERIA>
 deactivate DAL
 BLL -> BLL : calcula promedio ponderado\n(suma NotaFinal*PesoMateria / suma PesoMateria)
-BLL --> PAGE : (promedio, mensaje)
+BLL --> PAGE : ResumenAcademico (cantidades por estado, promedio)
 deactivate BLL
 
 PAGE -> PAGE : arma Content-Disposition\n(attachment; filename=Resumen_{usuario}_{fecha}.pdf)
 PAGE -> PDF : new Document(...) / PdfWriter.GetInstance(doc, Response.OutputStream)
 activate PDF
 PAGE -> PDF : doc.Open()
-PAGE -> PDF : agrega titulo, promedio ponderado\ny tabla (PdfPTable) con detalle de materias
+PAGE -> PDF : agrega titulo, promedio ponderado, contadores por\nestado y tabla (PdfPTable) con detalle de materias
 PAGE -> PDF : doc.Close()
 deactivate PDF
 

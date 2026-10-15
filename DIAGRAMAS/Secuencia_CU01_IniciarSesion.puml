@@ -16,12 +16,11 @@ participant "UsuarioDAL" as DAL <<DAL>>
 participant "BitacoraBLL" as BIT <<BLL>>
 participant "IntegridadBLL" as INT <<BLL>>
 participant "BE.SessionRegistry" as SR
-participant "BE.SessionManager" as SM
 database "SQL Server" as DB <<BD>>
 
 A -> PAGE : ingresa usuario y contraseña, confirma (btnIngresar_Click)
 activate PAGE
-PAGE -> BLL : AutenticarUsuario(usuario, contrasena, Session.SessionID)
+PAGE -> BLL : AutenticarUsuario(usuario, contrasena, Session.SessionID, out usuario)
 activate BLL
 
 BLL -> DAL : EstaBloqueado(usuario)
@@ -55,7 +54,6 @@ SR --> BLL : false
 deactivate SR
 
 BLL -> SR : RegistrarSesion(usuario, sessionId)
-BLL -> SM : setUsuario(u)
 
 BLL -> BIT : RegistrarLogin(usuario)
 activate BIT
@@ -66,32 +64,41 @@ deactivate BIT
 BLL --> PAGE : LoginResultado.Exito
 deactivate BLL
 
-PAGE -> SM : getUsuario()
-SM --> PAGE : USUARIO
-
 PAGE -> INT : new IntegridadBLL().VerificarTodasLasTablas()
 activate INT
-INT -> DB : consulta DVH/DVV de las 9 tablas de negocio
+INT -> DB : consulta DVH/DVV de las 13 tablas de negocio
 INT --> PAGE : ResultadoIntegridad (EsValido = true)
 deactivate INT
 
-PAGE -> SM : cerrarSesion()
-PAGE --> A : redirige según rol (Integridad.aspx / Materias.aspx / Menu.aspx)
+PAGE -> PAGE : Session["Usuario"] = u\nIdiomaWeb.Fachada.AplicarPreferencia(u.Id)
+PAGE --> A : redirige a la página de inicio según sus permisos\n(PaginaBase.ObtenerPaginaInicio: Integridad, Materias, Menú, Perfil)
 deactivate PAGE
 
-alt credenciales inválidas
+alt campos vacíos
+  PAGE --> A : "Completá usuario y contraseña."
+else credenciales inválidas
+  BLL -> DAL : IncrementarIntentos(usuario)
+  BLL -> BIT : RegistrarAccion("LOGIN_FALLIDO")
   BLL --> PAGE : LoginResultado.CredencialesInvalidas
   PAGE --> A : "Usuario o contraseña incorrectos.", limpia campo contraseña
-else cuenta bloqueada
+else cuenta bloqueada (ya estaba bloqueada o se bloquea en el 3.er intento fallido)
+  BLL -> BIT : RegistrarAccion("USUARIO_BLOQUEADO") (solo en el 3.er intento)
   BLL --> PAGE : LoginResultado.UsuarioBloqueado
   PAGE --> A : aviso de cuenta bloqueada, limpia campo contraseña
+else cuenta dada de baja
+  BLL -> BIT : RegistrarAccion("LOGIN_USUARIO_INACTIVO")
+  BLL --> PAGE : LoginResultado.UsuarioInactivo
+  PAGE --> A : aviso de cuenta dada de baja, limpia campo contraseña
 else sesión ya activa
   BLL --> PAGE : LoginResultado.SesionYaActiva
   PAGE --> A : aviso de sesión ya activa, limpia campo contraseña
-else inconsistencia de integridad detectada (usuario no es Admin/Webmaster)
+else inconsistencia de integridad y el usuario no tiene el permiso "Ingresar con integridad inválida" (solo el Webmaster por defecto)
   INT --> PAGE : ResultadoIntegridad (EsValido = false)
-  PAGE -> SM : cerrarSesion()
+  PAGE -> SR : CerrarSesion(usuario, sessionId)
   PAGE --> A : cierra la sesión y muestra aviso genérico de inconsistencia (pnlInconsistencia)
+else sin permisos asignados (ninguna página de inicio)
+  PAGE -> SR : CerrarSesion(usuario, sessionId)
+  PAGE --> A : "Tu cuenta no tiene permisos asignados. Contactá a un administrador."
 end
 
 @enduml

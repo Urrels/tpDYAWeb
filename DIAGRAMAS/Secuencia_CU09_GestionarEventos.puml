@@ -80,8 +80,11 @@ PAGE -> PAGE : LimpiarForm(); muestra pnlFormEvento
 PAGE --> A : formulario vacío
 deactivate PAGE
 
-A -> PAGE : completa datos y click "Guardar" (esNuevo = true)
+A -> PAGE : completa datos (materia, tipo, fecha, peso, descripción opcional) y click "Guardar" (esNuevo = true)
 activate PAGE
+alt la fecha está vacía
+  PAGE --> A : "La fecha es obligatoria." (no se guarda)
+end
 PAGE -> BLL : Insertar(ev, u.Usuario)
 activate BLL
 BLL -> DAL : Insertar(e)
@@ -131,7 +134,11 @@ PAGE -> BLL : Actualizar(ev, u.Usuario)
 activate BLL
 BLL -> DAL : Actualizar(e)
 activate DAL
-DAL -> DB : EVENTO_ACTUALIZAR
+DAL -> DB : EVENTO_ACTUALIZAR (@id, @id_usuario, ...)
+note right of DB
+  UPDATE ... WHERE ID = @id AND ID_USUARIO = @id_usuario:
+  solo el dueño puede editar el evento
+end note
 DAL --> BLL : true/false
 deactivate DAL
 alt ok
@@ -148,11 +155,15 @@ deactivate PAGE
 
 A -> PAGE : click "Eliminar" en fila de la grilla (CommandName=EliminarEvento)
 activate PAGE
-PAGE -> BLL : Eliminar(id, u.Usuario)
+PAGE -> BLL : Eliminar(id, u.Id, u.Usuario)
 activate BLL
-BLL -> DAL : Eliminar(id)
+BLL -> DAL : Eliminar(id, idUsuario)
 activate DAL
-DAL -> DB : EVENTO_ELIMINAR
+DAL -> DB : EVENTO_ELIMINAR (@id, @id_usuario)
+note right of DB
+  DELETE ... WHERE ID = @id AND ID_USUARIO = @id_usuario:
+  solo el dueño puede eliminar el evento
+end note
 DAL --> BLL : true/false
 deactivate DAL
 alt ok

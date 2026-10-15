@@ -19,7 +19,7 @@ participant "PeriodoDAL" as PERDAL <<DAL>>
 participant "BitacoraDAL" as BITDAL <<DAL>>
 database "SQL Server" as DB <<BD>>
 
-ADM -> PAGE : ingresa a Inscripcion.aspx (Session["Usuario"].EsAdmin == true)
+ADM -> PAGE : ingresa a Inscripcion.aspx (permiso "Gestionar periodos e inscripciones")
 activate PAGE
 
 PAGE -> INSBLL : ObtenerPeriodoActual()
@@ -50,9 +50,19 @@ deactivate PAGE
 ADM -> PAGE : "Nuevo Período" o "Editar" en un período, completa año/cuatrimestre/\ndescripción/fecha inicio/fecha fin, click "Guardar Período"
 activate PAGE
 
+alt el año no es un número entre 2000 y 2100
+  PAGE --> ADM : "El año ingresado no es válido." (no se guarda)
+end
+
 alt período nuevo (hfIdPeriodo.Value == "0")
   PAGE -> PERBLL : Insertar(periodo, u.Usuario)
   activate PERBLL
+  PERBLL -> PERDAL : Listar()
+  PERBLL -> PERBLL : PeriodoDuplicado(existentes, periodo) (mismo año y cuatrimestre)
+  opt ya existe un período con ese año y cuatrimestre
+    PERBLL --x PAGE : InvalidOperationException("Ya existe un período para ese año y cuatrimestre.")
+    PAGE --> ADM : alerta de error con el mensaje (no se guarda nada)
+  end
   PERBLL -> PERDAL : Insertar(periodo)
   activate PERDAL
   PERDAL -> DB : EscribirConRetorno("PERIODO_INSERTAR", params)
@@ -73,6 +83,7 @@ alt período nuevo (hfIdPeriodo.Value == "0")
 else edición de período existente
   PAGE -> PERBLL : Actualizar(periodo, u.Usuario)
   activate PERBLL
+  PERBLL -> PERBLL : PeriodoDuplicado(Listar(), periodo) (excluye el propio período)
   PERBLL -> PERDAL : Actualizar(periodo)
   activate PERDAL
   PERDAL -> DB : EscribirConRetorno("PERIODO_ACTUALIZAR", params)

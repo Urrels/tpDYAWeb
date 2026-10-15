@@ -6,6 +6,10 @@ skinparam classAttributeIconSize 0
 skinparam classFontSize 10
 skinparam packageFontSize 12
 skinparam shadowing false
+skinparam linetype ortho
+hide empty members
+skinparam ranksep 20
+skinparam nodesep 12
 skinparam ranksep 40
 skinparam nodesep 25
 
@@ -20,6 +24,7 @@ package "BE — Entidades" as BE #DBEAFE {
     +IntentosFallidos : int
     +Activo : bool
     +Bloqueado : bool
+    +PerfilesTexto : string
     +Permisos : List<string>
     +VersionPermisos : int
     +EpocaSesion : long
@@ -175,18 +180,14 @@ package "BE — Entidades" as BE #DBEAFE {
     +CalcularVertical(filas, colIdx) : int
   }
 
-  class SessionManager <<singleton>> {
-    +getInstane() : SessionManager
-    +getUsuario() : USUARIO
-    +setUsuario(u) : int
-    +cerrarSesion()
-  }
+
 
   class SessionRegistry <<singleton>> {
     +Instancia : SessionRegistry {static}
     +TieneSesionActiva(usuario) : bool
     +RegistrarSesion(usuario, sessionId)
-    +CerrarSesion(usuario)
+    +CerrarSesion(usuario, sessionId)
+    +ForzarCierre(usuario)
   }
 
   MATERIA "0..*" o-- "0..*" MATERIA : correlativas
@@ -199,20 +200,22 @@ package "BE — Entidades" as BE #DBEAFE {
   CONTROL_IDIOMA ..> IDIOMA : traducción por idioma
   INSCRIPCION *-- "0..*" MATERIA
   PaginaResultado *-- "0..*" BITACORA : Filas (T)
-  SessionManager --> USUARIO
 
-  USUARIO               -[hidden]right-> MATERIA
-  MATERIA                -[hidden]right-> ALUMNO_MATERIA
-  ALUMNO_MATERIA         -[hidden]right-> INSCRIPCION
-  INSCRIPCION            -[hidden]right-> PERIODO_ACADEMICO
-  PERIODO_ACADEMICO      -[hidden]right-> EVENTO_ACADEMICO
-  EVENTO_ACADEMICO       -[hidden]right-> BITACORA
-  BITACORA               -[hidden]right-> PaginaResultado
-  PaginaResultado -[hidden]right-> AESHelper
-  AESHelper              -[hidden]right-> HashHelper
-  HashHelper             -[hidden]right-> CalculadorDVH
-  CalculadorDVH          -[hidden]right-> SessionManager
-  SessionManager         -[hidden]right-> SessionRegistry
+
+  USUARIO           -[hidden]right-> MATERIA
+  MATERIA           -[hidden]right-> ALUMNO_MATERIA
+  ALUMNO_MATERIA    -[hidden]right-> INSCRIPCION
+  PERIODO_ACADEMICO -[hidden]right-> EVENTO_ACADEMICO
+  EVENTO_ACADEMICO  -[hidden]right-> BITACORA
+  BITACORA          -[hidden]right-> PaginaResultado
+  USUARIO           -[hidden]down-> PERIODO_ACADEMICO
+  MATERIA           -[hidden]down-> EVENTO_ACADEMICO
+  ALUMNO_MATERIA    -[hidden]down-> BITACORA
+  INSCRIPCION       -[hidden]down-> PaginaResultado
+  AESHelper         -[hidden]right-> HashHelper
+  HashHelper        -[hidden]right-> CalculadorDVH
+  CalculadorDVH     -[hidden]right-> SessionRegistry
+  PERIODO_ACADEMICO -[hidden]down-> AESHelper
 }
 
 @enduml

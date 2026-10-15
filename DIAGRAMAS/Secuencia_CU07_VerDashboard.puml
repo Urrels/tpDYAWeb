@@ -17,7 +17,7 @@ database "SQL Server" as DB <<BD>>
 
 A -> PAGE : ingresa al Dashboard (Page_Load)
 activate PAGE
-PAGE -> PAGE : valida Session["Usuario"]\n(redirige si null / EsWebmaster / EsAdmin)
+PAGE -> PAGE : PaginaBase.OnLoad valida sesión, revocación y permiso\n"Ver dashboard" (si falta, redirige a la página de inicio del usuario)
 PAGE -> PAGE : CargarDashboard()
 PAGE -> BLL : Listar(u.Id)
 activate BLL
@@ -37,11 +37,16 @@ DAL --> BLL : List<BE.ALUMNO_MATERIA> cursadas
 deactivate DAL
 BLL --> PAGE : cursadas
 deactivate BLL
-PAGE -> PAGE : calcula contadores por Estado\n(Total, Aprobadas, Cursando, FinalPendiente) via LINQ
+PAGE -> BLL : ObtenerResumen(u.Id)\n(Total, Aprobadas, Cursando, FinalPendiente)
 PAGE -> PAGE : serializa datosNotas\n(labels, parcial1, parcial2, final) -> hfDatosNotas
 PAGE -> PAGE : serializa datosEstados -> hfDatosEstados
 PAGE --> A : renderiza Dashboard\n(graficos client-side leen los hidden fields)
 deactivate PAGE
+
+note over PAGE
+  El promedio ponderado no se muestra en el Dashboard: se consulta con el botón
+  "Consultar MateriasService" (CU25). El riesgo por materia está en Mis Cursadas.
+end note
 
 alt alumno sin cursadas (lista vacia)
   BLL --> PAGE : cursadas = lista vacia
