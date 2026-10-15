@@ -11,7 +11,7 @@ namespace BLL
 
         public List<BE.PERIODO_ACADEMICO> Listar() => _dal.Listar();
 
-        public const string MensajePeriodoDuplicado = "Ya existe un período para ese año y cuatrimestre.";
+        public const string MensajePeriodoDuplicado = DAL.PeriodoDAL.MensajePeriodoDuplicado;
 
         /// <summary>(ANIO, CUATRIMESTRE) es UNIQUE en la base: se avisa antes de insertar o modificar.</summary>
         public static bool PeriodoDuplicado(IEnumerable<BE.PERIODO_ACADEMICO> existentes, BE.PERIODO_ACADEMICO p)

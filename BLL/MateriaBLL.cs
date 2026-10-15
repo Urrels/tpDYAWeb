@@ -9,7 +9,7 @@ namespace BLL
         private readonly BitacoraBLL _bitacora = new BitacoraBLL();
         private readonly IntegridadBLL _integridad = new IntegridadBLL();
 
-        public const string MensajeCodigoDuplicado = "El código de materia ya existe.";
+        public const string MensajeCodigoDuplicado = DAL.MateriaDAL.MensajeCodigoDuplicado;
 
         /// <summary>
         /// El CODIGO es UNIQUE en la base (sin distinguir mayúsculas): se compara igual para avisar antes
@@ -24,7 +24,7 @@ namespace BLL
 
         public int Insertar(BE.MATERIA m, string usuarioAccion)
         {
-            if (CodigoDuplicado(_dal.Listar(), m.Codigo, 0))
+            if (CodigoDuplicado(_dal.ListarTodasConInactivas(), m.Codigo, 0))
                 throw new System.InvalidOperationException(MensajeCodigoDuplicado);
             int id = _dal.Insertar(m);
             if (id > 0)
@@ -37,7 +37,7 @@ namespace BLL
 
         public bool Actualizar(BE.MATERIA m, string usuarioAccion)
         {
-            if (CodigoDuplicado(_dal.Listar(), m.Codigo, m.Id))
+            if (CodigoDuplicado(_dal.ListarTodasConInactivas(), m.Codigo, m.Id))
                 throw new System.InvalidOperationException(MensajeCodigoDuplicado);
             bool ok = _dal.Actualizar(m);
             if (ok)
