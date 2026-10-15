@@ -565,6 +565,7 @@ INSERT INTO @textos (CLAVE, ES, EN, PT) VALUES
     (N'Msg.Elusuariodebeteneralmenosunperfil', N'El usuario debe tener al menos un perfil.', N'The user must have at least one profile.', N'O usuário deve ter pelo menos um perfil.'),
     (N'Msg.Elusuarionoexiste', N'El usuario no existe.', N'The user does not exist.', N'O usuário não existe.'),
     (N'Msg.Erroralregistrarlainscripcion', N'Error al registrar la inscripción.', N'Error while registering the enrollment.', N'Erro ao registrar a matrícula.'),
+    (N'Msg.Lasnotasdebensernumerosentre0y10', N'Las notas deben ser números entre 0 y 10.', N'Grades must be numbers between 0 and 10.', N'As notas devem ser números entre 0 e 10.'),
     (N'Msg.errorInesperado', N'Ocurrió un error inesperado al guardar. Revisá el estado y volvé a intentar.', N'An unexpected error occurred while saving. Check the status and try again.', N'Ocorreu um erro inesperado ao salvar. Verifique o estado e tente novamente.'),
     (N'Msg.Inscripcioncompletada0materiasregistradas', N'✔ Inscripción completada: {0} materia(s) registrada(s).', N'✔ Enrollment completed: {0} subject(s) registered.', N'✔ Matrícula concluída: {0} matéria(s) registrada(s).'),
     (N'Msg.Lacontrasenadebetener6caracteres1mayusculay1numero', N'La contraseña debe tener 6+ caracteres, 1 mayúscula y 1 número.', N'The password must have 6+ characters, 1 uppercase letter and 1 number.', N'A senha deve ter 6+ caracteres, 1 maiúscula e 1 número.'),
