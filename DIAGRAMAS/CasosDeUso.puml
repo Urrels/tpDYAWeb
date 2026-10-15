@@ -1,8 +1,11 @@
 @startuml CasosDeUso
 title Sistema de Gestión Académico — Diagrama de Casos de Uso
 
-left to right direction
+top to bottom direction
 skinparam packageStyle rectangle
+skinparam nodesep 15
+skinparam ranksep 30
+skinparam dpi 100
 skinparam actorStyle awesome
 skinparam usecase {
     BackgroundColor White
@@ -142,7 +145,29 @@ CU23 ..> BITACORA : <<include>>
 CU27 ..> BITACORA : <<include>>
 
 ' Extends
-CU07 ..> CU05 : <<extend>>
-CU08 ..> CU07 : <<extend>>
+CU07 .[norank].> CU05 : <<extend>>
+CU08 .[norank].> CU07 : <<extend>>
+
+' Disposición en filas (aristas ocultas)
+CU01 -[hidden]-> CU04
+CU18 -[hidden]-> CU05
+CU02 -[hidden]-> CU07
+CU03 -[hidden]-> CU08
+CU26 -[hidden]-> CU09
+CU04 -[hidden]-> CU06
+CU05 -[hidden]-> CU10
+CU07 -[hidden]-> CU11
+CU08 -[hidden]-> CU12
+CU09 -[hidden]-> CU13
+CU06 -[hidden]-> CU19
+CU10 -[hidden]-> CU20
+CU11 -[hidden]-> CU21
+CU12 -[hidden]-> CU14
+CU13 -[hidden]-> CU15
+CU13 -[hidden]-> CU16
+CU19 -[hidden]-> CU22
+CU20 -[hidden]-> CU23
+CU21 -[hidden]-> CU24
+CU14 -[hidden]-> CU25
 
 @enduml
