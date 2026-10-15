@@ -130,7 +130,7 @@ namespace CAPAS_Web
 
             if (e.CommandName == "EliminarEvento")
             {
-                bool ok = _eventoBll.Eliminar(id, u.Usuario);
+                bool ok = _eventoBll.Eliminar(id, u.Id, u.Usuario);
                 MostrarMsg(ok ? "alert-success" : "alert-danger",
                     ok ? Textos.TH("Calendario.msgEliminado", "✔ Evento eliminado.") : Textos.TH("Calendario.msgErrorEliminar", "✖ Error al eliminar."));
                 return;

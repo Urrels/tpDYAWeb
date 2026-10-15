@@ -32,9 +32,9 @@ namespace BLL
             return ok;
         }
 
-        public bool Eliminar(int id, string usuarioAccion)
+        public bool Eliminar(int id, int idUsuario, string usuarioAccion)
         {
-            bool ok = _dal.Eliminar(id);
+            bool ok = _dal.Eliminar(id, idUsuario);
             if (ok)
             {
                 _bitacora.RegistrarAccion(usuarioAccion, $"BAJA_EVENTO:{id}");
