@@ -1,6 +1,7 @@
 @startuml Patron_Composite_Perfiles
 title Patrón Composite — Perfiles y Permisos
 skinparam shadowing false
+skinparam linetype ortho
 skinparam classAttributeIconSize 0
 hide empty members
 

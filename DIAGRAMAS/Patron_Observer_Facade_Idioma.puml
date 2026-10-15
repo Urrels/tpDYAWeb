@@ -1,6 +1,7 @@
 @startuml Patron_Observer_Facade_Idioma
 title Patrones Observer y Facade — Multiidioma
 skinparam shadowing false
+skinparam linetype ortho
 skinparam classAttributeIconSize 0
 hide empty members
 

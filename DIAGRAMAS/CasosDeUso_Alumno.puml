@@ -1,0 +1,77 @@
+@startuml CasosDeUso_Alumno
+title Sistema de Gestión Académico — Casos de Uso del Alumno
+
+left to right direction
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam nodesep 15
+skinparam ranksep 30
+skinparam dpi 100
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor White
+    BorderColor #2E74B5
+    ArrowColor #2E74B5
+}
+skinparam actor {
+    BorderColor #1F497D
+}
+
+actor Alumno as A
+
+rectangle "Sistema de Gestión Académico" {
+
+    package "Autenticación y Sesión" {
+        usecase "CU01\nIniciar Sesión" as CU01
+        usecase "CU18\nCerrar Sesión" as CU18
+    }
+
+    package "Cuenta" {
+        usecase "CU02\nEditar Perfil" as CU02
+        usecase "CU03\nCambiar Contraseña" as CU03
+    }
+
+    package "Multiidioma" {
+        usecase "CU26\nCambiar Idioma" as CU26
+    }
+
+    package "Gestión Académica del Alumno" {
+        usecase "CU04\nInscribirse a Materias" as CU04
+        usecase "CU05\nConsultar Cursadas" as CU05
+        usecase "CU07\nVer Dashboard Académico" as CU07
+        usecase "CU08\nExportar Resumen\nAcadémico a PDF" as CU08
+        usecase "CU09\nGestionar Eventos\ndel Calendario" as CU09
+    }
+
+    package "Intercambio del Plan de Estudios" {
+        usecase "CU25\nConsultar Resumen\nAcadémico (Web Service)" as CU25
+    }
+
+    usecase "CU17\nRegistrar en Bitácora" as BITACORA <<include>>
+    usecase "Validar Correlativas" as CORREL <<include>>
+}
+
+A --> CU01
+A --> CU18
+A --> CU26
+A --> CU02
+A --> CU03
+A --> CU04
+A --> CU05
+A --> CU07
+A --> CU08
+A --> CU09
+A --> CU25
+
+CU01 ..> BITACORA : <<include>>
+CU02 ..> BITACORA : <<include>>
+CU03 ..> BITACORA : <<include>>
+CU04 ..> BITACORA : <<include>>
+CU04 ..> CORREL   : <<include>>
+CU09 ..> BITACORA : <<include>>
+CU18 ..> BITACORA : <<include>>
+
+CU07 .[norank].> CU05 : <<extend>>
+CU08 .[norank].> CU07 : <<extend>>
+
+@enduml

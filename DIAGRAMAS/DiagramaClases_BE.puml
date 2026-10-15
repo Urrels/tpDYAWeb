@@ -6,6 +6,7 @@ skinparam classAttributeIconSize 0
 skinparam classFontSize 10
 skinparam packageFontSize 12
 skinparam shadowing false
+skinparam linetype ortho
 hide empty members
 skinparam ranksep 20
 skinparam nodesep 12
