@@ -1,0 +1,68 @@
+@startuml Secuencia_CU24_ConsultarPlanWebService
+title CU24 — Consultar Plan de Estudios (Web Service)
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<WS>> #E9D5FF
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "Materias.aspx\n(navegador)" as PAGE <<Page>>
+participant "MateriasService.asmx" as WS <<WS>>
+participant "PerfilBLL" as PBLL <<BLL>>
+participant "MateriaBLL" as BLL <<BLL>>
+participant "MateriaDAL" as DAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : click "Consultar MateriasService"
+activate PAGE
+PAGE -> WS : POST MateriasService.asmx/ListarMaterias\nContent-Type: application/json + cookie de sesión
+activate WS
+note right of WS
+  [WebService] [ScriptService]; el método usa [WebMethod(EnableSession = true)].
+  Sin login propio: reutiliza la sesión del sitio.
+end note
+
+WS -> WS : ExigirPermiso(GestionarMaterias)
+WS -> WS : Session["Usuario"] existe?
+WS -> PBLL : SesionRevocada(usuario)
+WS -> PBLL : RefrescarPermisosSiHaceFalta(usuario)
+WS -> WS : usuario.TienePermiso("Gestionar materias")
+
+alt sin sesión, sesión revocada o sin permiso
+  WS --> PAGE : UnauthorizedAccessException\n("Sesión no iniciada o vencida." / "No tenés permiso para esta consulta.")\n→ HTTP 500
+  PAGE --> ADM : "No se pudo consultar el servicio: ..."
+else autorizado
+  WS -> BLL : Listar()
+  activate BLL
+  BLL -> DAL : Listar()
+  DAL -> DB : Leer("MATERIA_LISTAR")
+  DB --> DAL : materias activas
+  DAL --> BLL : List<MATERIA>
+  deactivate BLL
+  loop por cada materia
+    WS -> BLL : ListarCorrelativas(materia.Id)
+    BLL -> DAL : ListarCorrelativas(id)
+    DAL -> DB : Leer("CORRELATIVA_LISTAR")
+    DB --> DAL : correlativas
+    DAL --> BLL : List<MATERIA>
+    BLL --> WS : List<MATERIA>
+  end
+  WS -> WS : convierte a MateriaDto\n(Codigo, Nombre, Modalidad, Peso, Correlativas por código)\nsin ids internos
+  WS --> PAGE : JSON {"d": [MateriaDto, ...]}
+  deactivate WS
+  PAGE --> ADM : tabla con código, nombre, modalidad, peso y correlativas\n+ "N materias recibidas del servicio."
+end
+deactivate PAGE
+
+note over PAGE, WS
+  También se puede invocar como SOAP / formulario desde la página de prueba de ASMX
+  (/MateriasService.asmx) con la misma sesión. ObtenerMateria(codigo) devuelve una sola materia.
+  La exigencia de Content-Type: application/json dificulta el CSRF desde otros sitios.
+end note
+
+@enduml

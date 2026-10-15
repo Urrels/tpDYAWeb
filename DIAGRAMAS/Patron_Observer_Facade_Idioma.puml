@@ -1,0 +1,79 @@
+@startuml Patron_Observer_Facade_Idioma
+title Patrones Observer y Facade — Multiidioma
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+hide empty members
+
+interface IObservadorIdioma <<Observer>> {
+  +ActualizarIdioma()
+}
+
+class IdiomaManager <<Subject>> {
+  -_observers : List<IObservadorIdioma>
+  -_traducciones : Dictionary<string,string>
+  -_idiomaActivo : IDIOMA
+  +VersionAplicada : int
+  --
+  +Registrar(obs : IObservadorIdioma)
+  +Desregistrar(obs : IObservadorIdioma)
+  +CambiarIdioma(idioma, traducciones)
+  -Notificar()
+  +Traducir(clave) : string
+}
+
+class PaginaConIdioma <<ConcreteObserver>> {
+  -_slots : textos originales de los controles
+  --
+  #OnInit() : Registrar(this)
+  #OnPreRender() : ActualizarIdioma()
+  #OnUnload() : Desregistrar(this)
+  +ActualizarIdioma()
+}
+
+class PaginaBase
+class Login <<Page>>
+class SelectorIdioma <<UserControl>>
+
+class FachadaIdioma <<Facade>> {
+  +Cambiar(idioma, idUsuario)
+  +AplicarPreferencia(idUsuario)
+  +AplicarPredeterminadoSiHaceFalta()
+  +RefrescarSiHaceFalta()
+  +Traducir(clave) : string
+}
+
+class IdiomaBLL {
+  +VersionTraducciones : int {static}
+  +CargarTraducciones(idiomaId)
+  +ActualizarIdiomaDeUsuario(id, idiomaId)
+}
+class IdiomaDAL
+class IdiomaWeb <<static>> {
+  +Manager : IdiomaManager
+  +Fachada : FachadaIdioma
+}
+
+IdiomaManager "1" o-- "0..*" IObservadorIdioma : _observers
+PaginaConIdioma ..|> IObservadorIdioma
+PaginaBase --|> PaginaConIdioma
+Login --|> PaginaConIdioma
+SelectorIdioma --> FachadaIdioma : Cambiar(idioma)
+FachadaIdioma --> IdiomaManager : CambiarIdioma(...)
+FachadaIdioma --> IdiomaBLL
+IdiomaBLL --> IdiomaDAL
+IdiomaWeb ..> IdiomaManager : uno por sesión\n(guardado en Session)
+IdiomaWeb ..> FachadaIdioma
+PaginaConIdioma ..> IdiomaWeb
+
+note right of IdiomaManager
+  En la versión de escritorio es un Singleton. En la web cada usuario
+  tiene su idioma, así que hay una instancia por sesión: una estática
+  mezclaría el idioma de todos los usuarios.
+end note
+
+note bottom of FachadaIdioma
+  La interfaz solo conoce a la Facade. Ella carga las traducciones,
+  avisa a los observadores y guarda la preferencia del usuario.
+end note
+
+@enduml

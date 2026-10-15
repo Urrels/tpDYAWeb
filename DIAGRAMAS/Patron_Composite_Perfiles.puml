@@ -1,0 +1,69 @@
+@startuml Patron_Composite_Perfiles
+title Patrón Composite — Perfiles y Permisos
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+hide empty members
+
+abstract class NodoPermiso <<Component>> {
+  +Id : int
+  +Nombre : string
+  +PadreId : int?
+  --
+  +{abstract} Agregar(nodo : NodoPermiso)
+  +{abstract} Quitar(nodo : NodoPermiso)
+  +{abstract} ObtenerHijos() : IList<NodoPermiso>
+  +{abstract} EsHoja() : bool
+  +{abstract} TienePermiso(nombre : string) : bool
+  +{abstract} ObtenerPermisos() : IEnumerable<string>
+}
+
+class Rol <<Composite>> {
+  +Protegido : bool
+  -_hijos : List<NodoPermiso>
+  -_visitando : bool
+  --
+  +Agregar(nodo) / Quitar(nodo)
+  +ObtenerHijos()
+  +EsHoja() : false
+  +TienePermiso(nombre)
+  +ObtenerPermisos()
+}
+
+class Permiso <<Leaf>> {
+  +Agregar(nodo) : lanza InvalidOperationException
+  +ObtenerHijos() : lista vacía
+  +EsHoja() : true
+  +TienePermiso(nombre) : Nombre == nombre
+  +ObtenerPermisos() : { Nombre }
+}
+
+class PerfilBLL <<Client>> {
+  +ObtenerArbol() : List<Rol>
+  +ObtenerPermisosEfectivos(usuarioId) : List<string>
+  +CambiarPadre(rolId, padreId, actor)
+}
+
+class USUARIO {
+  +Permisos : List<string>
+  +TienePermiso(nombre) : bool
+}
+
+NodoPermiso <|-- Rol
+NodoPermiso <|-- Permiso
+Rol "1" o-- "0..*" NodoPermiso : _hijos\n(perfiles y permisos)
+PerfilBLL ..> NodoPermiso : arma el árbol una sola vez\ny resuelve recursivamente
+PerfilBLL ..> USUARIO : carga los permisos efectivos\nal iniciar sesión
+
+note right of Rol
+  Los permisos efectivos de un perfil son los suyos más los de
+  todos sus descendientes (herencia real). Si los datos tuvieran
+  una referencia circular, _visitando corta la recursión.
+  CambiarPadre rechaza ciclos antes de escribir.
+end note
+
+note bottom of PerfilBLL
+  Los permisos efectivos nunca se resuelven con una consulta SQL plana:
+  siempre recorriendo el Composite en memoria.
+end note
+
+@enduml

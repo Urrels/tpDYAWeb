@@ -1,0 +1,217 @@
+@startuml DiagramaClases_WEB
+title Diagrama de clases - Presentacion (WebForms)
+top to bottom direction
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam classFontSize 10
+skinparam packageFontSize 12
+skinparam shadowing false
+skinparam ranksep 40
+skinparam nodesep 25
+
+package "WebForms — Presentación" as WEB #FCE7F3 {
+
+  class PaginaConIdioma <<Page · ConcreteObserver>> {
+    -_slots : textos originales de cada control
+    --
+    #OnInit() : se registra en IdiomaManager y guarda los textos
+    #OnPreRender() : aplica Traducir(clave) ?? original
+    +ActualizarIdioma()
+    #OnUnload() : se desregistra
+  }
+
+  class PaginaBase <<Page>> {
+    #PermisoRequerido : string
+    #TieneAcceso(usuario) : bool
+    #OnLoad() : sesión, revocación, permisos y acceso
+    +ObtenerPaginaInicio(usuario) : string {static}
+  }
+
+  class Textos <<static>> {
+    +T(clave, default, args) : string
+    +TH(...) : string
+    +Mensaje(espanol) / MH(espanol) : string
+    +Valor(espanol) : string
+    +Js(clave, default) : string
+  }
+
+  class IdiomaWeb <<internal static>> {
+    +Manager : IdiomaManager (en Session)
+    +Fachada : FachadaIdioma
+  }
+
+  class SelectorIdioma <<UserControl>> {
+    +ddlIdioma_SelectedIndexChanged()
+  }
+
+  class MateriasService <<WebService .asmx>> {
+    +ListarMaterias() : List<MateriaDto>
+    +ObtenerMateria(codigo) : MateriaDto
+    +ObtenerResumenAcademico() : ResumenAcademico
+    -ExigirPermiso(permiso)
+  }
+
+  class Site <<Master>> {
+    +phNav... (un PlaceHolder por enlace y sección)
+    +selectorIdioma
+    +lblUsuarioNav
+    --
+    +btnCerrarSesion_Click()
+  }
+
+  class Login <<Page>> {
+    +LoginBLL
+    +IntegridadBLL
+    +FachadaIdioma
+  }
+
+  class Menu <<Page>> {
+    +AlumnoMateriaBLL
+    +EventoBLL
+  }
+
+  class Inscripcion <<Page>> {
+    +InscripcionBLL
+    +PeriodoBLL
+  }
+
+  class MisCursadas <<Page>> {
+    +AlumnoMateriaBLL
+    +EventoBLL
+  }
+
+  class Dashboard <<Page>> {
+    +AlumnoMateriaBLL
+  }
+
+  class Calendario <<Page>> {
+    +EventoBLL
+    +FeriadosBLL
+    +AlumnoMateriaBLL
+  }
+
+  class Perfil <<Page>> {
+    +UsuarioBLL
+  }
+
+  class CambiarContrasena <<Page>> {
+    +UsuarioBLL
+  }
+
+  class ExportarPDF <<Page>> {
+    +AlumnoMateriaBLL
+  }
+
+  class Materias <<Page · Admin>> {
+    +MateriaBLL
+    +MateriaXmlBLL
+  }
+
+  class Notas <<Page · Admin>> {
+    +AlumnoMateriaBLL
+    +UsuarioBLL
+  }
+
+  class Bitacora <<Page · Admin>> {
+    +BitacoraBLL
+  }
+
+  class Usuarios <<Page · Admin>> {
+    +PerfilBLL
+    +Paginador
+  }
+
+  class Paginador <<UserControl>> {
+    +PaginaActual : int
+    +TotalFilas : int
+    +TamanioPagina : int
+    +TotalPaginas : int
+    +CambioPagina : event
+    --
+    +Establecer(resultado : PaginaResultado<T>)
+  }
+
+  class UsuariosBloqueados <<Page · Admin>> {
+    +UsuarioBLL
+  }
+
+  class Integridad <<Page · Webmaster>> {
+    +IntegridadBLL
+  }
+
+  class Perfiles <<Page · Admin>> {
+    +PerfilBLL
+  }
+
+  class AsignarPerfiles <<Page · Admin>> {
+    +PerfilBLL
+  }
+
+  class Idiomas <<Page · Admin>> {
+    +IdiomaBLL
+  }
+
+  Login             --> LoginBLL
+  Login             --> IntegridadBLL
+  Menu              --> AlumnoMateriaBLL
+  Menu              --> EventoBLL
+  Inscripcion       --> InscripcionBLL
+  Inscripcion       --> PeriodoBLL
+  MisCursadas       --> AlumnoMateriaBLL
+  MisCursadas       --> EventoBLL
+  Dashboard         --> AlumnoMateriaBLL
+  Calendario        --> EventoBLL
+  Calendario        --> FeriadosBLL
+  Calendario        --> AlumnoMateriaBLL
+  Perfil            --> UsuarioBLL
+  CambiarContrasena --> UsuarioBLL
+  ExportarPDF       --> AlumnoMateriaBLL
+  Materias          --> MateriaBLL
+  Notas             --> AlumnoMateriaBLL
+  Notas             --> UsuarioBLL
+  Bitacora          --> BitacoraBLL
+  Bitacora          --> Paginador
+  Materias          --> Paginador
+  Usuarios          --> PerfilBLL
+  Usuarios          --> Paginador
+  UsuariosBloqueados --> UsuarioBLL
+  Integridad        --> IntegridadBLL
+  Perfiles          --> PerfilBLL
+  AsignarPerfiles   --> PerfilBLL
+  Idiomas           --> IdiomaBLL
+  Materias          --> MateriaXmlBLL
+  Materias          ..> MateriasService : consulta desde el navegador (JSON)
+  Dashboard         ..> MateriasService : consulta desde el navegador (JSON)
+  MateriasService   --> MateriaBLL
+  MateriasService   --> AlumnoMateriaBLL
+  MateriasService   --> PerfilBLL
+  PaginaBase        --|> PaginaConIdioma
+  Login             --|> PaginaConIdioma
+  PaginaConIdioma   ..|> IObservadorIdioma
+  PaginaConIdioma   --> IdiomaWeb
+  PaginaConIdioma   --> Textos
+  SelectorIdioma    --> IdiomaWeb
+  SelectorIdioma    --> FachadaIdioma
+  IdiomaWeb         --> IdiomaManager
+  IdiomaWeb         --> FachadaIdioma
+  Textos            --> IdiomaWeb
+
+  Site               -[hidden]right-> Login
+  Login              -[hidden]right-> Menu
+  Menu               -[hidden]right-> Inscripcion
+  Inscripcion        -[hidden]right-> MisCursadas
+  MisCursadas        -[hidden]right-> Dashboard
+  Dashboard          -[hidden]right-> Calendario
+  Calendario         -[hidden]right-> Perfil
+  Perfil             -[hidden]right-> CambiarContrasena
+  CambiarContrasena  -[hidden]right-> ExportarPDF
+  ExportarPDF        -[hidden]right-> Materias
+  Materias           -[hidden]right-> Notas
+  Notas              -[hidden]right-> Bitacora
+  Bitacora           -[hidden]right-> UsuariosBloqueados
+  UsuariosBloqueados -[hidden]right-> Integridad
+  Integridad         -[hidden]right-> Usuarios
+  Usuarios           -[hidden]right-> Paginador
+}
+
+@enduml

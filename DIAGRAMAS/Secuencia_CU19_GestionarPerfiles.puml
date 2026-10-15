@@ -1,0 +1,105 @@
+@startuml Secuencia_CU19_GestionarPerfiles
+title CU19 — Gestionar Perfiles y Permisos (Composite)
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "Perfiles.aspx" as PAGE <<Page>>
+participant "PerfilBLL" as BLL <<BLL>>
+participant "PerfilDAL" as DAL <<DAL>>
+participant "IntegridadBLL" as INT <<BLL>>
+participant "BitacoraBLL" as BIT <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : ingresa a Perfiles.aspx
+activate PAGE
+note right of PAGE
+  PaginaBase exige el permiso "Gestionar perfiles"
+  (sin sesión → Login.aspx; sin permiso → su página de inicio)
+end note
+PAGE -> BLL : ObtenerArbolGestionablePor(actor)
+activate BLL
+BLL -> DAL : ListarRoles() / ListarPermisosPorRol()
+activate DAL
+DAL -> DB : Leer("ROL_LISTAR_TODOS") / Leer("ROL_PERMISO_LISTAR_TODOS")
+DB --> DAL : perfiles y permisos
+DAL --> BLL : datos planos
+deactivate DAL
+BLL --> PAGE : árbol Composite (Rol → Rol / Permiso)\nsolo con los perfiles que el actor cubre
+deactivate BLL
+PAGE --> ADM : TreeView de perfiles y permisos
+
+== Crear un perfil ==
+ADM -> PAGE : escribe el nombre, click "Crear en la raíz" o "Crear dentro del seleccionado"
+PAGE -> BLL : CrearRol(nombre, padreId, actor)
+activate BLL
+note right of BLL
+  lock (_lockEscritura): las escrituras se serializan.
+  CargarEstado() trae perfiles, permisos y asignaciones
+  y las reglas se simulan en memoria antes de escribir.
+end note
+BLL -> BLL : ExigirGestorDePerfiles(actor)\nBuscarRolGestionable(padre)\nExigirNombreLibre(nombre)
+BLL -> DAL : InsertarRol(nombre, padreId)
+activate DAL
+DAL -> DB : EscribirConRetorno("ROL_INSERTAR")
+DB --> DAL : id del perfil
+DAL --> BLL : id
+deactivate DAL
+BLL -> INT : RecalcularRol()
+INT -> DB : recalcula DVH de ROL y DVV
+BLL -> BIT : RegistrarAccion(actor, "ALTA_PERFIL:nombre")
+BIT -> DB : inserta en BITACORA
+BLL -> BLL : InvalidarPermisos()\n(VersionPermisos++)
+BLL --> PAGE : id
+deactivate BLL
+PAGE --> ADM : "Perfil creado." + árbol recargado
+
+== Cambiar los permisos propios de un perfil ==
+ADM -> PAGE : marca/desmarca permisos, click "Guardar permisos"
+PAGE -> BLL : GuardarPermisosDeRol(rolId, permisoIds, actor)
+activate BLL
+BLL -> BLL : valida: perfil no protegido, permisos existentes y\notorgables por el actor, escalada (Privilegiados)
+BLL -> BLL : simula el nuevo estado y\nExigirOperadorDePerfiles()\n(debe quedar un usuario activo con "Gestionar perfiles")
+BLL -> DAL : GuardarPermisosDeRol(rolId, permisoIds)
+DAL -> DB : transacción: ROL_PERMISO_ELIMINAR_POR_ROL + ROL_PERMISO_INSERTAR por permiso
+BLL -> INT : RecalcularRolPermiso()
+BLL -> BIT : RegistrarAccion(actor, "MODIF_PERMISOS_PERFIL:perfil")
+BLL -> BLL : InvalidarPermisos()
+BLL --> PAGE : ok
+deactivate BLL
+PAGE --> ADM : "Permisos guardados."
+
+== Renombrar, mover o eliminar ==
+ADM -> PAGE : "Renombrar" / "Cambiar padre" / "Eliminar perfil"
+PAGE -> BLL : RenombrarRol / CambiarPadre / EliminarRol
+activate BLL
+note right of BLL
+  Mismo patrón: validar en memoria → DAL → recalcular
+  integridad → bitácora → invalidar permisos.
+  CambiarPadre rechaza ciclos (GenerariaCiclo).
+  EliminarRol rechaza perfiles con hijos o con usuarios.
+end note
+BLL --> PAGE : ok
+deactivate BLL
+
+alt la regla de negocio se incumple
+  PAGE -> BLL : cualquiera de las operaciones anteriores
+  activate BLL
+  BLL --> PAGE : InvalidOperationException("El perfil Webmaster es del sistema: no se puede eliminar." /\n"No se puede asignar ese padre: generaría una referencia circular." /\n"El perfil no existe." ...)
+  deactivate BLL
+  PAGE --> ADM : alerta roja con el motivo (traducido con Textos.MH)\ny el árbol se vuelve a cargar
+end
+
+alt falla un paso posterior a la escritura (integridad o bitácora)
+  BLL --> PAGE : InvalidOperationException("El cambio se guardó, pero falló un paso posterior ...")
+  note right of PAGE : los permisos de las sesiones se invalidan igual
+end
+deactivate PAGE
+
+@enduml

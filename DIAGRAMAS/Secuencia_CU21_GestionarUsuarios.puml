@@ -1,0 +1,94 @@
+@startuml Secuencia_CU21_GestionarUsuarios
+title CU21 — Gestionar Usuarios (alta, edición, baja lógica y restablecer contraseña)
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "Usuarios.aspx" as PAGE <<Page>>
+participant "Paginador" as PAG <<Page>>
+participant "PerfilBLL" as BLL <<BLL>>
+participant "UsuarioDAL" as UDAL <<DAL>>
+participant "IntegridadBLL" as INT <<BLL>>
+participant "BitacoraBLL" as BIT <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : ingresa a Usuarios.aspx
+activate PAGE
+note right of PAGE : PaginaBase exige el permiso "Gestionar usuarios"
+PAGE -> BLL : ListarUsuariosVisiblesPor(actor, pagina, 10)
+activate BLL
+BLL -> UDAL : ListarTodos()
+UDAL -> DB : Leer("USUARIO_LISTAR_TODOS")
+DB --> UDAL : usuarios
+BLL -> BLL : filtra los que el actor cubre (regla de escalada)\ny recién después pagina en memoria
+BLL --> PAGE : PaginaResultado<USUARIO> (total = usuarios visibles)
+deactivate BLL
+PAGE -> PAG : Establecer(resultado)
+PAGE --> ADM : gvUsuarios con Activo/De baja y Bloqueado\n+ "Página 1 de N"
+
+== Alta de usuario ==
+ADM -> PAGE : completa usuario, contraseña, confirmación, dirección (opcional)\ny tilda al menos un perfil, click "Crear usuario"
+PAGE -> BLL : CrearUsuario(usuario, contraseña, confirmación, dirección, rolIds, actor)
+activate BLL
+BLL -> BLL : valida nombre (obligatorio, ≤ 50), política de contraseña\n(6+, 1 mayúscula, 1 número), dirección ≤ 100,\nal menos un perfil
+note right of BLL : lock (_lockEscritura) + CargarEstado()
+BLL -> BLL : ExigirPuedeAsignar(perfiles)\nnombre de usuario libre
+BLL -> UDAL : InsertarConPerfiles(usuario, hash SHA-256, dirección cifrada, rolIds)
+activate UDAL
+UDAL -> DB : transacción: USUARIO_INSERTAR + USUARIO_PERFIL_ASIGNAR por perfil
+DB --> UDAL : id del usuario
+UDAL --> BLL : id
+deactivate UDAL
+BLL -> INT : RecalcularUsuario() / RecalcularUsuarioPerfil()
+BLL -> BIT : RegistrarAccion(actor, "ALTA_USUARIO:usuario")
+BLL --> PAGE : id
+deactivate BLL
+PAGE --> ADM : "Usuario creado."
+
+== Edición, baja lógica y reactivación ==
+ADM -> PAGE : "Editar" (dirección y perfiles) o "Dar de baja" / "Reactivar"
+PAGE -> BLL : ModificarUsuario(id, dirección, rolIds, actor) /\nCambiarEstadoUsuario(id, activo, actor)
+activate BLL
+BLL -> BLL : ExigirPuedeActuarSobre(usuario)\nnadie se da de baja a sí mismo\nsimula: debe quedar un operador de perfiles
+BLL -> UDAL : ActualizarEstado(id, activo) / ActualizarDireccion(...)
+UDAL -> DB : Escribir("USUARIO_ACTUALIZAR_ESTADO")
+alt baja lógica
+  BLL -> BLL : RevocarSesionesDe(usuario)\n(SessionRegistry.ForzarCierre + nueva época de sesión)
+end
+BLL -> INT : RecalcularUsuario()
+BLL -> BIT : RegistrarAccion(actor, "BAJA_USUARIO" / "REACTIVAR_USUARIO" / "MODIF_USUARIO")
+BLL --> PAGE : ok
+deactivate BLL
+PAGE --> ADM : "Usuario dado de baja." / "Usuario reactivado." / "Cambios guardados."
+note right of PAGE
+  No hay borrado físico del usuario: tiene cursadas y bitácora
+  asociadas. Un usuario dado de baja no puede iniciar sesión.
+end note
+
+== Restablecer contraseña ==
+ADM -> PAGE : escribe y repite la nueva contraseña, click "Restablecer contraseña"
+PAGE -> BLL : ResetearContrasena(id, contraseña, confirmación, actor)
+activate BLL
+BLL -> BLL : valida la política y que no sea la propia cuenta
+BLL -> UDAL : CambiarContrasena(usuario, hash)
+BLL -> BLL : RevocarSesionesDe(usuario)
+BLL -> INT : RecalcularUsuario()
+BLL -> BIT : RegistrarAccion(actor, "RESET_CONTRASENA:usuario")
+BLL --> PAGE : ok
+deactivate BLL
+PAGE --> ADM : "Contraseña restablecida."
+
+alt la regla de escalada o de negocio se incumple
+  PAGE -> BLL : cualquiera de las operaciones
+  BLL --> PAGE : InvalidOperationException("El usuario no existe." /\n"Ya existe un usuario con ese nombre." /\n"No podés darte de baja a vos mismo." ...)
+  PAGE --> ADM : alerta roja con el motivo; no se escribe nada
+end
+deactivate PAGE
+
+@enduml

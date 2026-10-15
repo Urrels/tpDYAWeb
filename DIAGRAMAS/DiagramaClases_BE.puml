@@ -1,0 +1,218 @@
+@startuml DiagramaClases_BE
+title Diagrama de clases - Entidades (BE)
+top to bottom direction
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam classFontSize 10
+skinparam packageFontSize 12
+skinparam shadowing false
+skinparam ranksep 40
+skinparam nodesep 25
+
+package "BE — Entidades" as BE #DBEAFE {
+
+  class USUARIO {
+    +Id : int
+    +Usuario : string
+    +Contrasena : string
+    +DireccionEncriptada : string
+    +DireccionVisible : string
+    +IntentosFallidos : int
+    +Activo : bool
+    +Bloqueado : bool
+    +Permisos : List<string>
+    +VersionPermisos : int
+    +EpocaSesion : long
+    --
+    +TienePermiso(nombre) : bool
+  }
+
+  class MATERIA {
+    +Id : int
+    +Nombre : string
+    +Codigo : string
+    +Modalidad : string
+    +Peso : int
+    +Correlativas : List<MATERIA>
+  }
+
+  class ALUMNO_MATERIA {
+    +Id : int
+    +IdUsuario : int
+    +IdMateria : int
+    +NombreMateria : string
+    +CodigoMateria : string
+    +Modalidad : string
+    +PesoMateria : int
+    +Estado : string
+    +NotaParcial1, NotaParcial2, NotaRecuperatorio, NotaFinal : decimal?
+    +FechaFinal, FechaRecuperatorio : DateTime?
+    +DVH : int
+    +NivelRiesgo : string
+    +MensajeRiesgo : string
+    --
+    +AproboAmbosPariales : bool
+    +NecesitaRecuperatorio : bool
+    +TieneFinal : bool
+    +TieneRecuperatorio : bool
+  }
+
+  class INSCRIPCION {
+    +Id : int
+    +IdUsuario : int
+    +IdPeriodo : int
+    +FechaInscripcion : DateTime
+    +EtiquetaPeriodo : string
+    +Materias : List<MATERIA>
+  }
+
+  class PERIODO_ACADEMICO {
+    +Id : int
+    +Anio : int
+    +Cuatrimestre : int
+    +Descripcion : string
+    +FechaInicio : DateTime?
+    +FechaFin : DateTime?
+    --
+    +Etiqueta : string
+  }
+
+  class EVENTO_ACADEMICO {
+    +Id : int
+    +IdMateria : int
+    +NombreMateria : string
+    +IdUsuario : int
+    +Tipo : string
+    +Descripcion : string
+    +Fecha : DateTime
+    +Peso : int
+    +ColorCalor : string
+  }
+
+  class BITACORA {
+    +Id : int
+    +Usuario : string
+    +Accion : string
+    +Fecha : DateTime
+    +Criticidad : string
+  }
+
+  abstract class NodoPermiso <<Composite · Component>> {
+    +Id : int
+    +Nombre : string
+    +PadreId : int?
+    --
+    +Agregar(nodo) / Quitar(nodo)
+    +ObtenerHijos() : IList<NodoPermiso>
+    +EsHoja() : bool
+    +TienePermiso(nombre) : bool
+    +ObtenerPermisos() : IEnumerable<string>
+  }
+
+  class Rol <<Composite>> {
+    +Protegido : bool
+    -_hijos : List<NodoPermiso>
+  }
+
+  class Permiso <<Leaf>> {
+  }
+
+  class Permisos <<static>> {
+    +GestionarMaterias, CargarNotas, VerBitacora ... : const string
+    +GestionarPerfiles, GestionarUsuarios, GestionarIdiomas : const string
+    +Privilegiados : string[]
+    +EsPrivilegiado(permiso) : bool
+  }
+
+  class IDIOMA {
+    +Id : int
+    +Nombre : string
+    +Habilitado : bool
+    +Predeterminado : bool
+  }
+
+  class CONTROL_IDIOMA {
+    +Id : int
+    +Clave : string
+    +TextoDefault : string
+    +TextoTraduccion : string
+  }
+
+  interface IObservadorIdioma <<Observer>> {
+    +ActualizarIdioma()
+  }
+
+  class IdiomaManager <<Subject · uno por sesión>> {
+    -_observers : List<IObservadorIdioma>
+    -_traducciones : Dictionary<string,string>
+    +IdiomaActivo : IDIOMA
+    +VersionAplicada : int
+    --
+    +Registrar(obs) / Desregistrar(obs)
+    +CambiarIdioma(idioma, traducciones)
+    +Traducir(clave) : string
+  }
+
+  class "PaginaResultado<T>" as PaginaResultado {
+    +Filas : List<T>
+    +TotalFilas : int
+    +Pagina : int
+    +Tamanio : int
+    +TotalPaginas : int
+  }
+
+  class AESHelper <<static>> {
+    +Encriptar(texto) : byte[]
+    +Desencriptar(datos) : string
+  }
+
+  class HashHelper <<static>> {
+    +HashSHA256(texto) : string
+  }
+
+  class CalculadorDVH <<static>> {
+    +Calcular(atributos) : int
+    +CalcularVertical(filas, colIdx) : int
+  }
+
+  class SessionManager <<singleton>> {
+    +getInstane() : SessionManager
+    +getUsuario() : USUARIO
+    +setUsuario(u) : int
+    +cerrarSesion()
+  }
+
+  class SessionRegistry <<singleton>> {
+    +Instancia : SessionRegistry {static}
+    +TieneSesionActiva(usuario) : bool
+    +RegistrarSesion(usuario, sessionId)
+    +CerrarSesion(usuario)
+  }
+
+  MATERIA "0..*" o-- "0..*" MATERIA : correlativas
+  NodoPermiso <|-- Rol
+  NodoPermiso <|-- Permiso
+  Rol "1" o-- "0..*" NodoPermiso : _hijos
+  USUARIO ..> Permisos : nombres de permiso
+  IdiomaManager "1" o-- "0..*" IObservadorIdioma : _observers
+  IdiomaManager --> IDIOMA
+  CONTROL_IDIOMA ..> IDIOMA : traducción por idioma
+  INSCRIPCION *-- "0..*" MATERIA
+  PaginaResultado *-- "0..*" BITACORA : Filas (T)
+  SessionManager --> USUARIO
+
+  USUARIO               -[hidden]right-> MATERIA
+  MATERIA                -[hidden]right-> ALUMNO_MATERIA
+  ALUMNO_MATERIA         -[hidden]right-> INSCRIPCION
+  INSCRIPCION            -[hidden]right-> PERIODO_ACADEMICO
+  PERIODO_ACADEMICO      -[hidden]right-> EVENTO_ACADEMICO
+  EVENTO_ACADEMICO       -[hidden]right-> BITACORA
+  BITACORA               -[hidden]right-> PaginaResultado
+  PaginaResultado -[hidden]right-> AESHelper
+  AESHelper              -[hidden]right-> HashHelper
+  HashHelper             -[hidden]right-> CalculadorDVH
+  CalculadorDVH          -[hidden]right-> SessionManager
+  SessionManager         -[hidden]right-> SessionRegistry
+}
+
+@enduml

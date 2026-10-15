@@ -1,0 +1,70 @@
+@startuml Secuencia_CU20_AsignarPerfiles
+title CU20 — Asignar Perfiles a Usuarios
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "AsignarPerfiles.aspx" as PAGE <<Page>>
+participant "PerfilBLL" as BLL <<BLL>>
+participant "PerfilDAL" as DAL <<DAL>>
+participant "IntegridadBLL" as INT <<BLL>>
+participant "BitacoraBLL" as BIT <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : ingresa a AsignarPerfiles.aspx
+activate PAGE
+note right of PAGE : PaginaBase exige el permiso "Gestionar perfiles"
+PAGE -> BLL : ListarRolesAsignablesPor(actor)
+BLL --> PAGE : perfiles que el actor puede asignar
+PAGE -> BLL : ListarUsuariosVisiblesPor(actor)
+BLL --> PAGE : usuarios que el actor puede ver
+note right of BLL
+  Un usuario o perfil que el actor no "cubre" no se muestra
+  y, si se pide por id, responde igual que uno inexistente
+  ("El usuario no existe." / "El perfil no existe.").
+end note
+PAGE -> BLL : ObtenerIdsRolesDeUsuarioPor(usuarioId, actor)
+PAGE -> BLL : ObtenerPermisosEfectivosPor(usuarioId, actor)
+BLL --> PAGE : perfiles asignados y permisos efectivos (Composite)
+PAGE --> ADM : usuario elegido, perfiles tildados y permisos efectivos "según lo guardado"
+
+ADM -> PAGE : tilda o destilda perfiles, click "Guardar asignación"
+PAGE -> BLL : AsignarPerfilesAUsuario(usuarioId, rolIds, actor)
+activate BLL
+note right of BLL : lock (_lockEscritura) + CargarEstado()
+BLL -> BLL : el actor tiene "Gestionar perfiles"\nExigirPuedeActuarSobre(usuario)\nExigirPuedeAsignar(perfiles que cambian)
+BLL -> BLL : simula las asignaciones nuevas y\nExigirOperadorDePerfiles()
+BLL -> DAL : ReemplazarPerfilesDeUsuario(usuarioId, ids)
+activate DAL
+DAL -> DB : transacción: USUARIO_PERFIL_ELIMINAR_POR_USUARIO +\nUSUARIO_PERFIL_ASIGNAR por perfil
+DAL --> BLL : ok
+deactivate DAL
+BLL -> INT : RecalcularUsuarioPerfil()
+INT -> DB : recalcula DVH de USUARIO_PERFIL y DVV
+BLL -> BIT : RegistrarAccion(actor, "ASIGNACION_PERFIL:usuario/ids")
+BIT -> DB : inserta en BITACORA
+BLL -> BLL : InvalidarPermisos() (VersionPermisos++)
+BLL --> PAGE : ok
+deactivate BLL
+PAGE --> ADM : "Asignación guardada." y permisos efectivos recalculados
+
+alt el actor no cubre al usuario o a un perfil, o el cambio dejaría al sistema sin operador de perfiles
+  PAGE -> BLL : AsignarPerfilesAUsuario(...)
+  BLL --> PAGE : InvalidOperationException("El usuario no existe." /\n"El cambio dejaría al sistema sin ningún usuario activo ...")
+  PAGE --> ADM : alerta roja con el motivo; no se escribe nada
+end
+
+note over PAGE, BLL
+  Efecto en otras sesiones: PaginaBase y la página maestra comparan
+  USUARIO.VersionPermisos con PerfilBLL.VersionPermisos y recalculan
+  los permisos de la sesión si quedaron viejos.
+end note
+deactivate PAGE
+
+@enduml
