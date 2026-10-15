@@ -114,6 +114,7 @@ namespace DAL
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@id",          e.Id),
+                _acceso.CrearParametro("@id_usuario",  e.IdUsuario),
                 _acceso.CrearParametro("@tipo",        e.Tipo),
                 _acceso.CrearParametro("@descripcion", e.Descripcion),
                 _acceso.CrearParametro("@fecha",       e.Fecha),
@@ -128,9 +129,14 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public bool Eliminar(int id)
+        // El SP filtra por dueño: sin filas afectadas (evento ajeno o inexistente) devuelve false.
+        public bool Eliminar(int id, int idUsuario)
         {
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@id", id) };
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@id_usuario", idUsuario)
+            };
             try
             {
                 _acceso.Abrir();

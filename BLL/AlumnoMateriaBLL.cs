@@ -12,6 +12,27 @@ namespace BLL
 
         public List<BE.ALUMNO_MATERIA> Listar(int idUsuario) => _dal.Listar(idUsuario);
 
+        /// <summary>Mensaje que la página muestra cuando una nota no es un número entre 0 y 10.</summary>
+        public const string MensajeNotaInvalida = "Las notas deben ser números entre 0 y 10.";
+
+        /// <summary>
+        /// Interpreta una nota cargada a mano. Vacía = sin cargar (true, null). Devuelve false si no es un
+        /// número o está fuera de 0 a 10: no se recorta ni se lanza excepción, la página rechaza el guardado.
+        /// Solo admite signo y punto/coma decimal según la cultura (sin separador de miles ni notación científica).
+        /// </summary>
+        public static bool TryParsearNota(string texto, out decimal? nota)
+        {
+            nota = null;
+            if (string.IsNullOrWhiteSpace(texto)) return true;
+            if (!decimal.TryParse(texto.Trim(),
+                    System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint,
+                    System.Globalization.CultureInfo.CurrentCulture, out decimal valor)
+                || valor < 0 || valor > 10)
+                return false;
+            nota = valor;
+            return true;
+        }
+
         // El DVH/DVV de ALUMNO_MATERIA ahora se calcula con el mecanismo
         // genérico de integridad (BE.CalculadorDVH + IntegridadBLL), con el
         // mismo orden canónico de columnas usado por

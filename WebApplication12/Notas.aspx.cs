@@ -84,14 +84,15 @@ namespace CAPAS_Web
             var admin = Session["Usuario"] as BE.USUARIO;
             int idAlumno = int.Parse(ddlAlumno.SelectedValue);
 
-            decimal? parcial1 = string.IsNullOrEmpty(txtParcial1.Text) ? (decimal?)null
-                              : Math.Min(10, Math.Max(0, decimal.Parse(txtParcial1.Text)));
-            decimal? parcial2 = string.IsNullOrEmpty(txtParcial2.Text) ? (decimal?)null
-                              : Math.Min(10, Math.Max(0, decimal.Parse(txtParcial2.Text)));
-            decimal? recup = string.IsNullOrEmpty(txtRecuperatorio.Text) ? (decimal?)null
-                              : Math.Min(10, Math.Max(0, decimal.Parse(txtRecuperatorio.Text)));
-            decimal? final_ = string.IsNullOrEmpty(txtNotaFinal.Text) ? (decimal?)null
-                              : Math.Min(10, Math.Max(0, decimal.Parse(txtNotaFinal.Text)));
+            // Se validan las cuatro notas (vacía = sin cargar) y, si alguna es inválida, no se guarda nada.
+            if (!BLL.AlumnoMateriaBLL.TryParsearNota(txtParcial1.Text, out decimal? parcial1)
+                || !BLL.AlumnoMateriaBLL.TryParsearNota(txtParcial2.Text, out decimal? parcial2)
+                || !BLL.AlumnoMateriaBLL.TryParsearNota(txtRecuperatorio.Text, out decimal? recup)
+                || !BLL.AlumnoMateriaBLL.TryParsearNota(txtNotaFinal.Text, out decimal? final_))
+            {
+                MostrarMsg("alert-danger", Textos.MH(BLL.AlumnoMateriaBLL.MensajeNotaInvalida));
+                return;
+            }
 
             var am = new BE.ALUMNO_MATERIA
             {

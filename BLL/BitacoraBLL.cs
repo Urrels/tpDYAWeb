@@ -17,7 +17,8 @@ namespace BLL
                 || accion.StartsWith("DESBLOQUEO_USUARIO") || accion == "CAMBIO_CONTRASENA"
                 || accion.StartsWith("RESET_CONTRASENA") || accion.StartsWith("REACTIVAR_USUARIO")
                 || accion == "LOGIN_USUARIO_INACTIVO"
-                || accion.StartsWith("ASIGNACION_PERFIL") || accion.StartsWith("CAMBIO_JERARQUIA_PERFIL"))
+                || accion.StartsWith("ASIGNACION_PERFIL") || accion.StartsWith("CAMBIO_JERARQUIA_PERFIL")
+                || accion.StartsWith("RESTAURACION_") || accion == "RECALCULO_INTEGRIDAD")
                 return "Alta";
             if (accion == "LOGIN" || accion == "LOGOUT")
                 return "Baja";

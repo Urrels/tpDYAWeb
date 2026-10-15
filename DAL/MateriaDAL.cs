@@ -8,6 +8,26 @@ namespace DAL
     {
         private readonly Acceso _acceso = new Acceso();
 
+        public const string MensajeCodigoDuplicado = "El código de materia ya existe.";
+
+        // Red de seguridad ante carreras: si el UNIQUE(CODIGO) salta igual, la UI ve la misma regla de negocio.
+        private static bool EsClaveDuplicada(SqlException ex) => ex.Number == 2627 || ex.Number == 2601;
+
+        /// <summary>Todas las materias, incluso las dadas de baja lógica: el UNIQUE(CODIGO) también las cubre.</summary>
+        public List<BE.MATERIA> ListarTodasConInactivas()
+        {
+            var lista = new List<BE.MATERIA>();
+            try
+            {
+                _acceso.Abrir();
+                DataTable dt = _acceso.Leer("MATERIA_LISTAR_PARA_INTEGRIDAD");
+                foreach (DataRow r in dt.Rows)
+                    lista.Add(MapearFila(r));
+            }
+            finally { _acceso.Cerrar(); }
+            return lista;
+        }
+
         public int Insertar(BE.MATERIA m)
         {
             var p = new List<SqlParameter>
@@ -22,6 +42,10 @@ namespace DAL
                 _acceso.Abrir();
                 object id = _acceso.EscribirConRetorno("MATERIA_INSERTAR", p);
                 return id != null ? System.Convert.ToInt32(id) : -1;
+            }
+            catch (SqlException ex) when (EsClaveDuplicada(ex))
+            {
+                throw new System.InvalidOperationException(MensajeCodigoDuplicado);
             }
             finally { _acceso.Cerrar(); }
         }
@@ -41,6 +65,10 @@ namespace DAL
                 _acceso.Abrir();
                 object resultado = _acceso.EscribirConRetorno("MATERIA_ACTUALIZAR", p);
                 return System.Convert.ToInt32(resultado) > 0;
+            }
+            catch (SqlException ex) when (EsClaveDuplicada(ex))
+            {
+                throw new System.InvalidOperationException(MensajeCodigoDuplicado);
             }
             finally { _acceso.Cerrar(); }
         }
