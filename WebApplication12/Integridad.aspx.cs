@@ -26,6 +26,8 @@ namespace CAPAS_Web
         protected void btnRecalcular_Click(object sender, EventArgs e)
         {
             _bll.RecalcularTodasLasTablas();
+            // Se registra DESPUÉS del recálculo: RegistrarAccion deja la bitácora con DVH/DVV al día.
+            new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "RECALCULO_INTEGRIDAD");
             MostrarResultado(_bll.VerificarTodasLasTablas());
         }
 
@@ -54,6 +56,9 @@ namespace CAPAS_Web
         protected void btnRestaurar_Click(object sender, EventArgs e)
         {
             var avisos = _bll.RestaurarTodasLasTablas();
+            // El restore puede reescribir la propia bitácora: se registra DESPUÉS, así la
+            // entrada no se pierde y el DVH/DVV de BITACORA queda consistente.
+            new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "RESTAURACION_DATOS");
             MostrarResultado(_bll.VerificarTodasLasTablas());
             MostrarAvisos(avisos);
         }
@@ -89,6 +94,8 @@ namespace CAPAS_Web
                 return;
             }
 
+            // Igual que en la restauración desde snapshot: se registra después de restaurar.
+            new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "RESTAURACION_BACKUP");
             MostrarResultado(_bll.VerificarTodasLasTablas());
             MostrarAvisos(avisos);
         }
