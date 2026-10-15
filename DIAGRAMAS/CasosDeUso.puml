@@ -71,4 +71,78 @@ rectangle "Sistema de Gestión Académico" {
 
     usecase "CU17\nRegistrar en Bitácora" as BITACORA <<include>>
     usecase "Validar Correlativas" as CORREL <<include>>
-    usecase "Calcular DVH/DVV" as DVV <<include>>
+    usecase "Calcular DVH/DVV" as DVV <<include>>
+}
+
+' Todos los actores
+A --> CU01
+ADM --> CU01
+WM --> CU01
+A --> CU18
+ADM --> CU18
+WM --> CU18
+A --> CU26
+ADM --> CU26
+WM --> CU26
+
+' Alumno
+A --> CU02
+A --> CU03
+A --> CU04
+A --> CU05
+A --> CU07
+A --> CU08
+A --> CU09
+A --> CU25
+
+' Administrador
+ADM --> CU02
+ADM --> CU03
+ADM --> CU06
+ADM --> CU10
+ADM --> CU11
+ADM --> CU12
+ADM --> CU13
+ADM --> CU19
+ADM --> CU20
+ADM --> CU21
+ADM --> CU22
+ADM --> CU23
+ADM --> CU24
+ADM --> CU27
+
+' Webmaster
+WM --> CU13
+WM --> CU14
+WM --> CU15
+WM --> CU16
+WM --> CU21
+WM --> CU27
+
+' Includes: toda escritura auditada pasa por CU17
+CU01 ..> BITACORA : <<include>>
+CU02 ..> BITACORA : <<include>>
+CU03 ..> BITACORA : <<include>>
+CU04 ..> BITACORA : <<include>>
+CU04 ..> CORREL   : <<include>>
+CU06 ..> BITACORA : <<include>>
+CU06 ..> DVV      : <<include>>
+CU09 ..> BITACORA : <<include>>
+CU10 ..> BITACORA : <<include>>
+CU11 ..> BITACORA : <<include>>
+CU13 ..> BITACORA : <<include>>
+CU15 ..> BITACORA : <<include>>
+CU16 ..> BITACORA : <<include>>
+CU18 ..> BITACORA : <<include>>
+CU19 ..> BITACORA : <<include>>
+CU20 ..> BITACORA : <<include>>
+CU21 ..> BITACORA : <<include>>
+CU22 ..> BITACORA : <<include>>
+CU23 ..> BITACORA : <<include>>
+CU27 ..> BITACORA : <<include>>
+
+' Extends
+CU07 ..> CU05 : <<extend>>
+CU08 ..> CU07 : <<extend>>
+
+@enduml

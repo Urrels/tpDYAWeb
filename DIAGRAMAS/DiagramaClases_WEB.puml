@@ -55,6 +55,7 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
     +phNav... (un PlaceHolder por enlace y sección)
     +selectorIdioma
     +lblUsuarioNav
+    +PerfilBLL
     --
     +btnCerrarSesion_Click()
   }
@@ -118,6 +119,7 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
 
   class Usuarios <<Page · Admin>> {
     +PerfilBLL
+    +BitacoraBLL
     +Paginador
   }
 
@@ -132,7 +134,7 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
   }
 
   class UsuariosBloqueados <<Page · Admin>> {
-    +UsuarioBLL
+    +PerfilBLL
   }
 
   class Integridad <<Page · Webmaster>> {
@@ -141,10 +143,12 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
 
   class Perfiles <<Page · Admin>> {
     +PerfilBLL
+    +BitacoraBLL
   }
 
   class AsignarPerfiles <<Page · Admin>> {
     +PerfilBLL
+    +BitacoraBLL
   }
 
   class Idiomas <<Page · Admin>> {
@@ -174,7 +178,11 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
   Materias          --> Paginador
   Usuarios          --> PerfilBLL
   Usuarios          --> Paginador
-  UsuariosBloqueados --> UsuarioBLL
+  UsuariosBloqueados --> PerfilBLL
+  Site              --> PerfilBLL
+  Usuarios          --> BitacoraBLL
+  Perfiles          --> BitacoraBLL
+  AsignarPerfiles   --> BitacoraBLL
   Integridad        --> IntegridadBLL
   Perfiles          --> PerfilBLL
   AsignarPerfiles   --> PerfilBLL

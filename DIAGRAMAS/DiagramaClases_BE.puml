@@ -20,6 +20,7 @@ package "BE — Entidades" as BE #DBEAFE {
     +IntentosFallidos : int
     +Activo : bool
     +Bloqueado : bool
+    +PerfilesTexto : string
     +Permisos : List<string>
     +VersionPermisos : int
     +EpocaSesion : long
@@ -175,18 +176,14 @@ package "BE — Entidades" as BE #DBEAFE {
     +CalcularVertical(filas, colIdx) : int
   }
 
-  class SessionManager <<singleton>> {
-    +getInstane() : SessionManager
-    +getUsuario() : USUARIO
-    +setUsuario(u) : int
-    +cerrarSesion()
-  }
+
 
   class SessionRegistry <<singleton>> {
     +Instancia : SessionRegistry {static}
     +TieneSesionActiva(usuario) : bool
     +RegistrarSesion(usuario, sessionId)
-    +CerrarSesion(usuario)
+    +CerrarSesion(usuario, sessionId)
+    +ForzarCierre(usuario)
   }
 
   MATERIA "0..*" o-- "0..*" MATERIA : correlativas
@@ -199,7 +196,7 @@ package "BE — Entidades" as BE #DBEAFE {
   CONTROL_IDIOMA ..> IDIOMA : traducción por idioma
   INSCRIPCION *-- "0..*" MATERIA
   PaginaResultado *-- "0..*" BITACORA : Filas (T)
-  SessionManager --> USUARIO
+
 
   USUARIO               -[hidden]right-> MATERIA
   MATERIA                -[hidden]right-> ALUMNO_MATERIA
@@ -211,8 +208,7 @@ package "BE — Entidades" as BE #DBEAFE {
   PaginaResultado -[hidden]right-> AESHelper
   AESHelper              -[hidden]right-> HashHelper
   HashHelper             -[hidden]right-> CalculadorDVH
-  CalculadorDVH          -[hidden]right-> SessionManager
-  SessionManager         -[hidden]right-> SessionRegistry
+  CalculadorDVH          -[hidden]right-> SessionRegistry
 }
 
 @enduml

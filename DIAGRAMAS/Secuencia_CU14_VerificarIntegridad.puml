@@ -15,23 +15,25 @@ participant "IntegridadBLL" as BLL <<BLL>>
 participant "IntegridadDAL" as DAL <<DAL>>
 database "SQL Server" as DB <<BD>>
 
-WM -> PAGE : ingresa a Integridad.aspx
+WM -> PAGE : ingresa a Integridad.aspx (permiso "Verificar integridad")
 activate PAGE
 PAGE -> PAGE : Page_Load (!IsPostBack)
 PAGE -> BLL : VerificarTodasLasTablas()
 activate BLL
 
 note over BLL
-  Invoca 9 métodos explícitos y secuenciales (no es un loop
-  sobre una lista de nombres de tabla):
+  Invoca 13 métodos explícitos (no es un loop sobre una lista
+  de nombres de tabla). Solo verifica: no escribe nada.
   VerificarUsuario(), VerificarBitacora(), VerificarMateria(),
   VerificarCorrelativa(), VerificarAlumnoMateria(),
   VerificarEventoAcademico(), VerificarPeriodoAcademico(),
-  VerificarInscripcion(), VerificarInscripcionDetalle()
+  VerificarInscripcion(), VerificarInscripcionDetalle(),
+  VerificarRol(), VerificarPermiso(), VerificarRolPermiso(),
+  VerificarUsuarioPerfil()
   Cada uno delega en el motor genérico VerificarTabla(...).
 end note
 
-loop por cada una de las 9 tablas de negocio
+loop por cada una de las 13 tablas de negocio
     BLL -> DAL : ListarParaIntegridad(tabla)
     activate DAL
     DAL -> DB : EXEC {TABLA}_LISTAR_PARA_INTEGRIDAD
@@ -80,17 +82,17 @@ deactivate BLL
 PAGE -> PAGE : MostrarResultado(resultado)
 note over PAGE
   Si EsValido: alert-success "Integridad verificada correctamente
-  en las 9 tablas de negocio."
+  en las 13 tablas de negocio."
   Si no: alert-danger "{N} alteración(es) detectada(s)." + IDs de
   usuarios afectados (si los hay) + pnlAcciones visible.
 end note
 
-PAGE --> WM : muestra resultado por tabla
+PAGE --> WM : muestra la lista de errores (rptResultados) y el mensaje global
 deactivate PAGE
 
 note over PAGE
-  El botón "Backup" (ExportarBackupJson) está siempre visible/habilitado,
-  independientemente de EsValido — no depende de este flujo de verificación.
+  Las acciones (Recalcular, Backup, Restaurar y Restaurar desde backup)
+  están dentro de pnlAcciones: se muestran solo si la integridad es inválida.
 end note
 
 @enduml

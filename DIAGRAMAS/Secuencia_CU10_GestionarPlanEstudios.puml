@@ -45,31 +45,26 @@ deactivate BLL
 PAGE --> ADM : "Guardado." / "Error al guardar.", recarga grilla
 deactivate PAGE
 
-alt el código de materia ya existe
+alt el código de materia ya existe (incluye materias dadas de baja)
   ADM -> PAGE : completa formulario con un CODIGO ya usado por otra materia, "Guardar"
   activate PAGE
   PAGE -> BLL : Insertar(m, usuario)
   activate BLL
-  BLL -> DAL : Insertar(m)
+  BLL -> DAL : ListarTodasConInactivas()
   activate DAL
-  DAL -> DB : EscribirConRetorno("MATERIA_INSERTAR", params)
-  DB --> DAL : SqlException (violación de constraint UNIQUE en CODIGO)
-  note right of DB
-    MATERIA_INSERTAR no valida duplicados
-    explícitamente: la falla la produce el
-    constraint UNIQUE de la columna CODIGO.
-    Ninguna capa (DAL/BLL/Page) captura esta
-    excepción -> no llega al bloque
-    "if (id > 0)" ni muestra el alert-danger
-    de la UI; se propaga como excepción no
-    manejada (BD_Universidad.sql:44, DAL/MateriaDAL.cs:23,
-    BLL/MateriaBLL.cs:14).
-  end note
-  DAL --x BLL : excepción no capturada
+  DAL -> DB : Leer("MATERIA_LISTAR_PARA_INTEGRIDAD")
+  DAL --> BLL : List<BE.MATERIA> (activas e inactivas)
   deactivate DAL
-  BLL --x PAGE : excepción no capturada
+  BLL -> BLL : CodigoDuplicado(existentes, codigo, 0)
+  note right of BLL
+    Compara el código sin distinguir mayúsculas.
+    Además, MateriaDAL captura la violación del constraint
+    UNIQUE (SqlException 2627/2601) y la convierte en el
+    mismo mensaje, por si dos altas coinciden.
+  end note
+  BLL --x PAGE : InvalidOperationException("El código de materia ya existe.")
   deactivate BLL
-  PAGE --x ADM : excepción no manejada (no hay try/catch en ningún nivel)
+  PAGE --> ADM : alerta de error con el mensaje; el formulario queda abierto, no se guarda nada
   deactivate PAGE
 end
 
@@ -78,6 +73,8 @@ alt modificación de materia existente
   activate PAGE
   PAGE -> BLL : Actualizar(m, usuario)
   activate BLL
+  BLL -> BLL : CodigoDuplicado(ListarTodasConInactivas(), codigo, m.Id)
+  note right of BLL : si el código ya lo usa otra materia: mismo InvalidOperationException, no se guarda
   BLL -> DAL : Actualizar(m)
   activate DAL
   DAL -> DB : EscribirConRetorno("MATERIA_ACTUALIZAR", params)
@@ -112,6 +109,7 @@ alt baja de materia
   BLL -> DAL : Eliminar(id)
   activate DAL
   DAL -> DB : EscribirConRetorno("MATERIA_ELIMINAR", params)
+  note right of DB : baja lógica: UPDATE MATERIA SET ACTIVA = 0
   DB --> DAL : filas afectadas
   DAL --> BLL : bool ok
   deactivate DAL

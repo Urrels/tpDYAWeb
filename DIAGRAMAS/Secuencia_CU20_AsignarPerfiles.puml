@@ -39,6 +39,7 @@ PAGE -> BLL : AsignarPerfilesAUsuario(usuarioId, rolIds, actor)
 activate BLL
 note right of BLL : lock (_lockEscritura) + CargarEstado()
 BLL -> BLL : el actor tiene "Gestionar perfiles"\nExigirPuedeActuarSobre(usuario)\nExigirPuedeAsignar(perfiles que cambian)
+BLL -> BLL : ValidarAsignacionDePerfiles(usuarioId, actor, actuales, nuevos)\n(al menos un perfil; no se cambian los perfiles propios)
 BLL -> BLL : simula las asignaciones nuevas y\nExigirOperadorDePerfiles()
 BLL -> DAL : ReemplazarPerfilesDeUsuario(usuarioId, ids)
 activate DAL
@@ -54,9 +55,9 @@ BLL --> PAGE : ok
 deactivate BLL
 PAGE --> ADM : "Asignación guardada." y permisos efectivos recalculados
 
-alt el actor no cubre al usuario o a un perfil, o el cambio dejaría al sistema sin operador de perfiles
+alt el actor no cubre al usuario o a un perfil, no queda ningún perfil, intenta cambiar sus propios perfiles\no el cambio dejaría al sistema sin operador de perfiles
   PAGE -> BLL : AsignarPerfilesAUsuario(...)
-  BLL --> PAGE : InvalidOperationException("El usuario no existe." /\n"El cambio dejaría al sistema sin ningún usuario activo ...")
+  BLL --> PAGE : InvalidOperationException("El usuario no existe." /\n"El usuario debe tener al menos un perfil." /\n"No podés cambiar tus propios perfiles." /\n"El cambio dejaría al sistema sin ningún usuario activo ...")
   PAGE --> ADM : alerta roja con el motivo; no se escribe nada
 end
 

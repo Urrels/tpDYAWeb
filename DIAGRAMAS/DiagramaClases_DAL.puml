@@ -43,6 +43,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +Insertar() : int
     +Actualizar() / Eliminar() : bool
     +Listar() : List<MATERIA>
+    +ListarTodasConInactivas() : List<MATERIA>
     +ListarPaginado(pagina, tamanio) : PaginaResultado<MATERIA>
     +Obtener(id) : MATERIA
     +ListarCorrelativas() : List<MATERIA>
@@ -87,6 +88,8 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +ListarPermisosPorRol() : List<Permiso>
     +ListarPermisosDisponibles() : List<Permiso>
     +ListarAsignaciones() : List<(usuarioId, rolId)>
+    +ListarRolesDeUsuario(usuarioId) : List<int>
+    +AsignarPerfil(usuarioId, rolId)
     +InsertarRol(nombre, padreId) : int
     +RenombrarRol(id, nombre) / EliminarRol(id) / CambiarPadre(id, padreId)
     +GuardarPermisosDeRol(rolId, permisoIds)

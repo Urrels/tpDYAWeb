@@ -12,6 +12,7 @@ skinparam sequenceParticipant {
 actor Webmaster as WM
 participant "Integridad.aspx" as PAGE <<Page>>
 participant "IntegridadBLL" as BLL <<BLL>>
+participant "BitacoraBLL" as BITB <<BLL>>
 participant "IntegridadDAL" as DAL <<DAL>>
 database "SQL Server" as DB <<BD>>
 
@@ -34,7 +35,7 @@ note over BLL
   "cada llamada a DAL.IntegridadDAL abre y cierra su propia
   conexión (patrón Acceso actual: abrir → ejecutar → cerrar en
   finally, por llamada). No hay una única transacción SQL que
-  envuelva las 9 tablas de punta a punta — hacerlo sería un
+  envuelva las 13 tablas de punta a punta — hacerlo sería un
   cambio arquitectural mayor, fuera de alcance de esta entrega.
   Si una tabla falla a mitad del restore, las tablas ya
   procesadas quedan restauradas y las restantes no: la base
@@ -45,14 +46,13 @@ end note
 == Fase 1: borrado de filas agregadas externamente — orden hijo → padre ==
 
 note right of BLL
-  Orden real y literal del código (BorrarAgregadosExternamente,
-  9 llamadas explícitas):
-  INSCRIPCION_DETALLE, INSCRIPCION, EVENTO_ACADEMICO,
-  ALUMNO_MATERIA, CORRELATIVA, BITACORA, PERIODO_ACADEMICO,
-  MATERIA, USUARIO
+  Orden real y literal del código (RestaurarTablas, 13 tablas):
+  USUARIO_PERFIL, ROL_PERMISO, INSCRIPCION_DETALLE, INSCRIPCION,
+  EVENTO_ACADEMICO, ALUMNO_MATERIA, CORRELATIVA, BITACORA,
+  PERIODO_ACADEMICO, MATERIA, ROL, PERMISO, USUARIO
 end note
 
-loop por cada una de las 9 tablas (en el orden hijo → padre de arriba)
+loop por cada una de las 13 tablas (en el orden hijo → padre de arriba)
     BLL -> DAL : ObtenerSnapshot(tabla)
     activate DAL
     DAL -> DB : EXEC SNAPSHOT_OBTENER
@@ -79,13 +79,13 @@ end
 == Fase 2: upsert de modificados + eliminados que vuelven — orden padre → hijo ==
 
 note right of BLL
-  Orden real y literal del código (RestaurarUpsertX(), 9 llamadas
-  explícitas): USUARIO, MATERIA, PERIODO_ACADEMICO, BITACORA,
-  CORRELATIVA, ALUMNO_MATERIA, EVENTO_ACADEMICO, INSCRIPCION,
-  INSCRIPCION_DETALLE
+  Orden real y literal del código (RestaurarUpsertX(), 13 llamadas
+  explícitas): USUARIO, ROL, PERMISO, MATERIA, PERIODO_ACADEMICO,
+  BITACORA, CORRELATIVA, ALUMNO_MATERIA, EVENTO_ACADEMICO,
+  INSCRIPCION, INSCRIPCION_DETALLE, ROL_PERMISO, USUARIO_PERFIL
 end note
 
-loop por cada una de las 9 tablas (en el orden padre → hijo de arriba)
+loop por cada una de las 13 tablas (en el orden padre → hijo de arriba)
     BLL -> DAL : ObtenerSnapshot(tabla)
     activate DAL
     DAL -> DB : EXEC SNAPSHOT_OBTENER
@@ -107,17 +107,29 @@ loop por cada una de las 9 tablas (en el orden padre → hijo de arriba)
     end
 end
 
+note over BLL
+  Guarda: si el snapshot de una tabla está vacío no se borran
+  sus filas actuales y se agrega un aviso.
+end note
+
 == Recalcular al final ==
 
 BLL -> BLL : RecalcularTodasLasTablas()
 note over BLL
   Mismo flujo interno que CU15 (Recalcular Integridad), aplicado
-  a las 9 tablas ya restauradas: recalcula DVH/DVV y regenera el
+  a las 13 tablas ya restauradas: recalcula DVH/DVV y regenera el
   snapshot para que quede consistente con el estado restaurado.
 end note
 
-BLL --> PAGE : (retorna, void)
+BLL --> PAGE : avisos (lista de advertencias)
 deactivate BLL
+
+PAGE -> BITB : RegistrarAccion(usuario, "RESTAURACION_DATOS")
+note right of BITB
+  Se registra DESPUÉS de restaurar (criticidad Alta): el restore puede
+  reescribir la propia bitácora. Si el registro falla se muestra un
+  aviso: la operación ya se hizo.
+end note
 
 PAGE -> BLL : VerificarTodasLasTablas()
 note over PAGE, BLL
@@ -130,6 +142,25 @@ deactivate BLL
 
 PAGE -> PAGE : MostrarResultado(resultado)
 PAGE --> WM : muestra resultado
+deactivate PAGE
+
+== Alternativa: restaurar desde un backup .json subido ==
+
+note over WM, PAGE
+  Botón "Restaurar desde backup" (btnRestaurarDesdeBackup_Click).
+  Sin archivo: "Elegí un archivo de backup (.json) antes de restaurar."
+end note
+
+WM -> PAGE : elige un backup .json y confirma
+activate PAGE
+PAGE -> BLL : RestaurarDesdeBackupJson(json)
+activate BLL
+BLL -> BLL : valida el formato (existe "Tablas" y las 9 tablas base);\nsi faltan las 4 de perfiles, las deja como estaban y avisa
+BLL -> DAL : guarda cada snapshot y ejecuta la misma restauración\n(RestaurarTablas + RecalcularTodasLasTablas)
+BLL --> PAGE : avisos
+deactivate BLL
+PAGE -> BITB : RegistrarAccion(usuario, "RESTAURACION_BACKUP")
+PAGE --> WM : resultado de la verificación y avisos
 deactivate PAGE
 
 @enduml

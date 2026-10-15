@@ -12,6 +12,7 @@ skinparam sequenceParticipant {
 actor Webmaster as WM
 participant "Integridad.aspx" as PAGE <<Page>>
 participant "IntegridadBLL" as BLL <<BLL>>
+participant "BitacoraBLL" as BITB <<BLL>>
 participant "IntegridadDAL" as DAL <<DAL>>
 database "SQL Server" as DB <<BD>>
 
@@ -28,15 +29,17 @@ PAGE -> BLL : RecalcularTodasLasTablas()
 activate BLL
 
 note over BLL
-  Invoca 9 métodos explícitos y secuenciales:
+  Invoca 13 métodos explícitos y secuenciales:
   RecalcularUsuario(), RecalcularBitacora(), RecalcularMateria(),
   RecalcularCorrelativa(), RecalcularAlumnoMateria(),
   RecalcularEventoAcademico(), RecalcularPeriodoAcademico(),
-  RecalcularInscripcion(), RecalcularInscripcionDetalle()
+  RecalcularInscripcion(), RecalcularInscripcionDetalle(),
+  RecalcularRol(), RecalcularPermiso(), RecalcularRolPermiso(),
+  RecalcularUsuarioPerfil()
   Cada uno delega en el motor genérico RecalcularTabla(...).
 end note
 
-loop por cada una de las 9 tablas de negocio
+loop por cada una de las 13 tablas de negocio
     BLL -> DAL : ListarParaIntegridad(tabla)
     activate DAL
     DAL -> DB : EXEC {TABLA}_LISTAR_PARA_INTEGRIDAD
@@ -75,6 +78,13 @@ end
 BLL --> PAGE : (retorna, void)
 deactivate BLL
 
+PAGE -> BITB : RegistrarAccion(usuario, "RECALCULO_INTEGRIDAD")
+note right of BITB
+  Se registra DESPUÉS del recálculo (criticidad Alta), para que la
+  bitácora quede con DVH/DVV al día. Si el registro falla, la
+  operación ya se hizo: se muestra un aviso en vez de un error 500.
+end note
+
 PAGE -> BLL : VerificarTodasLasTablas()
 note over PAGE, BLL
   btnRecalcular_Click llama a VerificarTodasLasTablas() justo
@@ -88,7 +98,7 @@ BLL --> PAGE : ResultadoIntegridad (EsValido = true esperado)
 deactivate BLL
 
 PAGE -> PAGE : MostrarResultado(resultado)
-PAGE --> WM : alert-success "Integridad verificada correctamente en las 9 tablas de negocio."
+PAGE --> WM : alert-success "Integridad verificada correctamente en las 13 tablas de negocio."
 deactivate PAGE
 
 @enduml
