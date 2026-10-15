@@ -1,0 +1,96 @@
+@startuml Secuencia_CU27_GestionarIdiomas
+title CU27 — Gestionar Idiomas y Traducciones
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "Idiomas.aspx" as PAGE <<Page>>
+participant "IdiomaBLL" as BLL <<BLL>>
+participant "IdiomaDAL" as DAL <<DAL>>
+participant "BitacoraBLL" as BIT <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : ingresa a Idiomas.aspx
+activate PAGE
+note right of PAGE : PaginaBase exige el permiso "Gestionar idiomas"
+PAGE -> BLL : ListarTodos()
+BLL -> DAL : ListarTodos()
+DAL -> DB : Leer("IDIOMA_LISTAR_TODOS")
+DB --> DAL : idiomas (habilitado, predeterminado)
+DAL --> BLL : List<IDIOMA>
+BLL --> PAGE : List<IDIOMA>
+PAGE --> ADM : gvIdiomas con acciones por idioma
+
+== Alta y renombre ==
+ADM -> PAGE : escribe un nombre, click "Agregar idioma" (o "Renombrar el seleccionado")
+PAGE -> BLL : Crear(nombre, false, usuario) / Renombrar(id, nombre, usuario)
+activate BLL
+BLL -> BLL : valida nombre (1 a 50 caracteres)
+BLL -> DAL : Insertar(nombre, habilitado) / Renombrar(id, nombre)
+DAL -> DB : EscribirConRetorno("IDIOMA_INSERTAR") / Escribir("IDIOMA_RENOMBRAR")
+BLL -> BIT : RegistrarAccion(usuario, "ALTA_IDIOMA:nombre" / "RENOMBRAR_IDIOMA:nombre")
+BLL -> BLL : Invalidar() (VersionTraducciones++)
+BLL --> PAGE : IDIOMA
+deactivate BLL
+PAGE --> ADM : "Idioma agregado. Está deshabilitado hasta que lo habilites."
+
+== Habilitar, deshabilitar o eliminar ==
+ADM -> PAGE : "Habilitar/Deshabilitar" o "Eliminar" (con confirmación)
+PAGE -> BLL : ActualizarEstado(id, habilitado, usuario) / Eliminar(id, usuario)
+activate BLL
+BLL -> DAL : ObtenerPorId(id)
+DAL -> DB : Leer("IDIOMA_OBTENER_POR_ID")
+BLL -> DAL : EstaEnUso(id)
+DAL -> DB : Leer("IDIOMA_ESTA_EN_USO")
+alt es el idioma predeterminado o lo usa algún usuario
+  BLL --> PAGE : InvalidOperationException("No se puede eliminar/deshabilitar el idioma predeterminado del sistema." /\n"... un idioma que está en uso por algún usuario.")
+  PAGE --> ADM : alerta roja con el motivo
+else se puede
+  BLL -> DAL : ActualizarEstado(id, habilitado) / Eliminar(id)
+  DAL -> DB : Escribir("IDIOMA_ACTUALIZAR_ESTADO") / Escribir("IDIOMA_ELIMINAR")
+  note right of DB : IDIOMA_ELIMINAR borra primero sus TRADUCCION\nen una transacción
+  BLL -> BIT : RegistrarAccion(usuario, "HABILITAR_IDIOMA / DESHABILITAR_IDIOMA / BAJA_IDIOMA")
+  BLL -> BLL : Invalidar()
+  BLL --> PAGE : ok
+  deactivate BLL
+  PAGE --> ADM : "Estado actualizado." / "Idioma eliminado."
+end
+
+== Editar las traducciones de un idioma ==
+ADM -> PAGE : "Ver traducciones" de un idioma, filtra por clave y edita los textos
+PAGE -> BLL : ListarControlesConTraduccion(idiomaId)
+BLL -> DAL : ListarControlesConTraduccion(idiomaId)
+DAL -> DB : Leer("TRADUCCION_LISTAR_CONTROLES")
+DB --> DAL : clave, texto por defecto, traducción
+DAL --> BLL : List<CONTROL_IDIOMA>
+BLL --> PAGE : List<CONTROL_IDIOMA>
+PAGE --> ADM : gvTraducciones con un cuadro de texto por clave
+
+ADM -> PAGE : click "Guardar traducciones"
+PAGE -> BLL : GuardarTraducciones(idiomaId, {controlId → texto}, usuario)
+activate BLL
+loop por cada texto no vacío (máx. 500 caracteres)
+  BLL -> DAL : GuardarTraduccion(idiomaId, controlId, texto)
+  DAL -> DB : Escribir("TRADUCCION_GUARDAR")
+  note right of DB : SP: inserta o actualiza (idioma, control)
+end
+BLL -> BIT : RegistrarAccion(usuario, "EDICION_TRADUCCIONES:idioma (N)")
+BLL -> BLL : Invalidar() (VersionTraducciones++)
+BLL --> PAGE : cantidad guardada
+deactivate BLL
+PAGE -> PAGE : FachadaIdioma.RefrescarSiHaceFalta()
+PAGE --> ADM : "Traducciones guardadas: N."
+
+note over PAGE, DB
+  Las demás sesiones recargan su diccionario en su próxima petición (CU26).
+  Las claves nuevas del código se registran solas en CONTROL_IDIOMA al usarse por primera vez.
+end note
+deactivate PAGE
+
+@enduml

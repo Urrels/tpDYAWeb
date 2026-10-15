@@ -1,0 +1,80 @@
+@startuml Secuencia_CU23_ImportarPlanXml
+title CU23 — Importar Plan de Estudios (XML)
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "Materias.aspx" as PAGE <<Page>>
+participant "MateriaXmlBLL" as BLL <<BLL>>
+participant "MateriaDAL" as DAL <<DAL>>
+participant "IntegridadBLL" as INT <<BLL>>
+participant "BitacoraBLL" as BIT <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : elige un .xml, click "Importar XML" (confirma el mensaje)
+activate PAGE
+PAGE -> PAGE : lee el archivo hasta 1 MB + 1 byte
+PAGE -> BLL : Importar(bytes, usuario)
+activate BLL
+
+BLL -> BLL : tamaño ≤ 1 MB y no vacío
+BLL -> BLL : Cargar(): XmlReader con DtdProcessing.Prohibit y XmlResolver = null\n(protege contra XXE); la raíz debe ser <Materias>
+BLL -> BLL : LeerMaterias(): por cada <Materia> valida código (1-20, no repetido),\nnombre (1-100), modalidad (Presencial/Virtual) y peso (1-5)
+
+alt el archivo o algún dato es inválido
+  BLL --> PAGE : ResultadoImportacionXml con Errores (no se tocó la base)
+  PAGE --> ADM : alerta roja: "No se importó nada:" + hasta 20 errores
+else el archivo es válido
+  BLL -> DAL : Listar() y ListarCorrelativas(id) de cada materia
+  DAL -> DB : Leer("MATERIA_LISTAR") / Leer("CORRELATIVA_LISTAR")
+  DB --> DAL : estado actual del plan
+  DAL --> BLL : materias y correlativas existentes
+
+  BLL -> BLL : clasifica por código: existe → actualiza (si cambió algo),\nno existe → crea
+  BLL -> BLL : cada correlativa debe existir (en el archivo o en el sistema)\ny no puede ser la materia misma
+  BLL -> BLL : BuscarCiclo(correlativas actuales + nuevas)\n(recorrido en profundidad)
+
+  alt correlativa inexistente, autocorrelativa o ciclo
+    BLL --> PAGE : ResultadoImportacionXml con Errores
+    PAGE --> ADM : alerta roja con el detalle
+  else sin errores
+    BLL -> DAL : Importar(materias, idPorCodigo, correlativas)
+    activate DAL
+    DAL -> DB : IniciarTx()
+    loop por materia
+      DAL -> DB : MATERIA_INSERTAR / MATERIA_ACTUALIZAR
+    end
+    loop por correlativa nueva
+      DAL -> DB : CORRELATIVA_INSERTAR (idempotente)
+    end
+    alt falla algo
+      DAL -> DB : DeshacerTX()
+      DAL --> BLL : excepción
+      BLL --> PAGE : Errores: "No se pudo importar y no se guardó ningún cambio ..."
+    else todo bien
+      DAL -> DB : ConfirmarTX()
+      DAL --> BLL : ok
+      deactivate DAL
+      BLL -> INT : RecalcularMateria() / RecalcularCorrelativa()
+      INT -> DB : recalcula DVH y DVV de MATERIA y CORRELATIVA
+      BLL -> BIT : RegistrarAccion(usuario, "IMPORTACION_XML_MATERIAS:N altas, M cambios, K correlativas")
+      BLL --> PAGE : Creadas, Actualizadas, CorrelativasAgregadas
+      PAGE --> ADM : alerta verde "Importación completa: ..." y grilla actualizada
+    end
+  end
+end
+deactivate BLL
+deactivate PAGE
+
+note over BLL, DB
+  Las correlativas solo se agregan, nunca se quitan. Un código que coincide con una
+  materia dada de baja hace fallar toda la importación (CODIGO es UNIQUE).
+end note
+
+@enduml

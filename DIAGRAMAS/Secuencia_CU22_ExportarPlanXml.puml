@@ -1,0 +1,52 @@
+@startuml Secuencia_CU22_ExportarPlanXml
+title CU22 — Exportar Plan de Estudios (XML)
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Administrador as ADM
+participant "Materias.aspx" as PAGE <<Page>>
+participant "MateriaXmlBLL" as BLL <<BLL>>
+participant "MateriaDAL" as DAL <<DAL>>
+participant "BitacoraBLL" as BIT <<BLL>>
+database "SQL Server" as DB <<BD>>
+
+ADM -> PAGE : click "Exportar XML"
+activate PAGE
+note right of PAGE : PaginaBase exige el permiso "Gestionar materias"
+PAGE -> BLL : Exportar(usuario)
+activate BLL
+BLL -> DAL : Listar()
+activate DAL
+DAL -> DB : Leer("MATERIA_LISTAR")
+DB --> DAL : materias activas
+DAL --> BLL : List<MATERIA>
+deactivate DAL
+
+loop por cada materia
+  BLL -> DAL : ListarCorrelativas(materia.Id)
+  DAL -> DB : Leer("CORRELATIVA_LISTAR", id_materia)
+  DB --> DAL : correlativas activas
+  DAL --> BLL : List<MATERIA>
+end
+
+BLL -> BLL : arma un XmlDocument:\n<Materias exportado="...">\n  <Materia codigo="...">\n    <Nombre/> <Modalidad/> <Peso/>\n    <Correlativas><Correlativa codigo="..."/></Correlativas>\n  </Materia> ...
+BLL -> BIT : RegistrarAccion(usuario, "EXPORTACION_XML_MATERIAS")
+BIT -> DB : inserta en BITACORA
+BLL --> PAGE : byte[] (UTF-8, con sangría)
+deactivate BLL
+
+PAGE --> ADM : descarga materias_AAAAMMDD_HHMMSS.xml\n(Content-Disposition: attachment)
+deactivate PAGE
+
+note over ADM, DB
+  La exportación solo lee el plan de estudios. Las correlativas viajan por
+  código de materia, no por id, así el archivo se puede importar en otra base.
+end note
+
+@enduml

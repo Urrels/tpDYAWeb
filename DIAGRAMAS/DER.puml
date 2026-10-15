@@ -18,10 +18,11 @@ entity "USUARIO" as USUARIO {
   *USUARIO : VARCHAR(50) <<UQ>>
   *PASS : VARCHAR(64)
   DIRECCION : VARBINARY(256)
-  *ROL : VARCHAR(10)
   *DVH : INT
   *INTENTOS_FALLIDOS : INT
   *BLOQUEADO : BIT
+  *ACTIVO : BIT
+  IDIOMA_ID : INT <<FK>>
 }
 
 entity "BITACORA" as BITACORA {
@@ -108,6 +109,60 @@ entity "INSCRIPCION_DETALLE" as INSCRIPCION_DETALLE {
   *DVH : INT
 }
 
+entity "ROL" as ROL {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *NOMBRE : VARCHAR(100) <<UQ>>
+  PADRE_ID : INT <<FK ROL.ID>>
+  *PROTEGIDO : BIT
+  *DVH : INT
+}
+
+entity "PERMISO" as PERMISO {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *NOMBRE : VARCHAR(100) <<UQ>>
+  *DVH : INT
+}
+
+entity "ROL_PERMISO" as ROL_PERMISO {
+  *ROL_ID : INT <<PK, FK>>
+  *PERMISO_ID : INT <<PK, FK>>
+  --
+  *ID : INT <<UQ, IDENTITY>>
+  *DVH : INT
+}
+
+entity "USUARIO_PERFIL" as USUARIO_PERFIL {
+  *USUARIO_ID : INT <<PK, FK>>
+  *ROL_ID : INT <<PK, FK>>
+  --
+  *ID : INT <<UQ, IDENTITY>>
+  *DVH : INT
+}
+
+entity "IDIOMA" as IDIOMA {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *NOMBRE : VARCHAR(50)
+  *HABILITADO : BIT
+  *PREDETERMINADO : BIT
+}
+
+entity "CONTROL_IDIOMA" as CONTROL_IDIOMA {
+  *ID : INT <<PK, IDENTITY>>
+  --
+  *CLAVE : VARCHAR(100) <<UQ>>
+  *TEXTO_DEFAULT : NVARCHAR(500)
+}
+
+entity "TRADUCCION" as TRADUCCION {
+  *IDIOMA_ID : INT <<PK, FK>>
+  *CONTROL_ID : INT <<PK, FK>>
+  --
+  *TEXTO : NVARCHAR(500)
+}
+
 entity "DIGITO_VERIFICADOR_VERTICAL" as DVV {
   *TABLA : VARCHAR(50) <<PK>>
   *COLUMNA : VARCHAR(50) <<PK>>
@@ -124,12 +179,17 @@ entity "SNAPSHOT_INTEGRIDAD" as SNAPSHOT {
 
 note bottom of DVV
   Motor genérico de integridad: un registro
-  por (TABLA, COLUMNA) de las 9 tablas de negocio
+  por (TABLA, COLUMNA) de las 13 tablas de negocio
   (USUARIO, BITACORA, MATERIA, CORRELATIVA,
   ALUMNO_MATERIA, EVENTO_ACADEMICO,
   PERIODO_ACADEMICO, INSCRIPCION,
-  INSCRIPCION_DETALLE). TABLA/COLUMNA son
-  referencias lógicas (string), no FK físicas.
+  INSCRIPCION_DETALLE, ROL, PERMISO,
+  ROL_PERMISO, USUARIO_PERFIL).
+  TABLA/COLUMNA son referencias lógicas
+  (string), no FK físicas.
+  IDIOMA, CONTROL_IDIOMA y TRADUCCION no
+  llevan DVH: cambiar de idioma no es una
+  alteración de datos.
 end note
 
 note bottom of SNAPSHOT
@@ -158,6 +218,16 @@ PERIODO_ACADEMICO ||--o{  INSCRIPCION         : "agrupa"
 INSCRIPCION     ||--o{    INSCRIPCION_DETALLE : "contiene"
 MATERIA         ||--o{    INSCRIPCION_DETALLE : "aparece en"
 
+ROL             |o--o{    ROL                 : "contiene (PADRE_ID)"
+ROL             ||--o{    ROL_PERMISO         : "otorga"
+PERMISO         ||--o{    ROL_PERMISO         : "es otorgado por"
+USUARIO         ||--o{    USUARIO_PERFIL      : "tiene"
+ROL             ||--o{    USUARIO_PERFIL      : "se asigna en"
+
+IDIOMA          |o--o{    USUARIO             : "prefiere (IDIOMA_ID)"
+IDIOMA          ||--o{    TRADUCCION          : "se traduce en"
+CONTROL_IDIOMA  ||--o{    TRADUCCION          : "tiene"
+
 ' ============================================================
 ' FLECHAS OCULTAS — controlan posición de tablas
 ' ============================================================
@@ -180,5 +250,16 @@ INSCRIPCION_DETALLE  -[hidden]down-> PERIODO_ACADEMICO
 ' Columna de tablas genericas de integridad, debajo de BITACORA
 BITACORA   -[hidden]down-> DVV
 DVV        -[hidden]down-> SNAPSHOT
+
+' Seguridad (perfiles y permisos) debajo de las tablas académicas
+CORRELATIVA      -[hidden]down-> ROL
+ROL              -[hidden]down-> ROL_PERMISO
+ROL_PERMISO      -[hidden]down-> PERMISO
+PERMISO          -[hidden]right-> USUARIO_PERFIL
+
+' Multiidioma, a la derecha de la seguridad
+USUARIO_PERFIL   -[hidden]right-> IDIOMA
+IDIOMA           -[hidden]down-> TRADUCCION
+TRADUCCION       -[hidden]down-> CONTROL_IDIOMA
 
 @enduml

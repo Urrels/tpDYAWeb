@@ -1,0 +1,56 @@
+@startuml Secuencia_CU25_ConsultarResumenWebService
+title CU25 — Consultar Resumen Académico (Web Service)
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<WS>> #E9D5FF
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Alumno as A
+participant "Dashboard.aspx\n(navegador)" as PAGE <<Page>>
+participant "MateriasService.asmx" as WS <<WS>>
+participant "PerfilBLL" as PBLL <<BLL>>
+participant "AlumnoMateriaBLL" as BLL <<BLL>>
+participant "AlumnoMateriaDAL" as DAL <<DAL>>
+database "SQL Server" as DB <<BD>>
+
+A -> PAGE : click "Consultar MateriasService" en "Resumen vía Web Service"
+activate PAGE
+PAGE -> WS : POST MateriasService.asmx/ObtenerResumenAcademico\nContent-Type: application/json + cookie de sesión
+activate WS
+WS -> WS : ExigirPermiso("Ver dashboard")
+WS -> PBLL : SesionRevocada(usuario) / RefrescarPermisosSiHaceFalta(usuario)
+
+alt sin sesión, sesión revocada o sin el permiso "Ver dashboard"
+  WS --> PAGE : UnauthorizedAccessException → HTTP 500
+  PAGE --> A : "No se pudo consultar el servicio: ..."
+else autorizado
+  note right of WS
+    El método no recibe ningún id: usa siempre el usuario
+    de la sesión, así nadie consulta datos de otro alumno.
+  end note
+  WS -> BLL : ObtenerResumen(usuario.Id)
+  activate BLL
+  BLL -> DAL : Listar(idUsuario)
+  DAL -> DB : Leer("ALUMNO_MATERIA_LISTAR")
+  DB --> DAL : cursadas del alumno
+  DAL --> BLL : List<ALUMNO_MATERIA>
+  BLL -> BLL : cuenta Aprobadas / Cursando / FinalPendiente\nCalcularPromedioPonderado()
+  BLL --> WS : ResumenAcademico\n(TotalMaterias, Aprobadas, Cursando, FinalPendiente,\nPromedioPonderado, MensajePromedio)
+  deactivate BLL
+  WS --> PAGE : JSON {"d": ResumenAcademico}
+  deactivate WS
+  PAGE --> A : "Total · Aprobadas · Cursando · Final pendiente · Promedio ponderado"
+end
+deactivate PAGE
+
+note over PAGE, BLL
+  El mismo método ObtenerResumen alimenta las tarjetas del Dashboard (CU07)
+  y el PDF del CU08: el cálculo está en un solo lugar.
+end note
+
+@enduml

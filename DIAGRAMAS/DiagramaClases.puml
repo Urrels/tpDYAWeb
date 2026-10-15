@@ -20,11 +20,14 @@ package "BE — Entidades" as BE #DBEAFE {
     +Contrasena : string
     +DireccionEncriptada : string
     +DireccionVisible : string
-    +Rol : string
     +IntentosFallidos : int
+    +Activo : bool
+    +Bloqueado : bool
+    +Permisos : List<string>
+    +VersionPermisos : int
+    +EpocaSesion : long
     --
-    +EsAdmin : bool
-    +EsWebmaster : bool
+    +TienePermiso(nombre) : bool
   }
 
   class MATERIA {
@@ -97,6 +100,62 @@ package "BE — Entidades" as BE #DBEAFE {
     +Criticidad : string
   }
 
+  abstract class NodoPermiso <<Composite · Component>> {
+    +Id : int
+    +Nombre : string
+    +PadreId : int?
+    --
+    +Agregar(nodo) / Quitar(nodo)
+    +ObtenerHijos() : IList<NodoPermiso>
+    +EsHoja() : bool
+    +TienePermiso(nombre) : bool
+    +ObtenerPermisos() : IEnumerable<string>
+  }
+
+  class Rol <<Composite>> {
+    +Protegido : bool
+    -_hijos : List<NodoPermiso>
+  }
+
+  class Permiso <<Leaf>> {
+  }
+
+  class Permisos <<static>> {
+    +GestionarMaterias, CargarNotas, VerBitacora ... : const string
+    +GestionarPerfiles, GestionarUsuarios, GestionarIdiomas : const string
+    +Privilegiados : string[]
+    +EsPrivilegiado(permiso) : bool
+  }
+
+  class IDIOMA {
+    +Id : int
+    +Nombre : string
+    +Habilitado : bool
+    +Predeterminado : bool
+  }
+
+  class CONTROL_IDIOMA {
+    +Id : int
+    +Clave : string
+    +TextoDefault : string
+    +TextoTraduccion : string
+  }
+
+  interface IObservadorIdioma <<Observer>> {
+    +ActualizarIdioma()
+  }
+
+  class IdiomaManager <<Subject · uno por sesión>> {
+    -_observers : List<IObservadorIdioma>
+    -_traducciones : Dictionary<string,string>
+    +IdiomaActivo : IDIOMA
+    +VersionAplicada : int
+    --
+    +Registrar(obs) / Desregistrar(obs)
+    +CambiarIdioma(idioma, traducciones)
+    +Traducir(clave) : string
+  }
+
   class "PaginaResultado<T>" as PaginaResultado {
     +Filas : List<T>
     +TotalFilas : int
@@ -134,6 +193,13 @@ package "BE — Entidades" as BE #DBEAFE {
   }
 
   MATERIA "0..*" o-- "0..*" MATERIA : correlativas
+  NodoPermiso <|-- Rol
+  NodoPermiso <|-- Permiso
+  Rol "1" o-- "0..*" NodoPermiso : _hijos
+  USUARIO ..> Permisos : nombres de permiso
+  IdiomaManager "1" o-- "0..*" IObservadorIdioma : _observers
+  IdiomaManager --> IDIOMA
+  CONTROL_IDIOMA ..> IDIOMA : traducción por idioma
   INSCRIPCION *-- "0..*" MATERIA
   PaginaResultado *-- "0..*" BITACORA : Filas (T)
   SessionManager --> USUARIO
@@ -192,6 +258,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +ListarPaginado(pagina, tamanio) : PaginaResultado<MATERIA>
     +Obtener(id) : MATERIA
     +ListarCorrelativas() : List<MATERIA>
+    +Importar(materias, idPorCodigo, correlativas)
   }
 
   class AlumnoMateriaDAL {
@@ -227,6 +294,35 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +ListarPorMes() : List<EVENTO_ACADEMICO>
   }
 
+  class PerfilDAL {
+    +ListarRoles() : List<Rol>
+    +ListarPermisosPorRol() : List<Permiso>
+    +ListarPermisosDisponibles() : List<Permiso>
+    +ListarAsignaciones() : List<(usuarioId, rolId)>
+    +InsertarRol(nombre, padreId) : int
+    +RenombrarRol(id, nombre) / EliminarRol(id) / CambiarPadre(id, padreId)
+    +GuardarPermisosDeRol(rolId, permisoIds)
+    +ReemplazarPerfilesDeUsuario(usuarioId, rolIds)
+  }
+
+  class SiembraDAL {
+    +ExisteMarcadorSiembra() : bool
+    +Aplicar(plan : PlanSiembra) : ResultadoSiembra
+  }
+
+  class IdiomaDAL {
+    +ListarTodos() / ListarHabilitados() : List<IDIOMA>
+    +ObtenerPorId(id) / ObtenerPredeterminado() : IDIOMA
+    +Insertar() / Renombrar() / ActualizarEstado() / Eliminar()
+    +EstaEnUso(id) : bool
+    +RegistrarControl(clave, textoDefault)
+    +CargarTraducciones(idiomaId) : Dictionary<string,string>
+    +ListarControlesConTraduccion(idiomaId) : List<CONTROL_IDIOMA>
+    +GuardarTraduccion(idiomaId, controlId, texto)
+    +ObtenerIdiomaDeUsuario(id) : int?
+    +ActualizarIdiomaDeUsuario(id, idiomaId)
+  }
+
   class IntegridadDAL {
     +ListarParaIntegridad(tabla) : DataTable
     +ActualizarDVH(tabla, id, dvh)
@@ -235,7 +331,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +ObtenerSnapshot(tabla) : string
     +GuardarSnapshot(tabla, json)
     +EliminarPorId(tabla, id)
-    +RestaurarFila{Usuario,Materia,PeriodoAcademico,Bitacora,Correlativa,AlumnoMateria,EventoAcademico,Inscripcion,InscripcionDetalle}(...)
+    +RestaurarFila{... las 13 tablas}(...)
   }
 
   UsuarioDAL       --> Acceso
@@ -246,6 +342,9 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
   BitacoraDAL      --> Acceso
   EventoDAL        --> Acceso
   IntegridadDAL    --> Acceso
+  PerfilDAL        --> Acceso
+  SiembraDAL       --> Acceso
+  IdiomaDAL        --> Acceso
 
   Acceso           -[hidden]right-> DBInicializador
   DBInicializador  -[hidden]right-> UsuarioDAL
@@ -268,6 +367,7 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     CredencialesInvalidas
     UsuarioBloqueado
     SesionYaActiva
+    UsuarioInactivo
   }
 
   class LoginBLL {
@@ -298,6 +398,25 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     +ActualizarNotas() : bool
     +ListarConRiesgo() : List<ALUMNO_MATERIA>
     +CalcularPromedioPonderado() : (decimal, string)
+    +ObtenerResumen(idUsuario) : ResumenAcademico
+  }
+
+  class ResumenAcademico {
+    +TotalMaterias, Aprobadas, Cursando, FinalPendiente : int
+    +PromedioPonderado : decimal
+    +MensajePromedio : string
+  }
+
+  class MateriaXmlBLL {
+    +Exportar(usuario) : byte[]
+    +Importar(xml : byte[], usuario) : ResultadoImportacionXml
+    -Cargar() / LeerMaterias() / BuscarCiclo()
+  }
+
+  class ResultadoImportacionXml {
+    +Creadas, Actualizadas, CorrelativasAgregadas : int
+    +Errores : List<string>
+    +Ok : bool
   }
 
   class ResultadoIntegridad {
@@ -339,8 +458,8 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   }
 
   class IntegridadBLL {
-    +Verificar{Usuario,Bitacora,Materia,Correlativa,AlumnoMateria,EventoAcademico,PeriodoAcademico,Inscripcion,InscripcionDetalle}() : ResultadoIntegridad
-    +Recalcular{Usuario,Bitacora,Materia,Correlativa,AlumnoMateria,EventoAcademico,PeriodoAcademico,Inscripcion,InscripcionDetalle}()
+    +Verificar{las 13 tablas}() : ResultadoIntegridad
+    +Recalcular{las 13 tablas}()
     +VerificarTodasLasTablas() : ResultadoIntegridad
     +RecalcularTodasLasTablas()
     +CalcularDVHAlumnoMateria(am) : int
@@ -348,8 +467,43 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   }
 
   class PerfilBLL {
+    +VersionPermisos : int {static}
+    +ObtenerArbol() / ObtenerArbolGestionablePor(actor) : List<Rol>
+    +ObtenerPermisosEfectivos(usuarioId) : List<string>
+    +RefrescarPermisosSiHaceFalta(usuario) : bool
+    +CrearRol() / RenombrarRol() / CambiarPadre() / EliminarRol()
+    +GuardarPermisosDeRol(rolId, permisoIds, actor)
+    +AsignarPerfilesAUsuario(usuarioId, rolIds, actor)
+    +CrearUsuario() / ModificarUsuario() / CambiarEstadoUsuario()
+    +ResetearContrasena() / DesbloquearUsuario()
     +ListarUsuariosVisiblesPor(actor) : List<USUARIO>
     +ListarUsuariosVisiblesPor(actor, pagina, tamanio) : PaginaResultado<USUARIO>
+    +SesionRevocada(usuario) : bool {static}
+  }
+
+  class SiembraBLL {
+    +CatalogoDePermisos() : List<string> {static}
+    +SembrarDatosBase() : bool
+  }
+
+  class IdiomaBLL {
+    +VersionTraducciones : int {static}
+    +ListarTodos() / ListarHabilitados() : List<IDIOMA>
+    +Crear() / Renombrar() / ActualizarEstado() / Eliminar()
+    +CargarTraducciones(idiomaId) : Dictionary<string,string>
+    +GuardarTraducciones(idiomaId, textos, usuario) : int
+    +ObtenerIdiomaDeUsuario() / ActualizarIdiomaDeUsuario()
+  }
+
+  class FachadaIdioma <<Facade>> {
+    +IdiomaActivo : IDIOMA
+    +ListarDisponibles() : List<IDIOMA>
+    +Cambiar(idioma, idUsuario)
+    +AplicarPreferencia(idUsuario)
+    +AplicarPredeterminadoSiHaceFalta()
+    +RefrescarSiHaceFalta()
+    +Traducir(clave) : string
+    +RegistrarClave(clave, textoDefault)
   }
 
   class Paginacion <<static>> {
@@ -387,6 +541,23 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   EventoBLL        --> IntegridadBLL
   IntegridadBLL    --> IntegridadDAL
   MateriaBLL       --> Paginacion
+  MateriaXmlBLL    --> MateriaDAL
+  MateriaXmlBLL    --> BitacoraBLL
+  MateriaXmlBLL    --> IntegridadBLL
+  MateriaXmlBLL    ..> ResultadoImportacionXml
+  AlumnoMateriaBLL ..> ResumenAcademico
+  PerfilBLL        --> PerfilDAL
+  PerfilBLL        --> UsuarioDAL
+  PerfilBLL        --> BitacoraBLL
+  PerfilBLL        --> IntegridadBLL
+  PerfilBLL        ..> Rol : Composite
+  SiembraBLL       --> SiembraDAL
+  SiembraBLL       --> PerfilDAL
+  SiembraBLL       ..> Permisos
+  IdiomaBLL        --> IdiomaDAL
+  IdiomaBLL        --> BitacoraBLL
+  FachadaIdioma    --> IdiomaBLL
+  FachadaIdioma    --> IdiomaManager
   BitacoraBLL      --> Paginacion
   PerfilBLL        --> Paginacion
 
@@ -410,9 +581,50 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
 ' ============================================================
 package "WebForms — Presentación" as WEB #FCE7F3 {
 
+  class PaginaConIdioma <<Page · ConcreteObserver>> {
+    -_slots : textos originales de cada control
+    --
+    #OnInit() : se registra en IdiomaManager y guarda los textos
+    #OnPreRender() : aplica Traducir(clave) ?? original
+    +ActualizarIdioma()
+    #OnUnload() : se desregistra
+  }
+
+  class PaginaBase <<Page>> {
+    #PermisoRequerido : string
+    #TieneAcceso(usuario) : bool
+    #OnLoad() : sesión, revocación, permisos y acceso
+    +ObtenerPaginaInicio(usuario) : string {static}
+  }
+
+  class Textos <<static>> {
+    +T(clave, default, args) : string
+    +TH(...) : string
+    +Mensaje(espanol) / MH(espanol) : string
+    +Valor(espanol) : string
+    +Js(clave, default) : string
+  }
+
+  class IdiomaWeb <<internal static>> {
+    +Manager : IdiomaManager (en Session)
+    +Fachada : FachadaIdioma
+  }
+
+  class SelectorIdioma <<UserControl>> {
+    +ddlIdioma_SelectedIndexChanged()
+  }
+
+  class MateriasService <<WebService .asmx>> {
+    +ListarMaterias() : List<MateriaDto>
+    +ObtenerMateria(codigo) : MateriaDto
+    +ObtenerResumenAcademico() : ResumenAcademico
+    -ExigirPermiso(permiso)
+  }
+
   class Site <<Master>> {
-    +phNavAdmin / phNavAlumno / phNavWebmaster
-    +lnkInicio / lblUsuarioNav
+    +phNav... (un PlaceHolder por enlace y sección)
+    +selectorIdioma
+    +lblUsuarioNav
     --
     +btnCerrarSesion_Click()
   }
@@ -420,6 +632,7 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
   class Login <<Page>> {
     +LoginBLL
     +IntegridadBLL
+    +FachadaIdioma
   }
 
   class Menu <<Page>> {
@@ -461,6 +674,7 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
 
   class Materias <<Page · Admin>> {
     +MateriaBLL
+    +MateriaXmlBLL
   }
 
   class Notas <<Page · Admin>> {
@@ -495,6 +709,18 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
     +IntegridadBLL
   }
 
+  class Perfiles <<Page · Admin>> {
+    +PerfilBLL
+  }
+
+  class AsignarPerfiles <<Page · Admin>> {
+    +PerfilBLL
+  }
+
+  class Idiomas <<Page · Admin>> {
+    +IdiomaBLL
+  }
+
   Login             --> LoginBLL
   Login             --> IntegridadBLL
   Menu              --> AlumnoMateriaBLL
@@ -520,6 +746,25 @@ package "WebForms — Presentación" as WEB #FCE7F3 {
   Usuarios          --> Paginador
   UsuariosBloqueados --> UsuarioBLL
   Integridad        --> IntegridadBLL
+  Perfiles          --> PerfilBLL
+  AsignarPerfiles   --> PerfilBLL
+  Idiomas           --> IdiomaBLL
+  Materias          --> MateriaXmlBLL
+  Materias          ..> MateriasService : consulta desde el navegador (JSON)
+  Dashboard         ..> MateriasService : consulta desde el navegador (JSON)
+  MateriasService   --> MateriaBLL
+  MateriasService   --> AlumnoMateriaBLL
+  MateriasService   --> PerfilBLL
+  PaginaBase        --|> PaginaConIdioma
+  Login             --|> PaginaConIdioma
+  PaginaConIdioma   ..|> IObservadorIdioma
+  PaginaConIdioma   --> IdiomaWeb
+  PaginaConIdioma   --> Textos
+  SelectorIdioma    --> IdiomaWeb
+  SelectorIdioma    --> FachadaIdioma
+  IdiomaWeb         --> IdiomaManager
+  IdiomaWeb         --> FachadaIdioma
+  Textos            --> IdiomaWeb
 
   Site               -[hidden]right-> Login
   Login              -[hidden]right-> Menu

@@ -45,6 +45,24 @@ rectangle "Sistema de Gestión Académico" {
         usecase "CU13\nDesbloquear Usuarios" as CU13
     }
 
+    package "Seguridad: Perfiles y Usuarios" {
+        usecase "CU19\nGestionar Perfiles\ny Permisos" as CU19
+        usecase "CU20\nAsignar Perfiles\na Usuarios" as CU20
+        usecase "CU21\nGestionar Usuarios" as CU21
+    }
+
+    package "Intercambio del Plan de Estudios" {
+        usecase "CU22\nExportar Plan\nde Estudios (XML)" as CU22
+        usecase "CU23\nImportar Plan\nde Estudios (XML)" as CU23
+        usecase "CU24\nConsultar Plan de Estudios\n(Web Service)" as CU24
+        usecase "CU25\nConsultar Resumen\nAcadémico (Web Service)" as CU25
+    }
+
+    package "Multiidioma" {
+        usecase "CU26\nCambiar Idioma" as CU26
+        usecase "CU27\nGestionar Idiomas\ny Traducciones" as CU27
+    }
+
     package "Integridad de Datos (Webmaster)" {
         usecase "CU14\nVerificar Integridad\nde Datos" as CU14
         usecase "CU15\nRecalcular Integridad" as CU15
@@ -53,54 +71,4 @@ rectangle "Sistema de Gestión Académico" {
 
     usecase "CU17\nRegistrar en Bitácora" as BITACORA <<include>>
     usecase "Validar Correlativas" as CORREL <<include>>
-    usecase "Calcular DVH/DVV" as DVV <<include>>
-}
-
-' Alumno
-A --> CU01
-A --> CU02
-A --> CU03
-A --> CU04
-A --> CU05
-A --> CU07
-A --> CU08
-A --> CU09
-A --> CU18
-
-' Administrador
-ADM --> CU01
-ADM --> CU02
-ADM --> CU03
-ADM --> CU06
-ADM --> CU10
-ADM --> CU11
-ADM --> CU12
-ADM --> CU13
-ADM --> CU18
-
-' Webmaster
-WM --> CU01
-WM --> CU14
-WM --> CU15
-WM --> CU16
-WM --> CU18
-
-' Includes — toda escritura auditada pasa por CU17
-CU02 ..> BITACORA : <<include>>
-CU03 ..> BITACORA : <<include>>
-CU04 ..> BITACORA : <<include>>
-CU04 ..> CORREL   : <<include>>
-CU06 ..> BITACORA : <<include>>
-CU06 ..> DVV      : <<include>>
-CU09 ..> BITACORA : <<include>>
-CU10 ..> BITACORA : <<include>>
-CU11 ..> BITACORA : <<include>>
-CU13 ..> BITACORA : <<include>>
-CU15 ..> BITACORA : <<include>>
-CU16 ..> BITACORA : <<include>>
-
-' Extends
-CU07 ..> CU05 : <<extend>>
-CU08 ..> CU07 : <<extend>>
-
-@enduml
+    usecase "Calcular DVH/DVV" as DVV <<include>>

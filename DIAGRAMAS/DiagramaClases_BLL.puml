@@ -1,0 +1,228 @@
+@startuml DiagramaClases_BLL
+title Diagrama de clases - Logica de Negocio (BLL)
+top to bottom direction
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam classFontSize 10
+skinparam packageFontSize 12
+skinparam shadowing false
+skinparam ranksep 40
+skinparam nodesep 25
+
+package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
+
+  enum LoginResultado {
+    Exito
+    CredencialesInvalidas
+    UsuarioBloqueado
+    SesionYaActiva
+    UsuarioInactivo
+  }
+
+  class LoginBLL {
+    +AutenticarUsuario(usuario, contrasena, sessionId) : LoginResultado
+  }
+
+  class UsuarioBLL {
+    +VerificarContrasena() : bool
+    +CambiarContrasena() : bool
+    +ObtenerPerfil() : USUARIO
+    +ActualizarDireccion() : bool
+    +Desbloquear(usuario, admin)
+    +ListarBloqueados() : List<USUARIO>
+    +ListarTodos() : List<USUARIO>
+    +ListarAlumnos() : List<USUARIO>
+  }
+
+  class MateriaBLL {
+    +Insertar() / Actualizar() / Eliminar()
+    +Listar() : List<MATERIA>
+    +ListarPaginado(pagina, tamanio) : PaginaResultado<MATERIA>
+    +Obtener(id) : MATERIA
+    +ListarCorrelativas(idMateria) : List<MATERIA>
+  }
+
+  class AlumnoMateriaBLL {
+    +Listar(idUsuario) : List<ALUMNO_MATERIA>
+    +ActualizarNotas() : bool
+    +ListarConRiesgo() : List<ALUMNO_MATERIA>
+    +CalcularPromedioPonderado() : (decimal, string)
+    +ObtenerResumen(idUsuario) : ResumenAcademico
+  }
+
+  class ResumenAcademico {
+    +TotalMaterias, Aprobadas, Cursando, FinalPendiente : int
+    +PromedioPonderado : decimal
+    +MensajePromedio : string
+  }
+
+  class MateriaXmlBLL {
+    +Exportar(usuario) : byte[]
+    +Importar(xml : byte[], usuario) : ResultadoImportacionXml
+    -Cargar() / LeerMaterias() / BuscarCiclo()
+  }
+
+  class ResultadoImportacionXml {
+    +Creadas, Actualizadas, CorrelativasAgregadas : int
+    +Errores : List<string>
+    +Ok : bool
+  }
+
+  class ResultadoIntegridad {
+    +EsValido : bool
+    +Errores : List<string>
+    +IdsUsuariosAfectados : List<int>
+  }
+
+  class InscripcionBLL {
+    +ObtenerPeriodoActual() : PERIODO_ACADEMICO
+    +YaInscripto() : bool
+    +ClasificarMaterias() : (disponibles, noDisponibles)
+    +Inscribir() : (bool, string, int)
+    +ListarHistorial() : List<INSCRIPCION>
+  }
+
+  class PeriodoBLL {
+    +Listar() : List<PERIODO_ACADEMICO>
+    +Insertar() : int
+    +Actualizar() : bool
+  }
+
+  class BitacoraBLL {
+    +RegistrarLogin() / RegistrarLogout()
+    +RegistrarAccion(usuario, accion)
+    +ListarPaginado(...) : PaginaResultado<BITACORA>
+    +ListarUsuariosDistinct() : List<string>
+  }
+
+  class EventoBLL {
+    +Insertar() / Actualizar() / Eliminar()
+    +ListarPorUsuario() : List<EVENTO_ACADEMICO>
+    +ListarPorMes() : List<EVENTO_ACADEMICO>
+    +AplicarMapaDeCalor()
+  }
+
+  class FeriadosBLL {
+    +ObtenerFeriados(anio) : List<Feriado>
+  }
+
+  class IntegridadBLL {
+    +Verificar{las 13 tablas}() : ResultadoIntegridad
+    +Recalcular{las 13 tablas}()
+    +VerificarTodasLasTablas() : ResultadoIntegridad
+    +RecalcularTodasLasTablas()
+    +CalcularDVHAlumnoMateria(am) : int
+    +RestaurarTodasLasTablas()
+  }
+
+  class PerfilBLL {
+    +VersionPermisos : int {static}
+    +ObtenerArbol() / ObtenerArbolGestionablePor(actor) : List<Rol>
+    +ObtenerPermisosEfectivos(usuarioId) : List<string>
+    +RefrescarPermisosSiHaceFalta(usuario) : bool
+    +CrearRol() / RenombrarRol() / CambiarPadre() / EliminarRol()
+    +GuardarPermisosDeRol(rolId, permisoIds, actor)
+    +AsignarPerfilesAUsuario(usuarioId, rolIds, actor)
+    +CrearUsuario() / ModificarUsuario() / CambiarEstadoUsuario()
+    +ResetearContrasena() / DesbloquearUsuario()
+    +ListarUsuariosVisiblesPor(actor) : List<USUARIO>
+    +ListarUsuariosVisiblesPor(actor, pagina, tamanio) : PaginaResultado<USUARIO>
+    +SesionRevocada(usuario) : bool {static}
+  }
+
+  class SiembraBLL {
+    +CatalogoDePermisos() : List<string> {static}
+    +SembrarDatosBase() : bool
+  }
+
+  class IdiomaBLL {
+    +VersionTraducciones : int {static}
+    +ListarTodos() / ListarHabilitados() : List<IDIOMA>
+    +Crear() / Renombrar() / ActualizarEstado() / Eliminar()
+    +CargarTraducciones(idiomaId) : Dictionary<string,string>
+    +GuardarTraducciones(idiomaId, textos, usuario) : int
+    +ObtenerIdiomaDeUsuario() / ActualizarIdiomaDeUsuario()
+  }
+
+  class FachadaIdioma <<Facade>> {
+    +IdiomaActivo : IDIOMA
+    +ListarDisponibles() : List<IDIOMA>
+    +Cambiar(idioma, idUsuario)
+    +AplicarPreferencia(idUsuario)
+    +AplicarPredeterminadoSiHaceFalta()
+    +RefrescarSiHaceFalta()
+    +Traducir(clave) : string
+    +RegistrarClave(clave, textoDefault)
+  }
+
+  class Paginacion <<static>> {
+    +ConsultarAjustando(pagina, consulta) : PaginaResultado<T>
+  }
+
+  LoginBLL         ..> LoginResultado
+  IntegridadBLL    ..> ResultadoIntegridad
+
+  LoginBLL         --> UsuarioDAL
+  LoginBLL         --> BitacoraBLL
+  LoginBLL         --> IntegridadBLL
+  UsuarioBLL       --> UsuarioDAL
+  UsuarioBLL       --> BitacoraBLL
+  UsuarioBLL       --> IntegridadBLL
+  MateriaBLL       --> MateriaDAL
+  MateriaBLL       --> BitacoraBLL
+  MateriaBLL       --> IntegridadBLL
+  AlumnoMateriaBLL --> AlumnoMateriaDAL
+  AlumnoMateriaBLL --> BitacoraBLL
+  AlumnoMateriaBLL --> IntegridadBLL
+  InscripcionBLL   --> InscripcionDAL
+  InscripcionBLL   --> PeriodoDAL
+  InscripcionBLL   --> AlumnoMateriaDAL
+  InscripcionBLL   --> MateriaDAL
+  InscripcionBLL   --> BitacoraBLL
+  InscripcionBLL   --> IntegridadBLL
+  PeriodoBLL       --> PeriodoDAL
+  PeriodoBLL       --> BitacoraBLL
+  PeriodoBLL       --> IntegridadBLL
+  BitacoraBLL      --> BitacoraDAL
+  BitacoraBLL      --> IntegridadBLL
+  EventoBLL        --> EventoDAL
+  EventoBLL        --> BitacoraBLL
+  EventoBLL        --> IntegridadBLL
+  IntegridadBLL    --> IntegridadDAL
+  MateriaBLL       --> Paginacion
+  MateriaXmlBLL    --> MateriaDAL
+  MateriaXmlBLL    --> BitacoraBLL
+  MateriaXmlBLL    --> IntegridadBLL
+  MateriaXmlBLL    ..> ResultadoImportacionXml
+  AlumnoMateriaBLL ..> ResumenAcademico
+  PerfilBLL        --> PerfilDAL
+  PerfilBLL        --> UsuarioDAL
+  PerfilBLL        --> BitacoraBLL
+  PerfilBLL        --> IntegridadBLL
+  PerfilBLL        ..> Rol : Composite
+  SiembraBLL       --> SiembraDAL
+  SiembraBLL       --> PerfilDAL
+  SiembraBLL       ..> Permisos
+  IdiomaBLL        --> IdiomaDAL
+  IdiomaBLL        --> BitacoraBLL
+  FachadaIdioma    --> IdiomaBLL
+  FachadaIdioma    --> IdiomaManager
+  BitacoraBLL      --> Paginacion
+  PerfilBLL        --> Paginacion
+
+  LoginBLL         -[hidden]right-> LoginResultado
+  LoginResultado   -[hidden]right-> UsuarioBLL
+  UsuarioBLL       -[hidden]right-> MateriaBLL
+  MateriaBLL       -[hidden]right-> AlumnoMateriaBLL
+  AlumnoMateriaBLL -[hidden]right-> ResultadoIntegridad
+  ResultadoIntegridad -[hidden]right-> InscripcionBLL
+  InscripcionBLL   -[hidden]right-> PeriodoBLL
+  PeriodoBLL       -[hidden]right-> BitacoraBLL
+  BitacoraBLL      -[hidden]right-> EventoBLL
+  EventoBLL        -[hidden]right-> FeriadosBLL
+  FeriadosBLL      -[hidden]right-> IntegridadBLL
+  IntegridadBLL    -[hidden]right-> PerfilBLL
+  PerfilBLL        -[hidden]right-> Paginacion
+}
+
+@enduml

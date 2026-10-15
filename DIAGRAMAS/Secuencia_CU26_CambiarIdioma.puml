@@ -1,0 +1,91 @@
+@startuml Secuencia_CU26_CambiarIdioma
+title CU26 — Cambiar Idioma (Observer + Facade)
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam sequenceParticipant {
+    BackgroundColor<<Page>> #FCE7F3
+    BackgroundColor<<BE>> #DBEAFE
+    BackgroundColor<<BLL>> #BBF7D0
+    BackgroundColor<<DAL>> #FEF08A
+    BackgroundColor<<BD>> #DBEAFE
+}
+
+actor Usuario as U
+participant "SelectorIdioma.ascx" as SEL <<Page>>
+participant "FachadaIdioma" as FAC <<BLL>>
+participant "IdiomaBLL" as BLL <<BLL>>
+participant "IdiomaDAL" as DAL <<DAL>>
+participant "IdiomaManager\n(uno por sesión)" as MGR <<BE>>
+participant "PaginaConIdioma\n(página abierta)" as PAG <<Page>>
+database "SQL Server" as DB <<BD>>
+
+== Al abrir cualquier página ==
+U -> PAG : pide una página
+activate PAG
+PAG -> FAC : AplicarPredeterminadoSiHaceFalta()
+FAC -> MGR : ¿tiene idioma activo?
+alt la sesión todavía no tiene idioma
+  FAC -> BLL : ObtenerPredeterminado()
+  BLL -> DAL : ObtenerPredeterminado()
+  DAL -> DB : Leer("IDIOMA_OBTENER_PREDETERMINADO")
+  DB --> DAL : Español
+  FAC -> BLL : CargarTraducciones(idioma.Id)
+  BLL -> DAL : ListarControlesConTraduccion(idiomaId)
+  DAL -> DB : Leer("TRADUCCION_LISTAR_CONTROLES")
+  DB --> DAL : clave, texto por defecto, traducción
+  FAC -> MGR : CambiarIdioma(idioma, diccionario)
+end
+PAG -> MGR : Registrar(this)  — se recorren los controles con ID\ny se guarda el texto original de cada uno
+note right of PAG
+  Literal, Button, LinkButton, placeholders, ítems de listas,
+  encabezados de grillas y texto vacío: clave "Pagina.IdControl".
+  En PreRender cada control recibe Traducir(clave) ?? texto original.
+end note
+PAG --> U : página en el idioma activo
+deactivate PAG
+
+== Elegir otro idioma ==
+U -> SEL : elige "Inglés" en el desplegable (AutoPostBack)
+activate SEL
+SEL -> FAC : ListarDisponibles() — valida que el idioma esté habilitado
+SEL -> FAC : Cambiar(idioma, idUsuario)
+activate FAC
+FAC -> BLL : CargarTraducciones(idioma.Id)
+BLL -> DAL : ListarControlesConTraduccion(idiomaId)
+DAL -> DB : Leer("TRADUCCION_LISTAR_CONTROLES")
+DB --> DAL : filas
+DAL --> BLL : diccionario clave → texto\n(traducción, o texto por defecto si falta)
+FAC -> MGR : CambiarIdioma(idioma, diccionario)
+activate MGR
+MGR -> MGR : guarda idioma activo y diccionario
+MGR -> PAG : Notificar() → ActualizarIdioma() de cada observador registrado
+deactivate MGR
+alt hay un usuario con sesión iniciada
+  FAC -> BLL : ActualizarIdiomaDeUsuario(idUsuario, idioma.Id)
+  BLL -> DAL : ActualizarIdiomaDeUsuario(...)
+  DAL -> DB : Escribir("USUARIO_ACTUALIZAR_IDIOMA")
+else Login (sin sesión)
+  note right of FAC : no se guarda la preferencia
+end
+deactivate FAC
+SEL -> SEL : Response.Redirect(Request.RawUrl)
+SEL --> U : la página se vuelve a pedir (GET) ya en el idioma nuevo,\nincluidos los textos que arma el código al cargarla
+deactivate SEL
+
+== Al iniciar sesión ==
+U -> FAC : (Login) AplicarPreferencia(idUsuario)
+FAC -> BLL : ObtenerIdiomaDeUsuario(idUsuario)
+BLL -> DAL : ObtenerIdiomaDeUsuario(id)
+DAL -> DB : Leer("USUARIO_OBTENER_IDIOMA")
+DB --> DAL : IDIOMA_ID (puede ser NULL)
+alt tiene idioma guardado y sigue habilitado
+  FAC -> MGR : CambiarIdioma(idiomaGuardado, diccionario)
+end
+
+note over MGR, DB
+  Si alguien edita traducciones, IdiomaBLL.VersionTraducciones sube y la próxima
+  petición de cada sesión recarga su diccionario (FachadaIdioma.RefrescarSiHaceFalta).
+  Si su idioma activo se deshabilitó o se borró, vuelve al predeterminado.
+end note
+
+@enduml
