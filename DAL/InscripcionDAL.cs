@@ -11,7 +11,6 @@ namespace DAL
 
         public const string MensajePeriodoDuplicado = "Ya existe un período para ese año y cuatrimestre.";
 
-        // Red de seguridad ante carreras: si el UNIQUE(ANIO, CUATRIMESTRE) salta igual, la UI ve la misma regla de negocio.
         private static bool EsClaveDuplicada(SqlException ex) => ex.Number == 2627 || ex.Number == 2601;
 
         public List<BE.PERIODO_ACADEMICO> Listar()

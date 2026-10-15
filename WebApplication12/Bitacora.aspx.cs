@@ -28,8 +28,6 @@ namespace CAPAS_Web
                 ddlUsuario.Items.Add(new ListItem(usuario, usuario));
         }
 
-        // Filtro aplicado (el de la última vez que se pulsó Filtrar/Limpiar). La grilla y el
-        // paginador usan esta copia y no los controles, que el usuario puede haber editado sin aplicar.
         private string FiltroUsuario { get => ViewState["FiltroUsuario"] as string; set => ViewState["FiltroUsuario"] = value; }
         private string FiltroCriticidad { get => ViewState["FiltroCriticidad"] as string; set => ViewState["FiltroCriticidad"] = value; }
         private DateTime? FiltroDesde { get => ViewState["FiltroDesde"] as DateTime?; set => ViewState["FiltroDesde"] = value; }
@@ -43,8 +41,6 @@ namespace CAPAS_Web
             FiltroDesde = null;
             FiltroHasta = null;
             if (DateTime.TryParse(txtFechaDesde.Text, out DateTime fd)) FiltroDesde = fd.Date;
-            // "hasta" es un límite exclusivo en el SP (FECHA < @fecha_hasta), así que
-            // se corre un día para incluir todo el día seleccionado por el usuario.
             if (DateTime.TryParse(txtFechaHasta.Text, out DateTime fh)) FiltroHasta = fh.Date.AddDays(1);
         }
 

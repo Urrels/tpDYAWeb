@@ -37,9 +37,6 @@ namespace CAPAS_Web
 
                 if (!resultadoIntegridad.EsValido && !u.TienePermiso(BE.Permisos.IngresarConIntegridadInvalida))
                 {
-                    // Usuario sin permiso para operar con la base alterada: fue manipulada externamente.
-                    // No se revela el detalle de resultadoIntegridad.Errores (eso es
-                    // tarea del panel de Webmaster, no implementada acá).
                     BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario, Session.SessionID);
                     Session["Usuario"] = null;
                     pnlInconsistencia.Visible = true;
@@ -49,7 +46,6 @@ namespace CAPAS_Web
                 string inicio = PaginaBase.ObtenerPaginaInicio(u);
                 if (inicio == null)
                 {
-                    // El usuario no tiene ningún permiso que le dé una página de inicio.
                     BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario, Session.SessionID);
                     lblError.Text = Textos.TH("Login.msgSinPermisos", "Tu cuenta no tiene permisos asignados. Contactá a un administrador.");
                     lblError.Visible = true;
@@ -58,7 +54,6 @@ namespace CAPAS_Web
                 }
 
                 Session["Usuario"] = u;
-                // Si el usuario eligió un idioma en una sesión anterior, se lo vuelve a aplicar.
                 IdiomaWeb.Fachada.AplicarPreferencia(u.Id);
                 Response.Redirect(inicio);
             }
@@ -80,7 +75,7 @@ namespace CAPAS_Web
                 lblError.Visible = true;
                 txtContrasena.Text = "";
             }
-            else // CredencialesInvalidas
+            else
             {
                 lblError.Text = Textos.TH("Login.msgCredenciales", "Usuario o contraseña incorrectos.");
                 lblError.Visible = true;

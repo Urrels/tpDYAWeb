@@ -8,7 +8,6 @@ namespace CAPAS_Web
 {
     public partial class Inscripcion : PaginaBase
     {
-        // La misma página sirve a quien gestiona periodos y a quien se inscribe.
         protected override bool TieneAcceso(BE.USUARIO usuario) =>
             usuario.TienePermiso(BE.Permisos.GestionarPeriodos) || usuario.TienePermiso(BE.Permisos.Inscribirse);
 
@@ -197,7 +196,6 @@ namespace CAPAS_Web
             }
             catch (InvalidOperationException ex)
             {
-                // Regla de negocio (período repetido): se avisa y el formulario queda abierto para corregir.
                 MostrarMsg("alert-danger", Textos.MH(ex.Message));
                 return;
             }
@@ -221,8 +219,6 @@ namespace CAPAS_Web
         protected void btnInscribir_Click(object sender, EventArgs e)
         {
             var u = Session["Usuario"] as BE.USUARIO;
-            // La página la comparten quien gestiona periodos y quien se inscribe:
-            // se revalida en el servidor para que no se pueda forjar el POST.
             if (!u.TienePermiso(BE.Permisos.Inscribirse)) return;
             int idPeriodo = (int)(ViewState["IdPeriodo"] ?? 0);
 

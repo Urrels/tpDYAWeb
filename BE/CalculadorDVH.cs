@@ -2,12 +2,6 @@ using System.Collections.Generic;
 
 namespace BE
 {
-    /// <summary>
-    /// Calculador de dígitos verificadores horizontal (DVH, por fila) y vertical
-    /// (DVV, por columna) usado para detectar alteraciones no autorizadas de datos
-    /// almacenados directamente en la base (por fuera de la aplicación).
-    /// Fórmula portada tal cual del TP hermano "ingenieria_software" (ya aprobada).
-    /// </summary>
     public static class CalculadorDVH
     {
         public static int Calcular(string[] atributos)

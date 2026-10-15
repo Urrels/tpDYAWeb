@@ -16,27 +16,14 @@ namespace CAPAS_Web
                 MostrarResultado(_bll.VerificarTodasLasTablas());
         }
 
-        /// <summary>
-        /// Acepta el estado actual de los datos como legítimo: recalcula
-        /// DVH/DVV (y el snapshot) de las 13 tablas sobre los valores
-        /// presentes hoy en la base, y vuelve a mostrar una verificación
-        /// (que debería dar OK, ya que lo que se acaba de recalcular es por
-        /// definición consistente consigo mismo).
-        /// </summary>
         protected void btnRecalcular_Click(object sender, EventArgs e)
         {
             _bll.RecalcularTodasLasTablas();
-            // Se registra DESPUÉS del recálculo: RegistrarAccion deja la bitácora con DVH/DVV al día.
             bool registrado = RegistrarEnBitacora("RECALCULO_INTEGRIDAD");
             MostrarResultado(_bll.VerificarTodasLasTablas());
             if (!registrado) AvisarFalloBitacora();
         }
 
-        /// <summary>
-        /// No modifica la base: descarga como .json el snapshot actual de
-        /// las 13 tablas (el mismo que usaría Restaurar), para tener un
-        /// respaldo externo antes de aplicar una acción irreversible.
-        /// </summary>
         protected void btnBackup_Click(object sender, EventArgs e)
         {
             string json = _bll.ExportarBackupJson();
@@ -49,28 +36,15 @@ namespace CAPAS_Web
             Response.End();
         }
 
-        /// <summary>
-        /// Acción destructiva/irreversible: devuelve las 13 tablas al último
-        /// estado guardado en el snapshot (confirmación ya pedida en el
-        /// cliente vía OnClientClick antes de llegar a este postback).
-        /// </summary>
         protected void btnRestaurar_Click(object sender, EventArgs e)
         {
             var avisos = _bll.RestaurarTodasLasTablas();
-            // El restore puede reescribir la propia bitácora: se registra DESPUÉS, así la
-            // entrada no se pierde y el DVH/DVV de BITACORA queda consistente.
             bool registrado = RegistrarEnBitacora("RESTAURACION_DATOS");
             MostrarResultado(_bll.VerificarTodasLasTablas());
             MostrarAvisos(avisos);
             if (!registrado) AvisarFalloBitacora();
         }
 
-        /// <summary>
-        /// Restaura usando el .json subido por el usuario (generado antes con
-        /// "Backup") en vez del snapshot interno de la base — cubre el caso
-        /// en que el snapshot interno también se perdió o corrompió junto
-        /// con los datos.
-        /// </summary>
         protected void btnRestaurarDesdeBackup_Click(object sender, EventArgs e)
         {
             if (!fileBackup.HasFile)
@@ -96,24 +70,18 @@ namespace CAPAS_Web
                 return;
             }
 
-            // Igual que en la restauración desde snapshot: se registra después de restaurar.
             bool registrado = RegistrarEnBitacora("RESTAURACION_BACKUP");
             MostrarResultado(_bll.VerificarTodasLasTablas());
             MostrarAvisos(avisos);
             if (!registrado) AvisarFalloBitacora();
         }
 
-        /// <summary>
-        /// No ejecuta ninguna acción sobre la base de datos — vuelve la
-        /// página a un estado neutro ocultando el cartel de resultados.
-        /// </summary>
         protected void btnCancelar_Click(object sender, EventArgs e)
         {
             pnlResultados.Visible = false;
             lblMsg.Visible = false;
         }
 
-        // La operación ya se hizo: si falla el registro no debe convertirse en un error 500.
         private bool RegistrarEnBitacora(string accion)
         {
             try
@@ -127,7 +95,6 @@ namespace CAPAS_Web
             }
         }
 
-        // Se agrega al mensaje que dejó MostrarResultado.
         private void AvisarFalloBitacora()
         {
             lblMsg.Text += "<br/><small><i class='bi bi-exclamation-triangle me-1'></i>"
@@ -163,7 +130,6 @@ namespace CAPAS_Web
             }
         }
 
-        // Agrega al mensaje actual los avisos del restore (tablas omitidas, borrados evitados).
         private void MostrarAvisos(System.Collections.Generic.List<string> avisos)
         {
             if (avisos == null || avisos.Count == 0) return;

@@ -3,8 +3,6 @@ using System.Web.UI;
 
 namespace CAPAS_Web
 {
-    // Selector de idioma reutilizable (equivale a IdiomaUIHelper.AgregarSelector de la versión de escritorio).
-    // Se coloca en el master y en Login.aspx; al elegir un idioma llama a la fachada, que avisa a las páginas observadoras.
     public partial class SelectorIdioma : UserControl
     {
         protected void Page_Load(object sender, EventArgs e)
@@ -29,12 +27,9 @@ namespace CAPAS_Web
         {
             if (!int.TryParse(ddlIdioma.SelectedValue, out int id)) return;
             var fachada = IdiomaWeb.Fachada;
-            // Se valida contra los habilitados: el valor viene del navegador y podría estar alterado.
             BE.IDIOMA elegido = fachada.ListarDisponibles().Find(i => i.Id == id);
             if (elegido == null) return;
             fachada.Cambiar(elegido, IdiomaWeb.IdUsuarioActual);
-            // Se vuelve a pedir la página con GET: así lo que armó el código al cargarla (listas, mensajes,
-            // calendario) también sale en el idioma nuevo.
             Response.Redirect(Request.RawUrl, false);
             Context.ApplicationInstance.CompleteRequest();
         }

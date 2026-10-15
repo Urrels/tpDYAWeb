@@ -8,9 +8,6 @@ namespace BLL
         private readonly DAL.BitacoraDAL _dal = new DAL.BitacoraDAL();
         private readonly IntegridadBLL _integridad = new IntegridadBLL();
 
-        // Deriva la criticidad únicamente a partir del string de acción, así
-        // ningún caller existente de RegistrarAccion(usuario, accion) necesita
-        // cambiar su firma.
         private static string ClasificarCriticidad(string accion)
         {
             if (accion.StartsWith("BAJA_") || accion == "USUARIO_BLOQUEADO" || accion == "LOGIN_FALLIDO"
@@ -22,13 +19,9 @@ namespace BLL
                 return "Alta";
             if (accion == "LOGIN" || accion == "LOGOUT")
                 return "Baja";
-            return "Media"; // ALTA_*, EDICION_*, MODIF_*, ACTUALIZACION_*, INSCRIPCION_*, y cualquier acción futura no clasificada
+            return "Media";
         }
 
-        // BitacoraDAL.Registrar() no devuelve resultado (siempre se asume
-        // exitoso si no lanza excepción), por eso el recálculo se dispara
-        // incondicionalmente después de cada escritura, igual que el resto
-        // del método ya hacía antes de este cambio.
         public void RegistrarLogin(string usuario)
         {
             _dal.Registrar(usuario, "LOGIN", ClasificarCriticidad("LOGIN"));

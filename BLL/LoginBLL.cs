@@ -20,26 +20,14 @@ namespace BLL
         private readonly BitacoraBLL _bitacora = new BitacoraBLL();
         private readonly IntegridadBLL _integridad = new IntegridadBLL();
 
-        /// <summary>
-        /// Valida las credenciales. El usuario autenticado se devuelve por
-        /// <paramref name="usuarioAutenticado"/> (solo con <see cref="LoginResultado.Exito"/>):
-        /// no hay estado compartido entre pedidos, así dos ingresos simultáneos
-        /// nunca pueden cruzarse el usuario.
-        /// </summary>
         public LoginResultado AutenticarUsuario(string usuario, string contrasena, string sessionId, out BE.USUARIO usuarioAutenticado)
         {
             usuarioAutenticado = null;
             if (string.IsNullOrEmpty(usuario) || string.IsNullOrEmpty(contrasena))
                 return LoginResultado.CredencialesInvalidas;
 
-            // Reintenta (si hace falta) la siembra de datos base. Va primero: en una
-            // base nueva donde falló al iniciar la aplicación todavía no existen los
-            // usuarios iniciales, y sin este reintento nadie podría ingresar.
             IntegridadBLL.IntentarInicializarDatosBase();
 
-            // Se chequea el bloqueo ANTES de validar credenciales: no gasta el
-            // hash ni le da al atacante ninguna pista sobre si la contraseña
-            // ingresada era correcta.
             if (_dal.EstaBloqueado(usuario))
                 return LoginResultado.UsuarioBloqueado;
 
@@ -48,7 +36,6 @@ namespace BLL
 
             if (u != null)
             {
-                // Baja lógica: credenciales correctas pero cuenta dada de baja.
                 if (!u.Activo)
                 {
                     _bitacora.RegistrarAccion(usuario, "LOGIN_USUARIO_INACTIVO");
@@ -62,12 +49,6 @@ namespace BLL
                 if (BE.SessionRegistry.Instancia.TieneSesionActiva(usuario))
                     return LoginResultado.SesionYaActiva;
 
-                // Los permisos efectivos se resuelven una sola vez por sesión,
-                // recorriendo el árbol de perfiles (Composite) en memoria. Se
-                // cargan ANTES de registrar la sesión: si fallan, el usuario no
-                // queda bloqueado con "sesión ya activa".
-                // La versión se lee antes de calcular: si un perfil cambia en el medio,
-                // la sesión queda desactualizada y se refresca en el próximo pedido.
                 u.EpocaSesion = PerfilBLL.NuevaEpocaDeSesion();
                 u.VersionPermisos = PerfilBLL.VersionPermisos;
                 u.Permisos = new PerfilBLL().ObtenerPermisosEfectivos(u.Id);
@@ -140,12 +121,6 @@ namespace BLL
 
         public List<BE.USUARIO> ListarTodos() => _dal.ListarTodos();
 
-        /// <summary>
-        /// Alumno es una identidad de dominio, no un perfil puntual: se
-        /// considera alumno a quien tiene el permiso de inscribirse a
-        /// materias (es quien genera cursadas), sea por el perfil Alumno o
-        /// por cualquier perfil que lo contenga.
-        /// </summary>
         public List<BE.USUARIO> ListarAlumnos()
         {
             var ids = new HashSet<int>(new PerfilBLL().ListarUsuariosConPermiso(BE.Permisos.Inscribirse));

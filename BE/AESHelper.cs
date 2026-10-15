@@ -8,7 +8,6 @@ namespace BE
 {
     public static class AESHelper
     {
-        // Clave e IV viven en Web.config (appSettings), no en el código fuente.
         private static readonly byte[] Key = Convert.FromBase64String(ConfigurationManager.AppSettings["AesKey"]);
         private static readonly byte[] IV  = Convert.FromBase64String(ConfigurationManager.AppSettings["AesIV"]);
 

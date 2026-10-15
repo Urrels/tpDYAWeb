@@ -2,20 +2,12 @@ using System.Collections.Generic;
 
 namespace BE
 {
-    /// <summary>
-    /// Compuesto del Composite: un perfil (familia de permisos) que contiene
-    /// permisos propios y otros perfiles hijos. Los permisos efectivos de un
-    /// rol son los suyos más los de todos sus descendientes, resueltos de
-    /// forma recursiva a través de <see cref="ObtenerHijos"/>.
-    /// </summary>
     public class Rol : NodoPermiso
     {
         public bool Protegido { get; set; }
 
         private readonly List<NodoPermiso> _hijos = new List<NodoPermiso>();
 
-        // Corta la recursión si los datos tuvieran una referencia circular.
-        // El árbol se arma en memoria por pedido, no se comparte entre hilos.
         private bool _visitando;
 
         public override void Agregar(NodoPermiso nodo)

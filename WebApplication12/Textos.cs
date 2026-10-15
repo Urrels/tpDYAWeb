@@ -8,17 +8,11 @@ using System.Web;
 
 namespace CAPAS_Web
 {
-    /// <summary>
-    /// Traducción de textos armados desde el código (mensajes, valores, etc.).
-    /// La primera vez que se usa una clave se registra en CONTROL_IDIOMA con su texto por defecto,
-    /// así aparece sola en Idiomas.aspx para traducirla.
-    /// </summary>
     public static class Textos
     {
         private static readonly object _cerrojo = new object();
         private static readonly HashSet<string> _registradas = new HashSet<string>();
 
-        // Mensajes de la BLL que llevan datos incrustados: se traducen como plantilla ({0}, {1}...).
         private static readonly KeyValuePair<Regex, string>[] Plantillas =
         {
             Plantilla(@"^El perfil (.+) es del sistema: no se puede (.+)\.$", "El perfil {0} es del sistema: no se puede {1}."),
@@ -76,23 +70,14 @@ namespace CAPAS_Web
             }
         }
 
-        /// <summary>Igual que T pero codificado para HTML: es lo que hay que usar al asignar a un Label.Text, que no codifica.</summary>
         public static string TH(string clave, string textoDefault, params object[] args) =>
             HttpUtility.HtmlEncode(T(clave, textoDefault, args));
 
-        /// <summary>
-        /// Texto traducido con partes en HTML: la plantilla se codifica y después se le insertan los argumentos,
-        /// que deben venir ya codificados (por ejemplo con Negrita).
-        /// </summary>
         public static string THF(string clave, string textoDefault, params string[] argsHtml) =>
             string.Format(HttpUtility.HtmlEncode(T(clave, textoDefault)), argsHtml);
 
         public static string Negrita(string texto) => "<strong>" + HttpUtility.HtmlEncode(texto) + "</strong>";
 
-        /// <summary>
-        /// Traduce un mensaje que viene de la BLL (excepciones con reglas de negocio, resultados de operaciones).
-        /// La clave sale del propio texto en español, así la BLL no necesita conocer el idioma.
-        /// </summary>
         public static string Mensaje(string espanol)
         {
             if (string.IsNullOrWhiteSpace(espanol)) return espanol;
@@ -104,7 +89,6 @@ namespace CAPAS_Web
                 for (int i = 1; i < m.Groups.Count; i++)
                 {
                     string valor = m.Groups[i].Value;
-                    // Los verbos de "es del sistema: no se puede ..." son parte de la interfaz: se traducen.
                     args[i - 1] = (valor == "renombrar" || valor == "mover" || valor == "eliminar" || valor == "modificar sus permisos") ? Valor(valor) : valor;
                 }
                 return T(ClaveMensaje(p.Value), p.Value, args);
@@ -112,26 +96,21 @@ namespace CAPAS_Web
             return T(ClaveMensaje(espanol), espanol);
         }
 
-        /// <summary>Mensaje de la BLL codificado para HTML (para Label.Text).</summary>
         public static string MH(string espanol) => HttpUtility.HtmlEncode(Mensaje(espanol));
 
-        /// <summary>Valor de dominio que se muestra tal cual en pantalla (estados, criticidades, tipos, días, meses...).</summary>
         public static string Valor(string espanol)
         {
             if (string.IsNullOrWhiteSpace(espanol)) return espanol;
             return T("Valor." + ClaveBase(espanol, 80), espanol);
         }
 
-        /// <summary>Valor de dominio codificado para HTML, para usar desde el markup (acepta null).</summary>
         public static string ValorH(object valor) => HttpUtility.HtmlEncode(Valor(valor as string ?? valor?.ToString()));
 
-        /// <summary>Texto traducido listo para incrustar entre comillas simples en un script de la página.</summary>
         public static string Js(string clave, string textoDefault) =>
             HttpUtility.JavaScriptStringEncode(T(clave, textoDefault));
 
         public static string ClaveMensaje(string espanol) => "Msg." + ClaveBase(espanol, 90);
 
-        // Letras y dígitos ASCII del texto (sin acentos) hasta un largo máximo: estable y apto como clave.
         private static string ClaveBase(string texto, int max)
         {
             var sb = new StringBuilder();
@@ -153,7 +132,6 @@ namespace CAPAS_Web
             }
             catch (SqlException)
             {
-                // Si la base no responde la clave se vuelve a intentar en el próximo uso.
                 lock (_cerrojo) _registradas.Remove(clave);
             }
         }

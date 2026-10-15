@@ -113,7 +113,6 @@
 
 <asp:Content ContentPlaceHolderID="ScriptContent" runat="server">
     <script>
-        // Consume ObtenerResumenAcademico de MateriasService.asmx (JSON); la cookie de sesión viaja sola.
         document.getElementById('btnResumenWs').addEventListener('click', function () {
             var salida = document.getElementById('wsResumen');
             salida.textContent = '<%= CAPAS_Web.Textos.Js("Dashboard.jsConsultando", "Consultando…") %>';

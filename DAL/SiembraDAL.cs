@@ -5,21 +5,14 @@ using System.Data.SqlClient;
 
 namespace DAL
 {
-    /// <summary>Lo que falta sembrar: solo filas que todavía no existen.</summary>
     public class PlanSiembra
     {
         public List<string> Permisos = new List<string>();
-        // Nombre del perfil y si es protegido.
         public List<KeyValuePair<string, bool>> Roles = new List<KeyValuePair<string, bool>>();
-        // Pares (perfil, permiso) por nombre.
         public List<KeyValuePair<string, string>> RolPermisos = new List<KeyValuePair<string, string>>();
         public List<UsuarioSembrado> Usuarios = new List<UsuarioSembrado>();
-        // Si se aplican los perfiles pendientes de la migración USUARIO.ROL -> USUARIO_PERFIL.
         public bool IncluirMigracionDePerfiles;
-        // Si se registra el marcador de siembra en la bitácora, dentro de la misma transacción.
         public bool EscribirMarcador;
-        // Tablas que estaban íntegras antes de sembrar: si reciben filas se les descarta
-        // el DVV y el snapshot dentro de la misma transacción (la BLL las recalcula luego).
         public HashSet<string> TablasIntegras = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -37,18 +30,12 @@ namespace DAL
         public bool Algo => Permisos + Roles + RolPermisos + Usuarios + UsuarioPerfiles > 0;
     }
 
-    /// <summary>
-    /// Aplica la siembra de datos base en una única transacción, solo con
-    /// procedimientos almacenados. La decisión de qué falta la toma la BLL.
-    /// </summary>
     public class SiembraDAL
     {
-        // Acción de bitácora que marca que la siembra inicial ya se realizó.
         public const string AccionMarcador = "SIEMBRA_DATOS_BASE";
 
         private readonly Acceso _acceso = new Acceso();
 
-        /// <summary>true si la bitácora ya tiene la entrada que marca la siembra inicial.</summary>
         public bool ExisteMarcadorSiembra()
         {
             try
@@ -116,8 +103,6 @@ namespace DAL
                         resultado.UsuarioPerfiles++;
                     }
 
-                    // Perfiles pendientes de la migración USUARIO.ROL -> USUARIO_PERFIL
-                    // (los anotó el script); se asignan solo a quien todavía no tiene ninguno.
                     DataTable pendientes = plan.IncluirMigracionDePerfiles
                         ? _acceso.Leer("MIGRACION_USUARIO_ROL_LISTAR")
                         : new DataTable();
@@ -127,8 +112,6 @@ namespace DAL
                         string rolNombre = fila["ROL_NOMBRE"].ToString();
                         if (!idsRol.TryGetValue(rolNombre, out int rolId))
                         {
-                            // El perfil anotado ya no existe: la fila no se puede resolver nunca,
-                            // se descarta para que no quede pendiente para siempre.
                             _acceso.Escribir("MIGRACION_USUARIO_ROL_ELIMINAR",
                                 new List<SqlParameter> { _acceso.CrearParametro("@usuario_id", usuarioId) });
                             continue;
@@ -145,8 +128,6 @@ namespace DAL
                             new List<SqlParameter> { _acceso.CrearParametro("@usuario_id", usuarioId) });
                     }
 
-                    // El marcador se escribe en la misma transacción: si un recálculo posterior
-                    // falla, igual queda registrado. El DVH lo calcula la BLL después del commit.
                     if (plan.EscribirMarcador)
                     {
                         _acceso.Escribir("BITACORA_INSERTAR", new List<SqlParameter>
@@ -158,10 +139,6 @@ namespace DAL
                         resultado.Marcador = true;
                     }
 
-                    // Si el recálculo posterior (fuera de esta transacción) fallara, la tabla
-                    // queda sin DVV ni snapshot: la aplicación la recalcula en el próximo intento
-                    // del mismo proceso; si el proceso se reinicia antes, queda inválida hasta que
-                    // el Webmaster la recalcule desde Integridad.aspx.
                     InvalidarSiInserto(plan, "PERMISO", resultado.Permisos);
                     InvalidarSiInserto(plan, "ROL", resultado.Roles);
                     InvalidarSiInserto(plan, "ROL_PERMISO", resultado.RolPermisos);
@@ -197,7 +174,6 @@ namespace DAL
             });
         }
 
-        // nombre -> id, leído dentro de la transacción en curso (sin distinguir mayúsculas).
         private Dictionary<string, int> MapaIds(string sp, string columnaNombre)
         {
             var mapa = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);

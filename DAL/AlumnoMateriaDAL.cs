@@ -94,12 +94,6 @@ namespace DAL
         _acceso.CrearParametro("@fecha",       e.Fecha),
         _acceso.CrearParametro("@peso",        e.Peso)
     };
-            // EVENTO_INSERTAR termina en SELECT SCOPE_IDENTITY() y se lee con
-            // EscribirConRetorno (ExecuteScalar) en vez de Escribir(...) > 0:
-            // con SET NOCOUNT ON, ExecuteNonQuery() no devuelve de forma
-            // confiable la cantidad de filas afectadas — el insert pasaba
-            // igual pero el DAL reportaba false (bug real, visto en el
-            // calendario de eventos).
             try
             {
                 _acceso.Abrir();
@@ -129,7 +123,6 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        // El SP filtra por dueño: sin filas afectadas (evento ajeno o inexistente) devuelve false.
         public bool Eliminar(int id, int idUsuario)
         {
             var p = new List<SqlParameter>

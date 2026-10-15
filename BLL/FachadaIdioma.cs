@@ -3,10 +3,6 @@ using System.Collections.Generic;
 
 namespace BLL
 {
-    /// <summary>
-    /// Facade del multiidioma: la interfaz web solo habla con esta clase. Trabaja sobre el
-    /// IdiomaManager de la sesión (en la versión de escritorio era un Singleton).
-    /// </summary>
     public class FachadaIdioma
     {
         private readonly IdiomaBLL _idiomas = new IdiomaBLL();
@@ -21,7 +17,6 @@ namespace BLL
 
         public List<IDIOMA> ListarDisponibles() => _idiomas.ListarHabilitados();
 
-        /// <summary>Cambia el idioma de la sesión y, si hay un usuario con sesión iniciada, guarda su preferencia.</summary>
         public void Cambiar(IDIOMA idioma, int? idUsuario)
         {
             Aplicar(idioma);
@@ -29,7 +24,6 @@ namespace BLL
                 _idiomas.ActualizarIdiomaDeUsuario(idUsuario.Value, idioma.Id);
         }
 
-        /// <summary>Al iniciar sesión: aplica el idioma guardado del usuario si todavía está habilitado.</summary>
         public void AplicarPreferencia(int idUsuario)
         {
             int? idiomaId = _idiomas.ObtenerIdiomaDeUsuario(idUsuario);
@@ -39,7 +33,6 @@ namespace BLL
                 Aplicar(idioma);
         }
 
-        /// <summary>Si la sesión todavía no tiene idioma (primer pedido), usa el predeterminado del sistema.</summary>
         public void AplicarPredeterminadoSiHaceFalta()
         {
             if (_manager.IdiomaActivo != null) return;
@@ -47,10 +40,6 @@ namespace BLL
             if (idioma != null) Aplicar(idioma);
         }
 
-        /// <summary>
-        /// Recarga el diccionario si alguien editó traducciones o idiomas desde que se cargó.
-        /// Si el idioma activo se deshabilitó o se borró, vuelve al predeterminado.
-        /// </summary>
         public void RefrescarSiHaceFalta()
         {
             if (_manager.IdiomaActivo == null || _manager.VersionAplicada == IdiomaBLL.VersionTraducciones) return;

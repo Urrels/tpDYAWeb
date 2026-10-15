@@ -84,7 +84,6 @@ namespace CAPAS_Web
             var admin = Session["Usuario"] as BE.USUARIO;
             int idAlumno = int.Parse(ddlAlumno.SelectedValue);
 
-            // Se validan las cuatro notas (vacía = sin cargar) y, si alguna es inválida, no se guarda nada.
             if (!BLL.AlumnoMateriaBLL.TryParsearNota(txtParcial1.Text, out decimal? parcial1)
                 || !BLL.AlumnoMateriaBLL.TryParsearNota(txtParcial2.Text, out decimal? parcial2)
                 || !BLL.AlumnoMateriaBLL.TryParsearNota(txtRecuperatorio.Text, out decimal? recup)

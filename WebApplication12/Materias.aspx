@@ -74,7 +74,6 @@
         </div>
     </div>
     <script>
-        // Consume MateriasService.asmx desde el navegador (JSON); la cookie de sesión viaja sola.
         document.getElementById('btnConsultarWs').addEventListener('click', function () {
             var estado = document.getElementById('wsEstado');
             var cont = document.getElementById('wsResultado');

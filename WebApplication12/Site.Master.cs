@@ -13,8 +13,6 @@ namespace CAPAS_Web
             }
         }
 
-        // El menú se arma al final del ciclo para reflejar cambios de perfiles
-        // hechos durante este mismo pedido (por ejemplo desde Perfiles.aspx).
         protected void Page_PreRender(object sender, EventArgs e)
         {
             var u = Session["Usuario"] as BE.USUARIO;
@@ -40,7 +38,6 @@ namespace CAPAS_Web
             phNavPerfil.Visible      = u.TienePermiso(BE.Permisos.EditarPerfil);
             phNavContrasena.Visible  = u.TienePermiso(BE.Permisos.CambiarContrasena);
 
-            // Cada sección solo se muestra si alguno de sus enlaces es visible.
             phSeccionGestion.Visible       = phNavMaterias.Visible || phNavNotas.Visible || phNavPeriodos.Visible
                                              || phNavBitacora.Visible || phNavBloqueados.Visible || phNavPerfiles.Visible
                                              || phNavUsuarios.Visible || phNavIdiomas.Visible;
@@ -55,9 +52,6 @@ namespace CAPAS_Web
             var u = Session["Usuario"] as BE.USUARIO;
             if (u != null)
             {
-                // El logueo de logout se centraliza en Global.asax.cs (Session_End),
-                // que Session.Abandon() dispara siempre (modo InProc) — cubre tanto
-                // este botón como el timeout por inactividad, de forma uniforme.
                 BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario, Session.SessionID);
             }
             Session.Abandon();

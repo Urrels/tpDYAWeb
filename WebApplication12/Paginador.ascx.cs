@@ -2,8 +2,6 @@ using System;
 
 namespace CAPAS_Web
 {
-    // Paginador reutilizable. La página contenedora consulta con PaginaActual / TamanioPagina,
-    // llama a Establecer() con el resultado y vuelve a enlazar su grilla en CambioPagina.
     public partial class Paginador : System.Web.UI.UserControl
     {
         public event EventHandler CambioPagina;
@@ -28,7 +26,6 @@ namespace CAPAS_Web
 
         public int TotalPaginas => TotalFilas == 0 ? 1 : (TotalFilas + TamanioPagina - 1) / TamanioPagina;
 
-        // Toma la página real devuelta por la consulta (ya ajustada a la última si hacía falta).
         public void Establecer<T>(BE.PaginaResultado<T> resultado)
         {
             TamanioPagina = resultado.Tamanio;
@@ -49,7 +46,6 @@ namespace CAPAS_Web
 
         private void IrA(int pagina)
         {
-            // Nunca más allá de la última página conocida: evita una grilla vacía.
             PaginaActual = Math.Min(Math.Max(1, pagina), TotalPaginas);
             CambioPagina?.Invoke(this, EventArgs.Empty);
         }

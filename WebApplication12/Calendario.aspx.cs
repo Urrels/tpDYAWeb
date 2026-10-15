@@ -30,8 +30,6 @@ namespace CAPAS_Web
             }
         }
 
-        // El calendario y la grilla se arman al final del pedido: así reflejan los cambios hechos por el evento
-        // y salen en el idioma vigente (las filas de una tabla creada por código no sobreviven a un postback).
         protected override void OnPreRender(EventArgs e)
         {
             RenderizarCalendario();

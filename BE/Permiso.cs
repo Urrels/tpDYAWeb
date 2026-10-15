@@ -3,9 +3,6 @@ using System.Collections.Generic;
 
 namespace BE
 {
-    /// <summary>
-    /// Hoja del Composite: un permiso puntual, identificado por su nombre.
-    /// </summary>
     public class Permiso : NodoPermiso
     {
         public override void Agregar(NodoPermiso nodo)
