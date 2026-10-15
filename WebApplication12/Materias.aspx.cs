@@ -48,7 +48,17 @@ namespace CAPAS_Web
                 Peso = int.Parse(ddlPeso.SelectedValue)
             };
             string usuario = (Session["Usuario"] as BE.USUARIO).Usuario;
-            bool ok = m.Id == 0 ? _bll.Insertar(m, usuario) > 0 : _bll.Actualizar(m, usuario);
+            bool ok;
+            try
+            {
+                ok = m.Id == 0 ? _bll.Insertar(m, usuario) > 0 : _bll.Actualizar(m, usuario);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Regla de negocio (código repetido): se avisa y el formulario queda abierto para corregir.
+                MostrarMsg("alert-danger", Textos.MH(ex.Message));
+                return;
+            }
             MostrarMsg(ok ? "alert-success" : "alert-danger",
                        ok ? Textos.TH("Materias.msgGuardado", "✔ Guardado.") : Textos.TH("Materias.msgErrorGuardar", "✖ Error al guardar."));
             pnlForm.Visible = false;

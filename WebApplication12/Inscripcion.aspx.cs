@@ -188,10 +188,19 @@ namespace CAPAS_Web
 
             bool esNuevo = periodo.Id == 0;
             bool ok;
-            if (esNuevo)
-                ok = _perBll.Insertar(periodo, u.Usuario) > 0;
-            else
-                ok = _perBll.Actualizar(periodo, u.Usuario);
+            try
+            {
+                if (esNuevo)
+                    ok = _perBll.Insertar(periodo, u.Usuario) > 0;
+                else
+                    ok = _perBll.Actualizar(periodo, u.Usuario);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Regla de negocio (período repetido): se avisa y el formulario queda abierto para corregir.
+                MostrarMsg("alert-danger", Textos.MH(ex.Message));
+                return;
+            }
 
             if (ok)
             {

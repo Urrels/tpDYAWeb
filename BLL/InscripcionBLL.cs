@@ -11,8 +11,18 @@ namespace BLL
 
         public List<BE.PERIODO_ACADEMICO> Listar() => _dal.Listar();
 
+        public const string MensajePeriodoDuplicado = "Ya existe un período para ese año y cuatrimestre.";
+
+        /// <summary>(ANIO, CUATRIMESTRE) es UNIQUE en la base: se avisa antes de insertar o modificar.</summary>
+        public static bool PeriodoDuplicado(IEnumerable<BE.PERIODO_ACADEMICO> existentes, BE.PERIODO_ACADEMICO p)
+        {
+            return existentes.Any(x => x.Id != p.Id && x.Anio == p.Anio && x.Cuatrimestre == p.Cuatrimestre);
+        }
+
         public int Insertar(BE.PERIODO_ACADEMICO p, string usuarioAccion)
         {
+            if (PeriodoDuplicado(_dal.Listar(), p))
+                throw new System.InvalidOperationException(MensajePeriodoDuplicado);
             int id = _dal.Insertar(p);
             if (id > 0)
             {
@@ -24,6 +34,8 @@ namespace BLL
 
         public bool Actualizar(BE.PERIODO_ACADEMICO p, string usuarioAccion)
         {
+            if (PeriodoDuplicado(_dal.Listar(), p))
+                throw new System.InvalidOperationException(MensajePeriodoDuplicado);
             bool ok = _dal.Actualizar(p);
             if (ok)
             {
