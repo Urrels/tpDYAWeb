@@ -24,7 +24,7 @@ Default credentials (created by the application's first start on an empty databa
 
 Four-project layered solution: **BE → DAL → BLL → WebApplication12**.
 
-- **BE** — Plain entity classes (`USUARIO`, `MATERIA`, `ALUMNO_MATERIA`, `PERIODO_ACADEMICO`, `INSCRIPCION`, etc.) plus `AESHelper` (AES encryption for direccion), `HashHelper` (SHA-256), `SessionManager`, and the permissions Composite (`NodoPermiso`, `Rol`, `Permiso`, `Permisos` constants).
+- **BE** — Plain entity classes (`USUARIO`, `MATERIA`, `ALUMNO_MATERIA`, `PERIODO_ACADEMICO`, `INSCRIPCION`, etc.) plus `AESHelper` (AES encryption for direccion), `HashHelper` (SHA-256), and the permissions Composite (`NodoPermiso`, `Rol`, `Permiso`, `Permisos` constants).
 - **DAL** — `Acceso.cs` is the central DB gateway (all queries go through `Abrir()` → stored proc → `Cerrar()` in finally). Every DAL class uses `Acceso` exclusively; no inline SQL anywhere. Methods: `Leer()` → DataTable, `Escribir()` → rows affected, `EscribirConRetorno()` → SCOPE_IDENTITY.
 - **BLL** — Business logic + audit trail. Every write operation calls `BitacoraBLL.RegistrarAccion()`. Contains `AlumnoMateriaBLL` (includes DVH/DVV digit-verifier logic), `InscripcionBLL`, `PeriodoBLL`, `MateriaBLL`, `UsuarioBLL`, `LoginBLL`, `EventoBLL`.
 - **WebApplication12** — ASP.NET Web Forms pages. All pages inherit `Site.Master`. Session authentication: every page checks `Session["Usuario"]` (cast to `BE.USUARIO`) on `Page_Load`.

@@ -20,8 +20,15 @@ namespace BLL
         private readonly BitacoraBLL _bitacora = new BitacoraBLL();
         private readonly IntegridadBLL _integridad = new IntegridadBLL();
 
-        public LoginResultado AutenticarUsuario(string usuario, string contrasena, string sessionId)
+        /// <summary>
+        /// Valida las credenciales. El usuario autenticado se devuelve por
+        /// <paramref name="usuarioAutenticado"/> (solo con <see cref="LoginResultado.Exito"/>):
+        /// no hay estado compartido entre pedidos, así dos ingresos simultáneos
+        /// nunca pueden cruzarse el usuario.
+        /// </summary>
+        public LoginResultado AutenticarUsuario(string usuario, string contrasena, string sessionId, out BE.USUARIO usuarioAutenticado)
         {
+            usuarioAutenticado = null;
             if (string.IsNullOrEmpty(usuario) || string.IsNullOrEmpty(contrasena))
                 return LoginResultado.CredencialesInvalidas;
 
@@ -68,7 +75,6 @@ namespace BLL
                 BE.SessionRegistry.Instancia.RegistrarSesion(usuario, sessionId);
                 try
                 {
-                    BE.SessionManager.getInstane().setUsuario(u);
                     _bitacora.RegistrarLogin(usuario);
                 }
                 catch
@@ -76,6 +82,7 @@ namespace BLL
                     BE.SessionRegistry.Instancia.CerrarSesion(usuario, sessionId);
                     throw;
                 }
+                usuarioAutenticado = u;
                 return LoginResultado.Exito;
             }
 

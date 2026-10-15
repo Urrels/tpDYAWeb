@@ -27,12 +27,11 @@ namespace CAPAS_Web
             }
 
             var bll = new BLL.LoginBLL();
-            BLL.LoginResultado resultado = bll.AutenticarUsuario(usuario, contrasena, Session.SessionID);
+            BE.USUARIO u;
+            BLL.LoginResultado resultado = bll.AutenticarUsuario(usuario, contrasena, Session.SessionID, out u);
 
             if (resultado == BLL.LoginResultado.Exito)
             {
-                BE.USUARIO u = BE.SessionManager.getInstane().getUsuario();
-
                 var integridadBll = new BLL.IntegridadBLL();
                 BLL.ResultadoIntegridad resultadoIntegridad = integridadBll.VerificarTodasLasTablas();
 
@@ -42,7 +41,6 @@ namespace CAPAS_Web
                     // No se revela el detalle de resultadoIntegridad.Errores (eso es
                     // tarea del panel de Webmaster, no implementada acá).
                     BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario, Session.SessionID);
-                    BE.SessionManager.getInstane().cerrarSesion();
                     Session["Usuario"] = null;
                     pnlInconsistencia.Visible = true;
                     return;
@@ -53,7 +51,6 @@ namespace CAPAS_Web
                 {
                     // El usuario no tiene ningún permiso que le dé una página de inicio.
                     BE.SessionRegistry.Instancia.CerrarSesion(u.Usuario, Session.SessionID);
-                    BE.SessionManager.getInstane().cerrarSesion();
                     lblError.Text = Textos.TH("Login.msgSinPermisos", "Tu cuenta no tiene permisos asignados. Contactá a un administrador.");
                     lblError.Visible = true;
                     txtContrasena.Text = "";
@@ -63,7 +60,6 @@ namespace CAPAS_Web
                 Session["Usuario"] = u;
                 // Si el usuario eligió un idioma en una sesión anterior, se lo vuelve a aplicar.
                 IdiomaWeb.Fachada.AplicarPreferencia(u.Id);
-                BE.SessionManager.getInstane().cerrarSesion();
                 Response.Redirect(inicio);
             }
             else if (resultado == BLL.LoginResultado.UsuarioInactivo)
