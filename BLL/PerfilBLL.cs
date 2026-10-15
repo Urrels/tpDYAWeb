@@ -503,9 +503,22 @@ namespace BLL
                 ExigirPuedeActuarSobre(estado, permisosActor, usuarioId);
                 var actuales = new HashSet<int>(estado.Asignaciones.Where(a => a.Key == usuarioId).Select(a => a.Value));
                 var nuevos = new HashSet<int>(rolIds ?? new List<int>());
+                ValidarAsignacionDePerfiles(usuarioId, actor, actuales, nuevos);
                 ExigirPuedeAsignar(estado, permisosActor, actuales.Union(nuevos).Except(actuales.Intersect(nuevos)));
                 AsignarPerfilesInterno(estado, usuarioId, rolIds, actor.Usuario);
             }
+        }
+
+        /// <summary>
+        /// Reglas de AsignarPerfiles.aspx, las mismas que ya aplica ModificarUsuario: el usuario debe quedar con al
+        /// menos un perfil (CU21) y nadie cambia sus propios perfiles (guardarlos sin cambios sí se permite).
+        /// </summary>
+        public static void ValidarAsignacionDePerfiles(int usuarioId, BE.USUARIO actor, ISet<int> actuales, ISet<int> nuevos)
+        {
+            if (nuevos.Count == 0)
+                throw new InvalidOperationException("El usuario debe tener al menos un perfil.");
+            if (usuarioId == actor.Id && !actuales.SetEquals(nuevos))
+                throw new InvalidOperationException("No podés cambiar tus propios perfiles.");
         }
 
         // Escritura de la asignación; el llamador ya tomó el lock y verificó los permisos del actor.
