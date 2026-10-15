@@ -27,8 +27,9 @@ namespace CAPAS_Web
         {
             _bll.RecalcularTodasLasTablas();
             // Se registra DESPUÉS del recálculo: RegistrarAccion deja la bitácora con DVH/DVV al día.
-            new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "RECALCULO_INTEGRIDAD");
+            bool registrado = RegistrarEnBitacora("RECALCULO_INTEGRIDAD");
             MostrarResultado(_bll.VerificarTodasLasTablas());
+            if (!registrado) AvisarFalloBitacora();
         }
 
         /// <summary>
@@ -58,9 +59,10 @@ namespace CAPAS_Web
             var avisos = _bll.RestaurarTodasLasTablas();
             // El restore puede reescribir la propia bitácora: se registra DESPUÉS, así la
             // entrada no se pierde y el DVH/DVV de BITACORA queda consistente.
-            new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "RESTAURACION_DATOS");
+            bool registrado = RegistrarEnBitacora("RESTAURACION_DATOS");
             MostrarResultado(_bll.VerificarTodasLasTablas());
             MostrarAvisos(avisos);
+            if (!registrado) AvisarFalloBitacora();
         }
 
         /// <summary>
@@ -95,9 +97,10 @@ namespace CAPAS_Web
             }
 
             // Igual que en la restauración desde snapshot: se registra después de restaurar.
-            new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, "RESTAURACION_BACKUP");
+            bool registrado = RegistrarEnBitacora("RESTAURACION_BACKUP");
             MostrarResultado(_bll.VerificarTodasLasTablas());
             MostrarAvisos(avisos);
+            if (!registrado) AvisarFalloBitacora();
         }
 
         /// <summary>
@@ -108,6 +111,27 @@ namespace CAPAS_Web
         {
             pnlResultados.Visible = false;
             lblMsg.Visible = false;
+        }
+
+        // La operación ya se hizo: si falla el registro no debe convertirse en un error 500.
+        private bool RegistrarEnBitacora(string accion)
+        {
+            try
+            {
+                new BLL.BitacoraBLL().RegistrarAccion(UsuarioActual.Usuario, accion);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // Se agrega al mensaje que dejó MostrarResultado.
+        private void AvisarFalloBitacora()
+        {
+            lblMsg.Text += "<br/><small><i class='bi bi-exclamation-triangle me-1'></i>"
+                + Textos.MH("Se completó la operación, pero no se pudo registrar en la bitácora.") + "</small>";
         }
 
         private void MostrarResultado(BLL.ResultadoIntegridad resultado)
