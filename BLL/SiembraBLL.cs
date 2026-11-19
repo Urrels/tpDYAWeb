@@ -192,7 +192,7 @@ namespace BLL
             bool crearUsuarios = crearPerfiles && usuariosExistentes.Count == 0;
             bool crearMaterias = !marcador && _materiaDal.ListarTodasConInactivas().Count == 0;
 
-            var plan = new DAL.PlanSiembra { IncluirMigracionDePerfiles = crearPerfiles };
+            var plan = new DAL.PlanSiembra();
             if (bitacoraOk) plan.TablasIntegras.Add("BITACORA");
             if (materiaOk) plan.TablasIntegras.Add("MATERIA");
             if (correlativaOk) plan.TablasIntegras.Add("CORRELATIVA");

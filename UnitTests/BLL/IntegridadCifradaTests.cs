@@ -108,5 +108,53 @@ namespace UnitTests.BLL
             CollectionAssert.AreEqual((byte[])fila["BLOQUEADO"], (byte[])t.GetField("Bloqueado").GetValue(u));
             CollectionAssert.AreEqual((byte[])fila["ACTIVO"], (byte[])t.GetField("Activo").GetValue(u));
         }
+
+        [TestMethod]
+        public void Rol_ElNombreYElFlagVanCifrados_YElPadreEnClaro()
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("ID", typeof(int));
+            dt.Columns.Add("NOMBRE", typeof(byte[]));
+            dt.Columns.Add("PADRE_ID", typeof(int));
+            dt.Columns.Add("PROTEGIDO", typeof(byte[]));
+            DataRow r = dt.NewRow();
+            r["ID"] = 5;
+            r["NOMBRE"] = global::BE.AESHelper.Encriptar("Administrador");
+            r["PADRE_ID"] = DBNull.Value;
+            r["PROTEGIDO"] = global::BE.AESHelper.EncriptarBool(true);
+            dt.Rows.Add(r);
+
+            string[] a = Invocar<string[]>("ExtraerRol", r);
+            Assert.AreEqual("5", a[0]);
+            Assert.AreEqual(Convert.ToBase64String((byte[])r["NOMBRE"]), a[1]);
+            Assert.AreEqual("", a[2]);
+            Assert.IsFalse(a[1].Contains("Administrador"));
+
+            r["PADRE_ID"] = 2;
+            Assert.AreEqual("2", Invocar<string[]>("ExtraerRol", r)[2]);
+
+            object rehidratado = Invocar<object>("RehidratarRol", new object[] { a });
+            Type t = rehidratado.GetType();
+            CollectionAssert.AreEqual((byte[])r["NOMBRE"], (byte[])t.GetField("Nombre").GetValue(rehidratado));
+            CollectionAssert.AreEqual((byte[])r["PROTEGIDO"], (byte[])t.GetField("Protegido").GetValue(rehidratado));
+            Assert.IsNull(t.GetField("PadreId").GetValue(rehidratado));
+        }
+
+        [TestMethod]
+        public void Permiso_ElNombreVaCifrado_YSeRehidrataConLosMismosBytes()
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("ID", typeof(int));
+            dt.Columns.Add("NOMBRE", typeof(byte[]));
+            DataRow r = dt.NewRow();
+            r["ID"] = 9;
+            r["NOMBRE"] = global::BE.AESHelper.Encriptar("Gestionar perfiles");
+            dt.Rows.Add(r);
+
+            string[] a = Invocar<string[]>("ExtraerPermiso", r);
+            Assert.IsFalse(a[1].Contains("Gestionar"));
+            object p = Invocar<object>("RehidratarPermiso", new object[] { a });
+            CollectionAssert.AreEqual((byte[])r["NOMBRE"], (byte[])p.GetType().GetField("Nombre").GetValue(p));
+        }
     }
 }

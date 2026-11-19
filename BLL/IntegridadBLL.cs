@@ -339,12 +339,12 @@ namespace BLL
 
         private static string[] ExtraerRol(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["NOMBRE"]), IntStr(r["PADRE_ID"]), BitStr(r["PROTEGIDO"])
+            IntStr(r["ID"]), Base64Str(r["NOMBRE"]), IntStr(r["PADRE_ID"]), Base64Str(r["PROTEGIDO"])
         };
 
         private static string[] ExtraerPermiso(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["NOMBRE"])
+            IntStr(r["ID"]), Base64Str(r["NOMBRE"])
         };
 
         private static string[] ExtraerRolPermiso(DataRow r) => new[]
@@ -792,15 +792,15 @@ namespace BLL
         private class FilaRolRestaurada
         {
             public int Id;
-            public string Nombre;
+            public byte[] Nombre;
             public int? PadreId;
-            public bool Protegido;
+            public byte[] Protegido;
         }
 
         private class FilaPermisoRestaurada
         {
             public int Id;
-            public string Nombre;
+            public byte[] Nombre;
         }
 
         private class FilaRolPermisoRestaurada
@@ -906,15 +906,15 @@ namespace BLL
         private static FilaRolRestaurada RehidratarRol(string[] a) => new FilaRolRestaurada
         {
             Id = ParseInt(a[0]),
-            Nombre = a[1],
+            Nombre = ParseBase64(a[1]),
             PadreId = string.IsNullOrEmpty(a[2]) ? (int?)null : ParseInt(a[2]),
-            Protegido = ParseBit(a[3])
+            Protegido = ParseBase64(a[3])
         };
 
         private static FilaPermisoRestaurada RehidratarPermiso(string[] a) => new FilaPermisoRestaurada
         {
             Id = ParseInt(a[0]),
-            Nombre = a[1]
+            Nombre = ParseBase64(a[1])
         };
 
         private static FilaRolPermisoRestaurada RehidratarRolPermiso(string[] a) => new FilaRolPermisoRestaurada

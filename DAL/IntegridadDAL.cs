@@ -272,20 +272,20 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaRol(int id, string nombre, int? padreId, bool protegido)
+        public void RestaurarFilaRol(int id, byte[] nombre, int? padreId, byte[] protegido)
         {
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@id", id),
                 _acceso.CrearParametro("@nombre", nombre),
                 _acceso.CrearParametro("@padreId", padreId),
-                new SqlParameter("@protegido", SqlDbType.Bit) { Value = protegido }
+                _acceso.CrearParametro("@protegido", protegido)
             };
             try { _acceso.Abrir(); _acceso.Escribir("ROL_RESTAURAR_FILA", p); }
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaPermiso(int id, string nombre)
+        public void RestaurarFilaPermiso(int id, byte[] nombre)
         {
             var p = new List<SqlParameter>
             {

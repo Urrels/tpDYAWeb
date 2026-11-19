@@ -1587,9 +1587,8 @@ GO
 -- iniciar (BLL.SiembraBLL), para que cada fila nazca con su DVH/DVV calculado
 -- por el motor de integridad de C#.
 --
--- Sobre una base existente: crea las tablas, anota en MIGRACION_USUARIO_ROL el
--- perfil que corresponde a cada usuario según su USUARIO.ROL y elimina esa
--- columna; la aplicación asigna esos perfiles en su primer arranque.
+-- Los nombres de perfiles y permisos y el flag PROTEGIDO se guardan cifrados
+-- (AES, ver BE.AESHelper); el unico dato en claro es PADRE_ID.
 --
 -- REGLA: toda sentencia de este script que cambie filas de una tabla con
 -- integridad (DVH/DVV) descarta el DVV y el snapshot de esa tabla solo si
@@ -1609,9 +1608,9 @@ GO
 IF OBJECT_ID('ROL', 'U') IS NULL
 CREATE TABLE ROL (
     ID        INT IDENTITY(1,1) NOT NULL,
-    NOMBRE    VARCHAR(100)      NOT NULL,
+    NOMBRE    VARBINARY(512)    NOT NULL,
     PADRE_ID  INT               NULL,
-    PROTEGIDO BIT               NOT NULL DEFAULT 0,
+    PROTEGIDO VARBINARY(64)     NOT NULL,
     DVH       INT               NOT NULL DEFAULT 0,
     CONSTRAINT PK_ROL        PRIMARY KEY (ID),
     CONSTRAINT UQ_ROL_NOMBRE UNIQUE (NOMBRE),
@@ -1622,7 +1621,7 @@ GO
 IF OBJECT_ID('PERMISO', 'U') IS NULL
 CREATE TABLE PERMISO (
     ID     INT IDENTITY(1,1) NOT NULL,
-    NOMBRE VARCHAR(100)      NOT NULL,
+    NOMBRE VARBINARY(512)    NOT NULL,
     DVH    INT               NOT NULL DEFAULT 0,
     CONSTRAINT PK_PERMISO        PRIMARY KEY (ID),
     CONSTRAINT UQ_PERMISO_NOMBRE UNIQUE (NOMBRE)
@@ -1656,58 +1655,6 @@ CREATE TABLE USUARIO_PERFIL (
 GO
 
 -- ---------------------------------------------
--- Tabla de paso para migrar USUARIO.ROL -> USUARIO_PERFIL. Los perfiles base
--- (ROL) y sus permisos ya no se siembran en este script: los crea la aplicación
--- al iniciar (SiembraBLL). Como al migrar todavía no existen, se guarda acá el
--- nombre del perfil que le corresponde a cada usuario y la aplicación lo asigna
--- (y vacía la tabla) en su primer arranque.
--- ---------------------------------------------
-
-IF OBJECT_ID('MIGRACION_USUARIO_ROL', 'U') IS NULL
-CREATE TABLE MIGRACION_USUARIO_ROL (
-    USUARIO_ID INT          NOT NULL PRIMARY KEY,
-    ROL_NOMBRE VARCHAR(100) NOT NULL
-)
-GO
-
--- ---------------------------------------------
--- Migración de USUARIO.ROL (a MIGRACION_USUARIO_ROL), y baja de la columna.
--- Dinámico porque en una instalación nueva la columna ya no existe.
--- ---------------------------------------------
-
-IF COL_LENGTH('USUARIO', 'ROL') IS NOT NULL
-BEGIN
-    EXEC sp_executesql N'
-        INSERT INTO MIGRACION_USUARIO_ROL (USUARIO_ID, ROL_NOMBRE)
-        SELECT u.ID, CASE u.ROL
-                         WHEN ''Admin''     THEN ''Administrador''
-                         WHEN ''Webmaster'' THEN ''Webmaster''
-                         ELSE ''Alumno''
-                     END
-        FROM USUARIO u
-        WHERE NOT EXISTS (SELECT 1 FROM MIGRACION_USUARIO_ROL m WHERE m.USUARIO_ID = u.ID)
-          AND NOT EXISTS (SELECT 1 FROM USUARIO_PERFIL up WHERE up.USUARIO_ID = u.ID)';
-
-    DECLARE @df SYSNAME = (
-        SELECT dc.name
-        FROM sys.default_constraints dc
-        JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
-        WHERE dc.parent_object_id = OBJECT_ID('USUARIO') AND c.name = 'ROL');
-    IF @df IS NOT NULL
-        EXEC('ALTER TABLE USUARIO DROP CONSTRAINT [' + @df + ']');
-
-    EXEC('ALTER TABLE USUARIO DROP COLUMN ROL');
-
-    -- El orden de columnas de USUARIO cambió: los DVH/DVV y el snapshot que
-    -- había quedan obsoletos y se regeneran al recalcular la integridad.
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO';
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO_PERFIL';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO_PERFIL';
-END
-GO
-
--- ---------------------------------------------
 -- STORED PROCEDURES — perfiles y permisos
 -- ---------------------------------------------
 
@@ -1730,7 +1677,7 @@ BEGIN
     SELECT rp.ROL_ID, rp.PERMISO_ID, p.NOMBRE
     FROM   ROL_PERMISO rp
     JOIN   PERMISO     p ON p.ID = rp.PERMISO_ID
-    ORDER  BY rp.ROL_ID, p.NOMBRE;
+    ORDER  BY rp.ROL_ID, rp.PERMISO_ID;
 END
 GO
 
@@ -1816,9 +1763,9 @@ IF OBJECT_ID('ROL_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE ROL_RESTAURAR
 GO
 CREATE PROCEDURE ROL_RESTAURAR_FILA
     @id        INT,
-    @nombre    VARCHAR(100),
+    @nombre    VARBINARY(512),
     @padreId   INT,
-    @protegido BIT
+    @protegido VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1872,7 +1819,7 @@ IF OBJECT_ID('PERMISO_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE PERMISO_R
 GO
 CREATE PROCEDURE PERMISO_RESTAURAR_FILA
     @id     INT,
-    @nombre VARCHAR(100)
+    @nombre VARBINARY(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -2017,7 +1964,7 @@ CREATE PROCEDURE PERMISO_LISTAR_TODOS
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, NOMBRE FROM PERMISO ORDER BY NOMBRE;
+    SELECT ID, NOMBRE FROM PERMISO ORDER BY ID;
 END
 GO
 
@@ -2044,9 +1991,9 @@ GO
 IF OBJECT_ID('ROL_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE ROL_INSERTAR
 GO
 CREATE PROCEDURE ROL_INSERTAR
-    @nombre    VARCHAR(100),
+    @nombre    VARBINARY(512),
     @padre_id  INT = NULL,
-    @protegido BIT = 0
+    @protegido VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -2059,7 +2006,7 @@ IF OBJECT_ID('ROL_RENOMBRAR', 'P') IS NOT NULL DROP PROCEDURE ROL_RENOMBRAR
 GO
 CREATE PROCEDURE ROL_RENOMBRAR
     @id     INT,
-    @nombre VARCHAR(100)
+    @nombre VARBINARY(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -2123,52 +2070,15 @@ GO
 -- Gestión de usuarios (alta, baja lógica)
 -- ---------------------------------------------
 
--- Con la integridad inválida solo el Webmaster puede ingresar: se le quita el permiso
--- "Ingresar con integridad invalida" al Administrador en bases que lo tenían sembrado.
--- El permiso sigue existiendo (un perfil propio puede recibirlo).
-DELETE rp
-FROM ROL_PERMISO rp
-JOIN ROL     r ON r.ID = rp.ROL_ID
-JOIN PERMISO p ON p.ID = rp.PERMISO_ID
-WHERE r.NOMBRE = 'Administrador' AND p.NOMBRE = 'Ingresar con integridad invalida'
-
-IF @@ROWCOUNT > 0
-BEGIN
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'ROL_PERMISO';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'ROL_PERMISO';
-END
-GO
-
 IF OBJECT_ID('PERMISO_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE PERMISO_INSERTAR
 GO
 CREATE PROCEDURE PERMISO_INSERTAR
-    @nombre VARCHAR(100)
+    @nombre VARBINARY(512)
 AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO PERMISO (NOMBRE) VALUES (@nombre);
     SELECT CAST(SCOPE_IDENTITY() AS INT) AS ID;
-END
-GO
-
-IF OBJECT_ID('MIGRACION_USUARIO_ROL_LISTAR', 'P') IS NOT NULL DROP PROCEDURE MIGRACION_USUARIO_ROL_LISTAR
-GO
-CREATE PROCEDURE MIGRACION_USUARIO_ROL_LISTAR
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT USUARIO_ID, ROL_NOMBRE FROM MIGRACION_USUARIO_ROL;
-END
-GO
-
-IF OBJECT_ID('MIGRACION_USUARIO_ROL_ELIMINAR', 'P') IS NOT NULL DROP PROCEDURE MIGRACION_USUARIO_ROL_ELIMINAR
-GO
-CREATE PROCEDURE MIGRACION_USUARIO_ROL_ELIMINAR
-    @usuario_id INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    DELETE FROM MIGRACION_USUARIO_ROL WHERE USUARIO_ID = @usuario_id;
 END
 GO
 

@@ -11,7 +11,6 @@ namespace DAL
         public List<KeyValuePair<string, bool>> Roles = new List<KeyValuePair<string, bool>>();
         public List<KeyValuePair<string, string>> RolPermisos = new List<KeyValuePair<string, string>>();
         public List<UsuarioSembrado> Usuarios = new List<UsuarioSembrado>();
-        public bool IncluirMigracionDePerfiles;
         public List<BE.MATERIA> Materias = new List<BE.MATERIA>();
         public List<KeyValuePair<string, string>> Correlativas = new List<KeyValuePair<string, string>>();
         public bool EscribirMarcador;
@@ -62,17 +61,12 @@ namespace DAL
                     foreach (string nombre in plan.Permisos)
                     {
                         _acceso.EscribirConRetorno("PERMISO_INSERTAR",
-                            new List<SqlParameter> { _acceso.CrearParametro("@nombre", nombre) });
+                            new List<SqlParameter> { _acceso.CrearParametro("@nombre", BE.AESHelper.Encriptar(nombre)) });
                         resultado.Permisos++;
                     }
                     foreach (var rol in plan.Roles)
                     {
-                        _acceso.EscribirConRetorno("ROL_INSERTAR", new List<SqlParameter>
-                        {
-                            _acceso.CrearParametro("@nombre", rol.Key),
-                            _acceso.CrearParametro("@padre_id", (int?)null),
-                            new SqlParameter("@protegido", SqlDbType.Bit) { Value = rol.Value }
-                        });
+                        _acceso.EscribirConRetorno("ROL_INSERTAR", PerfilDAL.ParametrosRol(_acceso, rol.Key, null, rol.Value));
                         resultado.Roles++;
                     }
 
@@ -99,31 +93,6 @@ namespace DAL
                         AsignarPerfil(usuarioId, rolId);
                         resultado.Usuarios++;
                         resultado.UsuarioPerfiles++;
-                    }
-
-                    DataTable pendientes = plan.IncluirMigracionDePerfiles
-                        ? _acceso.Leer("MIGRACION_USUARIO_ROL_LISTAR")
-                        : new DataTable();
-                    foreach (DataRow fila in pendientes.Rows)
-                    {
-                        int usuarioId = Convert.ToInt32(fila["USUARIO_ID"]);
-                        string rolNombre = fila["ROL_NOMBRE"].ToString();
-                        if (!idsRol.TryGetValue(rolNombre, out int rolId))
-                        {
-                            _acceso.Escribir("MIGRACION_USUARIO_ROL_ELIMINAR",
-                                new List<SqlParameter> { _acceso.CrearParametro("@usuario_id", usuarioId) });
-                            continue;
-                        }
-
-                        DataTable actuales = _acceso.Leer("USUARIO_PERFIL_LISTAR_POR_USUARIO",
-                            new List<SqlParameter> { _acceso.CrearParametro("@usuario_id", usuarioId) });
-                        if (actuales.Rows.Count == 0)
-                        {
-                            AsignarPerfil(usuarioId, rolId);
-                            resultado.UsuarioPerfiles++;
-                        }
-                        _acceso.Escribir("MIGRACION_USUARIO_ROL_ELIMINAR",
-                            new List<SqlParameter> { _acceso.CrearParametro("@usuario_id", usuarioId) });
                     }
 
                     var idPorCodigo = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -195,7 +164,7 @@ namespace DAL
         {
             var mapa = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (DataRow r in _acceso.Leer(sp).Rows)
-                mapa[r[columnaNombre].ToString()] = Convert.ToInt32(r["ID"]);
+                mapa[BE.AESHelper.DesencriptarTexto(r[columnaNombre])] = Convert.ToInt32(r["ID"]);
             return mapa;
         }
     }
