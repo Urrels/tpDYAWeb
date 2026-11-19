@@ -156,5 +156,124 @@ namespace UnitTests.BLL
             object p = Invocar<object>("RehidratarPermiso", new object[] { a });
             CollectionAssert.AreEqual((byte[])r["NOMBRE"], (byte[])p.GetType().GetField("Nombre").GetValue(p));
         }
+
+        private static DataRow FilaCon(params object[] paresNombreValor)
+        {
+            var dt = new DataTable();
+            for (int i = 0; i < paresNombreValor.Length; i += 2)
+            {
+                object valor = paresNombreValor[i + 1];
+                dt.Columns.Add((string)paresNombreValor[i], valor is byte[] ? typeof(byte[]) : typeof(int));
+            }
+            DataRow r = dt.NewRow();
+            for (int i = 0; i < paresNombreValor.Length; i += 2)
+                r[(string)paresNombreValor[i]] = paresNombreValor[i + 1];
+            dt.Rows.Add(r);
+            return r;
+        }
+
+        private static void AssertCifradoEnBase64(string[] atributos, int indice, byte[] esperado)
+        {
+            Assert.AreEqual(Convert.ToBase64String(esperado), atributos[indice], "atributo " + indice);
+        }
+
+        [TestMethod]
+        public void AlumnoMateria_NotasFechasYEstadoSalenCifrados_YLosNulosQuedanVacios()
+        {
+            byte[] estado = global::BE.AESHelper.Encriptar("Cursando");
+            byte[] nota = global::BE.AESHelper.EncriptarDecimal(7.5m);
+            byte[] fecha = global::BE.AESHelper.EncriptarFecha(new DateTime(2026, 3, 4));
+            DataRow r = FilaCon("ID", 1, "ID_USUARIO", 2, "ID_MATERIA", 3, "ESTADO", estado,
+                "NOTA_PARCIAL1", nota, "NOTA_PARCIAL2", DBNull.Value, "NOTA_RECUPERATORIO", DBNull.Value,
+                "NOTA_FINAL", DBNull.Value, "FECHA_FINAL", fecha, "FECHA_RECUPERATORIO", DBNull.Value);
+            string[] a = Invocar<string[]>("ExtraerAlumnoMateria", r);
+
+            CollectionAssert.AreEqual(new[] { "1", "2", "3" }, a.Take(3).ToArray());
+            AssertCifradoEnBase64(a, 3, estado);
+            AssertCifradoEnBase64(a, 4, nota);
+            Assert.AreEqual("", a[5]);
+            AssertCifradoEnBase64(a, 8, fecha);
+            Assert.AreEqual("", a[9]);
+            Assert.IsFalse(a.Any(x => x.Contains("7.5") || x.Contains("Cursando")));
+
+            object h = Invocar<object>("RehidratarAlumnoMateria", new object[] { a });
+            Type t = h.GetType();
+            CollectionAssert.AreEqual(estado, (byte[])t.GetField("Estado").GetValue(h));
+            CollectionAssert.AreEqual(nota, (byte[])t.GetField("NotaParcial1").GetValue(h));
+            Assert.IsNull(t.GetField("NotaParcial2").GetValue(h));
+            CollectionAssert.AreEqual(fecha, (byte[])t.GetField("FechaFinal").GetValue(h));
+        }
+
+        [TestMethod]
+        public void EventoAcademico_TipoDescripcionFechaYPesoSalenCifrados()
+        {
+            byte[] tipo = global::BE.AESHelper.Encriptar("Parcial");
+            byte[] desc = global::BE.AESHelper.Encriptar("Primer parcial de Base de Datos");
+            byte[] fecha = global::BE.AESHelper.EncriptarFecha(new DateTime(2026, 5, 20));
+            byte[] peso = global::BE.AESHelper.EncriptarEntero(3);
+            DataRow r = FilaCon("ID", 4, "ID_MATERIA", 5, "ID_USUARIO", 6, "TIPO", tipo, "DESCRIPCION", desc, "FECHA", fecha, "PESO", peso);
+            string[] a = Invocar<string[]>("ExtraerEventoAcademico", r);
+
+            CollectionAssert.AreEqual(new[] { "4", "5", "6" }, a.Take(3).ToArray());
+            AssertCifradoEnBase64(a, 3, tipo);
+            AssertCifradoEnBase64(a, 4, desc);
+            AssertCifradoEnBase64(a, 5, fecha);
+            AssertCifradoEnBase64(a, 6, peso);
+
+            object h = Invocar<object>("RehidratarEventoAcademico", new object[] { a });
+            Type t = h.GetType();
+            CollectionAssert.AreEqual(desc, (byte[])t.GetField("Descripcion").GetValue(h));
+            CollectionAssert.AreEqual(fecha, (byte[])t.GetField("Fecha").GetValue(h));
+        }
+
+        [TestMethod]
+        public void PeriodoAcademico_TodoSalvoElIdSaleCifrado()
+        {
+            byte[] anio = global::BE.AESHelper.EncriptarEntero(2026);
+            byte[] cuatri = global::BE.AESHelper.EncriptarEntero(2);
+            byte[] fin = global::BE.AESHelper.EncriptarFecha(new DateTime(2026, 12, 1));
+            DataRow r = FilaCon("ID", 8, "ANIO", anio, "CUATRIMESTRE", cuatri, "DESCRIPCION", DBNull.Value,
+                "FECHA_INICIO", DBNull.Value, "FECHA_FIN", fin);
+            string[] a = Invocar<string[]>("ExtraerPeriodoAcademico", r);
+
+            Assert.AreEqual("8", a[0]);
+            AssertCifradoEnBase64(a, 1, anio);
+            AssertCifradoEnBase64(a, 2, cuatri);
+            Assert.AreEqual("", a[3]);
+            AssertCifradoEnBase64(a, 5, fin);
+
+            object h = Invocar<object>("RehidratarPeriodoAcademico", new object[] { a });
+            Type t = h.GetType();
+            CollectionAssert.AreEqual(anio, (byte[])t.GetField("Anio").GetValue(h));
+            Assert.IsNull(t.GetField("FechaInicio").GetValue(h));
+        }
+
+        [TestMethod]
+        public void Inscripcion_LaFechaSaleCifrada_YLosIdsEnClaro()
+        {
+            byte[] fecha = global::BE.AESHelper.EncriptarFecha(new DateTime(2026, 8, 1, 9, 30, 0));
+            DataRow r = FilaCon("ID", 11, "ID_USUARIO", 2, "ID_PERIODO", 8, "FECHA_INSCRIPCION", fecha);
+            string[] a = Invocar<string[]>("ExtraerInscripcion", r);
+            CollectionAssert.AreEqual(new[] { "11", "2", "8" }, a.Take(3).ToArray());
+            AssertCifradoEnBase64(a, 3, fecha);
+
+            object h = Invocar<object>("RehidratarInscripcion", new object[] { a });
+            CollectionAssert.AreEqual(fecha, (byte[])h.GetType().GetField("FechaInscripcion").GetValue(h));
+        }
+
+        [TestMethod]
+        public void AlumnoMateria_ElDvhSeCalculaSobreElCifrado_YCambiaSiCambiaUnaNota()
+        {
+            DataRow Cursada(decimal nota) => FilaCon("ID", 1, "ID_USUARIO", 2, "ID_MATERIA", 3,
+                "ESTADO", global::BE.AESHelper.Encriptar("Cursando"), "NOTA_PARCIAL1", global::BE.AESHelper.EncriptarDecimal(nota),
+                "NOTA_PARCIAL2", DBNull.Value, "NOTA_RECUPERATORIO", DBNull.Value, "NOTA_FINAL", DBNull.Value,
+                "FECHA_FINAL", DBNull.Value, "FECHA_RECUPERATORIO", DBNull.Value);
+
+            int a = global::BE.CalculadorDVH.Calcular(Invocar<string[]>("ExtraerAlumnoMateria", Cursada(7)));
+            int b = global::BE.CalculadorDVH.Calcular(Invocar<string[]>("ExtraerAlumnoMateria", Cursada(7)));
+            int c = global::BE.CalculadorDVH.Calcular(Invocar<string[]>("ExtraerAlumnoMateria", Cursada(8)));
+            Assert.AreEqual(a, b);
+            Assert.AreNotEqual(a, c);
+        }
     }
 }

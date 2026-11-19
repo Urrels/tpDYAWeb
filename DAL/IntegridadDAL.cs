@@ -180,8 +180,8 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaPeriodoAcademico(int id, int anio, int cuatrimestre, string descripcion,
-            DateTime? fechaInicio, DateTime? fechaFin)
+        public void RestaurarFilaPeriodoAcademico(int id, byte[] anio, byte[] cuatrimestre, byte[] descripcion,
+            byte[] fechaInicio, byte[] fechaFin)
         {
             var p = new List<SqlParameter>
             {
@@ -221,9 +221,9 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaAlumnoMateria(int id, int idUsuario, int idMateria, string estado,
-            decimal? notaParcial1, decimal? notaParcial2, decimal? notaRecuperatorio, decimal? notaFinal,
-            DateTime? fechaFinal, DateTime? fechaRecuperatorio)
+        public void RestaurarFilaAlumnoMateria(int id, int idUsuario, int idMateria, byte[] estado,
+            byte[] notaParcial1, byte[] notaParcial2, byte[] notaRecuperatorio, byte[] notaFinal,
+            byte[] fechaFinal, byte[] fechaRecuperatorio)
         {
             var p = new List<SqlParameter>
             {
@@ -242,8 +242,8 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaEventoAcademico(int id, int idMateria, int idUsuario, string tipo,
-            string descripcion, DateTime fecha, int peso)
+        public void RestaurarFilaEventoAcademico(int id, int idMateria, int idUsuario, byte[] tipo,
+            byte[] descripcion, byte[] fecha, byte[] peso)
         {
             var p = new List<SqlParameter>
             {
@@ -259,7 +259,7 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaInscripcion(int id, int idUsuario, int idPeriodo, DateTime fechaInscripcion)
+        public void RestaurarFilaInscripcion(int id, int idUsuario, int idPeriodo, byte[] fechaInscripcion)
         {
             var p = new List<SqlParameter>
             {

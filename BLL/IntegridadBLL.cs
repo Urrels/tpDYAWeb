@@ -312,24 +312,26 @@ namespace BLL
 
         private static string[] ExtraerAlumnoMateria(DataRow r) => new[]
         {
-            IntStr(r["ID"]), IntStr(r["ID_USUARIO"]), IntStr(r["ID_MATERIA"]), StrStr(r["ESTADO"]),
-            DecStr(r["NOTA_PARCIAL1"]), DecStr(r["NOTA_PARCIAL2"]), DecStr(r["NOTA_RECUPERATORIO"]), DecStr(r["NOTA_FINAL"]),
-            DateStr(r["FECHA_FINAL"]), DateStr(r["FECHA_RECUPERATORIO"])
+            IntStr(r["ID"]), IntStr(r["ID_USUARIO"]), IntStr(r["ID_MATERIA"]), Base64Str(r["ESTADO"]),
+            Base64Str(r["NOTA_PARCIAL1"]), Base64Str(r["NOTA_PARCIAL2"]), Base64Str(r["NOTA_RECUPERATORIO"]), Base64Str(r["NOTA_FINAL"]),
+            Base64Str(r["FECHA_FINAL"]), Base64Str(r["FECHA_RECUPERATORIO"])
         };
 
         private static string[] ExtraerEventoAcademico(DataRow r) => new[]
         {
-            IntStr(r["ID"]), IntStr(r["ID_MATERIA"]), IntStr(r["ID_USUARIO"]), StrStr(r["TIPO"]), StrStr(r["DESCRIPCION"]), DateStr(r["FECHA"]), IntStr(r["PESO"])
+            IntStr(r["ID"]), IntStr(r["ID_MATERIA"]), IntStr(r["ID_USUARIO"]), Base64Str(r["TIPO"]), Base64Str(r["DESCRIPCION"]),
+            Base64Str(r["FECHA"]), Base64Str(r["PESO"])
         };
 
         private static string[] ExtraerPeriodoAcademico(DataRow r) => new[]
         {
-            IntStr(r["ID"]), IntStr(r["ANIO"]), IntStr(r["CUATRIMESTRE"]), StrStr(r["DESCRIPCION"]), DateStr(r["FECHA_INICIO"]), DateStr(r["FECHA_FIN"])
+            IntStr(r["ID"]), Base64Str(r["ANIO"]), Base64Str(r["CUATRIMESTRE"]), Base64Str(r["DESCRIPCION"]),
+            Base64Str(r["FECHA_INICIO"]), Base64Str(r["FECHA_FIN"])
         };
 
         private static string[] ExtraerInscripcion(DataRow r) => new[]
         {
-            IntStr(r["ID"]), IntStr(r["ID_USUARIO"]), IntStr(r["ID_PERIODO"]), DateStr(r["FECHA_INSCRIPCION"])
+            IntStr(r["ID"]), IntStr(r["ID_USUARIO"]), IntStr(r["ID_PERIODO"]), Base64Str(r["FECHA_INSCRIPCION"])
         };
 
         private static string[] ExtraerInscripcionDetalle(DataRow r) => new[]
@@ -403,24 +405,6 @@ namespace BLL
         {
             RecalcularTabla("CORRELATIVA", ColumnasCorrelativa, _dal.ListarParaIntegridad("CORRELATIVA"), ExtraerCorrelativa,
                 (id, dvh) => _dal.ActualizarDVH("CORRELATIVA", id, dvh));
-        }
-
-        public int CalcularDVHAlumnoMateria(BE.ALUMNO_MATERIA am)
-        {
-            string[] atributos =
-            {
-                am.Id.ToString(CultureInfo.InvariantCulture),
-                am.IdUsuario.ToString(CultureInfo.InvariantCulture),
-                am.IdMateria.ToString(CultureInfo.InvariantCulture),
-                am.Estado ?? string.Empty,
-                am.NotaParcial1.HasValue ? am.NotaParcial1.Value.ToString(CultureInfo.InvariantCulture) : string.Empty,
-                am.NotaParcial2.HasValue ? am.NotaParcial2.Value.ToString(CultureInfo.InvariantCulture) : string.Empty,
-                am.NotaRecuperatorio.HasValue ? am.NotaRecuperatorio.Value.ToString(CultureInfo.InvariantCulture) : string.Empty,
-                am.NotaFinal.HasValue ? am.NotaFinal.Value.ToString(CultureInfo.InvariantCulture) : string.Empty,
-                am.FechaFinal.HasValue ? am.FechaFinal.Value.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture) : string.Empty,
-                am.FechaRecuperatorio.HasValue ? am.FechaRecuperatorio.Value.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture) : string.Empty
-            };
-            return BE.CalculadorDVH.Calcular(atributos);
         }
 
         public ResultadoIntegridad VerificarAlumnoMateria()
@@ -847,13 +831,13 @@ namespace BLL
             public int Id;
             public int IdUsuario;
             public int IdMateria;
-            public string Estado;
-            public decimal? NotaParcial1;
-            public decimal? NotaParcial2;
-            public decimal? NotaRecuperatorio;
-            public decimal? NotaFinal;
-            public DateTime? FechaFinal;
-            public DateTime? FechaRecuperatorio;
+            public byte[] Estado;
+            public byte[] NotaParcial1;
+            public byte[] NotaParcial2;
+            public byte[] NotaRecuperatorio;
+            public byte[] NotaFinal;
+            public byte[] FechaFinal;
+            public byte[] FechaRecuperatorio;
         }
 
         private class FilaEventoAcademicoRestaurada
@@ -861,20 +845,20 @@ namespace BLL
             public int Id;
             public int IdMateria;
             public int IdUsuario;
-            public string Tipo;
-            public string Descripcion;
-            public DateTime Fecha;
-            public int Peso;
+            public byte[] Tipo;
+            public byte[] Descripcion;
+            public byte[] Fecha;
+            public byte[] Peso;
         }
 
         private class FilaPeriodoAcademicoRestaurada
         {
             public int Id;
-            public int Anio;
-            public int Cuatrimestre;
-            public string Descripcion;
-            public DateTime? FechaInicio;
-            public DateTime? FechaFin;
+            public byte[] Anio;
+            public byte[] Cuatrimestre;
+            public byte[] Descripcion;
+            public byte[] FechaInicio;
+            public byte[] FechaFin;
         }
 
         private class FilaInscripcionRestaurada
@@ -882,7 +866,7 @@ namespace BLL
             public int Id;
             public int IdUsuario;
             public int IdPeriodo;
-            public DateTime FechaInscripcion;
+            public byte[] FechaInscripcion;
         }
 
         private class FilaInscripcionDetalleRestaurada
@@ -961,13 +945,13 @@ namespace BLL
             Id = ParseInt(a[0]),
             IdUsuario = ParseInt(a[1]),
             IdMateria = ParseInt(a[2]),
-            Estado = a[3],
-            NotaParcial1 = ParseDecNullable(a[4]),
-            NotaParcial2 = ParseDecNullable(a[5]),
-            NotaRecuperatorio = ParseDecNullable(a[6]),
-            NotaFinal = ParseDecNullable(a[7]),
-            FechaFinal = ParseFechaNullable(a[8]),
-            FechaRecuperatorio = ParseFechaNullable(a[9])
+            Estado = ParseBase64(a[3]),
+            NotaParcial1 = ParseBase64(a[4]),
+            NotaParcial2 = ParseBase64(a[5]),
+            NotaRecuperatorio = ParseBase64(a[6]),
+            NotaFinal = ParseBase64(a[7]),
+            FechaFinal = ParseBase64(a[8]),
+            FechaRecuperatorio = ParseBase64(a[9])
         };
 
         private static FilaEventoAcademicoRestaurada RehidratarEventoAcademico(string[] a) => new FilaEventoAcademicoRestaurada
@@ -975,20 +959,20 @@ namespace BLL
             Id = ParseInt(a[0]),
             IdMateria = ParseInt(a[1]),
             IdUsuario = ParseInt(a[2]),
-            Tipo = a[3],
-            Descripcion = ParseStrNullable(a[4]),
-            Fecha = ParseFechaNullable(a[5]).Value,
-            Peso = ParseInt(a[6])
+            Tipo = ParseBase64(a[3]),
+            Descripcion = ParseBase64(a[4]),
+            Fecha = ParseBase64(a[5]),
+            Peso = ParseBase64(a[6])
         };
 
         private static FilaPeriodoAcademicoRestaurada RehidratarPeriodoAcademico(string[] a) => new FilaPeriodoAcademicoRestaurada
         {
             Id = ParseInt(a[0]),
-            Anio = ParseInt(a[1]),
-            Cuatrimestre = ParseInt(a[2]),
-            Descripcion = ParseStrNullable(a[3]),
-            FechaInicio = ParseFechaNullable(a[4]),
-            FechaFin = ParseFechaNullable(a[5])
+            Anio = ParseBase64(a[1]),
+            Cuatrimestre = ParseBase64(a[2]),
+            Descripcion = ParseBase64(a[3]),
+            FechaInicio = ParseBase64(a[4]),
+            FechaFin = ParseBase64(a[5])
         };
 
         private static FilaInscripcionRestaurada RehidratarInscripcion(string[] a) => new FilaInscripcionRestaurada
@@ -996,7 +980,7 @@ namespace BLL
             Id = ParseInt(a[0]),
             IdUsuario = ParseInt(a[1]),
             IdPeriodo = ParseInt(a[2]),
-            FechaInscripcion = ParseFechaNullable(a[3]).Value
+            FechaInscripcion = ParseBase64(a[3])
         };
 
         private static FilaInscripcionDetalleRestaurada RehidratarInscripcionDetalle(string[] a) => new FilaInscripcionDetalleRestaurada

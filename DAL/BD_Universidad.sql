@@ -63,13 +63,13 @@ CREATE TABLE ALUMNO_MATERIA (
     ID                  INT IDENTITY(1,1) PRIMARY KEY,
     ID_USUARIO          INT            NOT NULL REFERENCES USUARIO(ID),
     ID_MATERIA          INT            NOT NULL REFERENCES MATERIA(ID),
-    ESTADO              VARCHAR(30)    NOT NULL DEFAULT 'Cursando',
-    NOTA_PARCIAL1       DECIMAL(4,2)   NULL,
-    NOTA_PARCIAL2       DECIMAL(4,2)   NULL,
-    NOTA_RECUPERATORIO  DECIMAL(4,2)   NULL,
-    NOTA_FINAL          DECIMAL(4,2)   NULL,
-    FECHA_FINAL         DATETIME       NULL,
-    FECHA_RECUPERATORIO DATETIME       NULL,
+    ESTADO              VARBINARY(128) NOT NULL,
+    NOTA_PARCIAL1       VARBINARY(64)  NULL,
+    NOTA_PARCIAL2       VARBINARY(64)  NULL,
+    NOTA_RECUPERATORIO  VARBINARY(64)  NULL,
+    NOTA_FINAL          VARBINARY(64)  NULL,
+    FECHA_FINAL         VARBINARY(64)  NULL,
+    FECHA_RECUPERATORIO VARBINARY(64)  NULL,
     DVH                 INT            NULL,
     UNIQUE(ID_USUARIO, ID_MATERIA)
 )
@@ -80,10 +80,10 @@ CREATE TABLE EVENTO_ACADEMICO (
     ID          INT IDENTITY(1,1) PRIMARY KEY,
     ID_MATERIA  INT          NOT NULL REFERENCES MATERIA(ID),
     ID_USUARIO  INT          NOT NULL REFERENCES USUARIO(ID),
-    TIPO        VARCHAR(30)  NOT NULL,
-    DESCRIPCION VARCHAR(200) NULL,
-    FECHA       DATETIME     NOT NULL,
-    PESO        INT          NOT NULL DEFAULT 3
+    TIPO        VARBINARY(128) NOT NULL,
+    DESCRIPCION VARBINARY(512) NULL,
+    FECHA       VARBINARY(64)  NOT NULL,
+    PESO        VARBINARY(64)  NOT NULL
 )
 GO
 
@@ -98,11 +98,11 @@ GO
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PERIODO_ACADEMICO' AND xtype='U')
 CREATE TABLE PERIODO_ACADEMICO (
     ID           INT IDENTITY(1,1) PRIMARY KEY,
-    ANIO         INT          NOT NULL,
-    CUATRIMESTRE INT          NOT NULL,
-    DESCRIPCION  VARCHAR(100) NULL,
-    FECHA_INICIO DATE         NULL,
-    FECHA_FIN    DATE         NULL,
+    ANIO         VARBINARY(64)  NOT NULL,
+    CUATRIMESTRE VARBINARY(64)  NOT NULL,
+    DESCRIPCION  VARBINARY(512) NULL,
+    FECHA_INICIO VARBINARY(64)  NULL,
+    FECHA_FIN    VARBINARY(64)  NULL,
     CONSTRAINT UQ_PERIODO UNIQUE (ANIO, CUATRIMESTRE)
 )
 GO
@@ -112,7 +112,7 @@ CREATE TABLE INSCRIPCION (
     ID                INT IDENTITY(1,1) PRIMARY KEY,
     ID_USUARIO        INT      NOT NULL REFERENCES USUARIO(ID),
     ID_PERIODO        INT      NOT NULL REFERENCES PERIODO_ACADEMICO(ID),
-    FECHA_INSCRIPCION DATETIME NOT NULL DEFAULT GETDATE(),
+    FECHA_INSCRIPCION VARBINARY(64) NOT NULL,
     CONSTRAINT UQ_INSCRIPCION UNIQUE (ID_USUARIO, ID_PERIODO)
 )
 GO
@@ -348,7 +348,7 @@ GO
 CREATE PROCEDURE ALUMNO_MATERIA_INSERTAR
     @id_usuario INT,
     @id_materia INT,
-    @estado     VARCHAR(30)
+    @estado     VARBINARY(128)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -361,14 +361,13 @@ IF OBJECT_ID('ALUMNO_MATERIA_ACTUALIZAR','P') IS NOT NULL DROP PROCEDURE ALUMNO_
 GO
 CREATE PROCEDURE ALUMNO_MATERIA_ACTUALIZAR
     @id                  INT,
-    @estado              VARCHAR(30),
-    @nota_parcial1       DECIMAL(4,2),
-    @nota_parcial2       DECIMAL(4,2),
-    @nota_recuperatorio  DECIMAL(4,2),
-    @nota_final          DECIMAL(4,2),
-    @fecha_final         DATETIME,
-    @fecha_recuperatorio DATETIME,
-    @dvh                 INT
+    @estado              VARBINARY(128),
+    @nota_parcial1       VARBINARY(64),
+    @nota_parcial2       VARBINARY(64),
+    @nota_recuperatorio  VARBINARY(64),
+    @nota_final          VARBINARY(64),
+    @fecha_final         VARBINARY(64),
+    @fecha_recuperatorio VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -379,8 +378,7 @@ BEGIN
            NOTA_RECUPERATORIO  = @nota_recuperatorio,
            NOTA_FINAL          = @nota_final,
            FECHA_FINAL         = @fecha_final,
-           FECHA_RECUPERATORIO = @fecha_recuperatorio,
-           DVH                 = @dvh
+           FECHA_RECUPERATORIO = @fecha_recuperatorio
     WHERE  ID = @id;
     SELECT @@ROWCOUNT AS FILAS;
 END
@@ -415,10 +413,10 @@ GO
 CREATE PROCEDURE EVENTO_INSERTAR
     @id_materia  INT,
     @id_usuario  INT,
-    @tipo        VARCHAR(30),
-    @descripcion VARCHAR(200),
-    @fecha       DATETIME,
-    @peso        INT
+    @tipo        VARBINARY(128),
+    @descripcion VARBINARY(512),
+    @fecha       VARBINARY(64),
+    @peso        VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -433,10 +431,10 @@ GO
 CREATE PROCEDURE EVENTO_ACTUALIZAR
     @id          INT,
     @id_usuario  INT,
-    @tipo        VARCHAR(30),
-    @descripcion VARCHAR(200),
-    @fecha       DATETIME,
-    @peso        INT
+    @tipo        VARBINARY(128),
+    @descripcion VARBINARY(512),
+    @fecha       VARBINARY(64),
+    @peso        VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -469,26 +467,7 @@ BEGIN
     FROM   EVENTO_ACADEMICO e
     JOIN   MATERIA m ON m.ID = e.ID_MATERIA
     WHERE  e.ID_USUARIO = @id_usuario
-    ORDER BY e.FECHA;
-END
-GO
-
-IF OBJECT_ID('EVENTO_LISTAR_MES','P') IS NOT NULL DROP PROCEDURE EVENTO_LISTAR_MES
-GO
-CREATE PROCEDURE EVENTO_LISTAR_MES
-    @id_usuario INT,
-    @anio       INT,
-    @mes        INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT e.ID, e.ID_MATERIA, m.NOMBRE AS MATERIA, e.TIPO, e.DESCRIPCION, e.FECHA, e.PESO
-    FROM   EVENTO_ACADEMICO e
-    JOIN   MATERIA m ON m.ID = e.ID_MATERIA
-    WHERE  e.ID_USUARIO = @id_usuario
-      AND  YEAR(e.FECHA)  = @anio
-      AND  MONTH(e.FECHA) = @mes
-    ORDER BY e.FECHA;
+    ORDER BY e.ID;
 END
 GO
 
@@ -504,18 +483,18 @@ BEGIN
     SET NOCOUNT ON;
     SELECT ID, ANIO, CUATRIMESTRE, DESCRIPCION, FECHA_INICIO, FECHA_FIN
     FROM   PERIODO_ACADEMICO
-    ORDER  BY ANIO DESC, CUATRIMESTRE DESC;
+    ORDER  BY ID;
 END
 GO
 
 IF OBJECT_ID('PERIODO_INSERTAR','P') IS NOT NULL DROP PROCEDURE PERIODO_INSERTAR
 GO
 CREATE PROCEDURE PERIODO_INSERTAR
-    @anio         INT,
-    @cuatrimestre INT,
-    @descripcion  VARCHAR(100),
-    @fecha_inicio DATE,
-    @fecha_fin    DATE
+    @anio         VARBINARY(64),
+    @cuatrimestre VARBINARY(64),
+    @descripcion  VARBINARY(512),
+    @fecha_inicio VARBINARY(64),
+    @fecha_fin    VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -529,11 +508,11 @@ IF OBJECT_ID('PERIODO_ACTUALIZAR','P') IS NOT NULL DROP PROCEDURE PERIODO_ACTUAL
 GO
 CREATE PROCEDURE PERIODO_ACTUALIZAR
     @id           INT,
-    @anio         INT,
-    @cuatrimestre INT,
-    @descripcion  VARCHAR(100),
-    @fecha_inicio DATE,
-    @fecha_fin    DATE
+    @anio         VARBINARY(64),
+    @cuatrimestre VARBINARY(64),
+    @descripcion  VARBINARY(512),
+    @fecha_inicio VARBINARY(64),
+    @fecha_fin    VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -551,25 +530,23 @@ GO
 IF OBJECT_ID('PERIODO_OBTENER_ACTUAL','P') IS NOT NULL DROP PROCEDURE PERIODO_OBTENER_ACTUAL
 GO
 CREATE PROCEDURE PERIODO_OBTENER_ACTUAL
-    @hoy DATE
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT TOP 1 ID, ANIO, CUATRIMESTRE, DESCRIPCION, FECHA_INICIO, FECHA_FIN
-    FROM   PERIODO_ACADEMICO
-    WHERE  @hoy BETWEEN FECHA_INICIO AND FECHA_FIN;
+    SELECT ID, ANIO, CUATRIMESTRE, DESCRIPCION, FECHA_INICIO, FECHA_FIN FROM PERIODO_ACADEMICO;
 END
 GO
 
 IF OBJECT_ID('INSCRIPCION_INSERTAR','P') IS NOT NULL DROP PROCEDURE INSCRIPCION_INSERTAR
 GO
 CREATE PROCEDURE INSCRIPCION_INSERTAR
-    @id_usuario INT,
-    @id_periodo INT
+    @id_usuario        INT,
+    @id_periodo        INT,
+    @fecha_inscripcion VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO INSCRIPCION (ID_USUARIO, ID_PERIODO) VALUES (@id_usuario, @id_periodo);
+    INSERT INTO INSCRIPCION (ID_USUARIO, ID_PERIODO, FECHA_INSCRIPCION) VALUES (@id_usuario, @id_periodo, @fecha_inscripcion);
     SELECT SCOPE_IDENTITY();
 END
 GO
@@ -619,20 +596,20 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SELECT
-        i.ID                                                              AS ID_INSCRIPCION,
+        i.ID                AS ID_INSCRIPCION,
         i.ID_PERIODO,
         i.FECHA_INSCRIPCION,
-        CAST(p.ANIO AS VARCHAR) + ' — ' + CAST(p.CUATRIMESTRE AS VARCHAR)
-            + '° Cuatrimestre'                                            AS ETIQUETA_PERIODO,
+        p.ANIO              AS ANIO_PERIODO,
+        p.CUATRIMESTRE      AS CUATRIMESTRE_PERIODO,
         d.ID_MATERIA,
-        m.NOMBRE                                                          AS NOMBRE_MATERIA,
-        m.CODIGO                                                          AS CODIGO_MATERIA
+        m.NOMBRE            AS NOMBRE_MATERIA,
+        m.CODIGO            AS CODIGO_MATERIA
     FROM      INSCRIPCION i
     JOIN      PERIODO_ACADEMICO   p ON i.ID_PERIODO     = p.ID
     LEFT JOIN INSCRIPCION_DETALLE d ON i.ID             = d.ID_INSCRIPCION
     LEFT JOIN MATERIA             m ON d.ID_MATERIA     = m.ID
     WHERE     i.ID_USUARIO = @id_usuario
-    ORDER BY  i.ID DESC, m.NOMBRE;
+    ORDER BY  i.ID DESC, d.ID;
 END
 GO
 
@@ -1174,11 +1151,11 @@ IF OBJECT_ID('PERIODO_ACADEMICO_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE
 GO
 CREATE PROCEDURE PERIODO_ACADEMICO_RESTAURAR_FILA
     @id           INT,
-    @anio         INT,
-    @cuatrimestre INT,
-    @descripcion  VARCHAR(100),
-    @fechaInicio  DATE,
-    @fechaFin     DATE
+    @anio         VARBINARY(64),
+    @cuatrimestre VARBINARY(64),
+    @descripcion  VARBINARY(512),
+    @fechaInicio  VARBINARY(64),
+    @fechaFin     VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1285,13 +1262,13 @@ CREATE PROCEDURE ALUMNO_MATERIA_RESTAURAR_FILA
     @id                  INT,
     @idUsuario           INT,
     @idMateria           INT,
-    @estado              VARCHAR(30),
-    @notaParcial1        DECIMAL(4,2),
-    @notaParcial2        DECIMAL(4,2),
-    @notaRecuperatorio   DECIMAL(4,2),
-    @notaFinal           DECIMAL(4,2),
-    @fechaFinal          DATETIME,
-    @fechaRecuperatorio  DATETIME
+    @estado              VARBINARY(128),
+    @notaParcial1        VARBINARY(64),
+    @notaParcial2        VARBINARY(64),
+    @notaRecuperatorio   VARBINARY(64),
+    @notaFinal           VARBINARY(64),
+    @fechaFinal          VARBINARY(64),
+    @fechaRecuperatorio  VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1333,10 +1310,10 @@ CREATE PROCEDURE EVENTO_ACADEMICO_RESTAURAR_FILA
     @id          INT,
     @idMateria   INT,
     @idUsuario   INT,
-    @tipo        VARCHAR(30),
-    @descripcion VARCHAR(200),
-    @fecha       DATETIME,
-    @peso        INT
+    @tipo        VARBINARY(128),
+    @descripcion VARBINARY(512),
+    @fecha       VARBINARY(64),
+    @peso        VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1374,7 +1351,7 @@ CREATE PROCEDURE INSCRIPCION_RESTAURAR_FILA
     @id                INT,
     @idUsuario         INT,
     @idPeriodo         INT,
-    @fechaInscripcion  DATETIME
+    @fechaInscripcion  VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
