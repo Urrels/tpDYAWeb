@@ -65,5 +65,48 @@ namespace UnitTests.BLL
             CollectionAssert.AreEqual((byte[])fila["ACTIVA"], (byte[])t.GetField("Activa").GetValue(restaurada));
             Assert.AreEqual(7, t.GetField("Id").GetValue(restaurada));
         }
+
+        private static DataRow FilaUsuario()
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("ID", typeof(int));
+            foreach (string c in new[] { "USUARIO", "PASS", "DIRECCION", "INTENTOS_FALLIDOS", "BLOQUEADO", "ACTIVO" })
+                dt.Columns.Add(c, typeof(byte[]));
+            DataRow r = dt.NewRow();
+            r["ID"] = 3;
+            r["USUARIO"] = global::BE.AESHelper.Encriptar("admin");
+            r["PASS"] = global::BE.AESHelper.Encriptar(global::BE.HashHelper.HashSHA256("Admin123"));
+            r["DIRECCION"] = DBNull.Value;
+            r["INTENTOS_FALLIDOS"] = global::BE.AESHelper.EncriptarEntero(0);
+            r["BLOQUEADO"] = global::BE.AESHelper.EncriptarBool(false);
+            r["ACTIVO"] = global::BE.AESHelper.EncriptarBool(true);
+            dt.Rows.Add(r);
+            return r;
+        }
+
+        [TestMethod]
+        public void Usuario_TodosLosAtributosDeNegocioSalenCifrados()
+        {
+            string[] a = Invocar<string[]>("ExtraerUsuario", FilaUsuario());
+            Assert.AreEqual("3", a[0]);
+            Assert.AreEqual("", a[3]);
+            foreach (int i in new[] { 1, 2, 4, 5, 6 })
+                Assert.AreNotEqual(0, Convert.FromBase64String(a[i]).Length, "columna " + i);
+            Assert.IsFalse(a.Any(x => x.Contains("admin")));
+        }
+
+        [TestMethod]
+        public void Usuario_LaRehidratacionDevuelveLosMismosBytesCifrados()
+        {
+            DataRow fila = FilaUsuario();
+            object u = Invocar<object>("RehidratarUsuario", new object[] { Invocar<string[]>("ExtraerUsuario", fila) });
+            Type t = u.GetType();
+            CollectionAssert.AreEqual((byte[])fila["USUARIO"], (byte[])t.GetField("Usuario").GetValue(u));
+            CollectionAssert.AreEqual((byte[])fila["PASS"], (byte[])t.GetField("Pass").GetValue(u));
+            Assert.IsNull(t.GetField("Direccion").GetValue(u));
+            CollectionAssert.AreEqual((byte[])fila["INTENTOS_FALLIDOS"], (byte[])t.GetField("Intentos").GetValue(u));
+            CollectionAssert.AreEqual((byte[])fila["BLOQUEADO"], (byte[])t.GetField("Bloqueado").GetValue(u));
+            CollectionAssert.AreEqual((byte[])fila["ACTIVO"], (byte[])t.GetField("Activo").GetValue(u));
+        }
     }
 }

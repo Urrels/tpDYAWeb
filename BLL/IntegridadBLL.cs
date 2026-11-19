@@ -290,8 +290,8 @@ namespace BLL
 
         private static string[] ExtraerUsuario(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["PASS"]), Base64Str(r["DIRECCION"]),
-            IntStr(r["INTENTOS_FALLIDOS"]), BitStr(r["BLOQUEADO"]), BitStr(r["ACTIVO"])
+            IntStr(r["ID"]), Base64Str(r["USUARIO"]), Base64Str(r["PASS"]), Base64Str(r["DIRECCION"]),
+            Base64Str(r["INTENTOS_FALLIDOS"]), Base64Str(r["BLOQUEADO"]), Base64Str(r["ACTIVO"])
         };
 
         private static string[] ExtraerBitacora(DataRow r) => new[]
@@ -781,10 +781,12 @@ namespace BLL
         private class FilaUsuarioRestaurada
         {
             public int Id;
-            public string Usuario;
-            public string Pass;
+            public byte[] Usuario;
+            public byte[] Pass;
             public byte[] Direccion;
-            public bool Activo;
+            public byte[] Intentos;
+            public byte[] Bloqueado;
+            public byte[] Activo;
         }
 
         private class FilaRolRestaurada
@@ -893,10 +895,12 @@ namespace BLL
         private static FilaUsuarioRestaurada RehidratarUsuario(string[] a) => new FilaUsuarioRestaurada
         {
             Id = ParseInt(a[0]),
-            Usuario = a[1],
-            Pass = a[2],
+            Usuario = ParseBase64(a[1]),
+            Pass = ParseBase64(a[2]),
             Direccion = ParseBase64(a[3]),
-            Activo = ParseBit(a[6])
+            Intentos = ParseBase64(a[4]),
+            Bloqueado = ParseBase64(a[5]),
+            Activo = ParseBase64(a[6])
         };
 
         private static FilaRolRestaurada RehidratarRol(string[] a) => new FilaRolRestaurada
@@ -1007,7 +1011,7 @@ namespace BLL
             foreach (var f in ObtenerSnapshot("USUARIO"))
             {
                 var u = RehidratarUsuario(f.Atributos);
-                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion, u.Activo);
+                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion, u.Intentos, u.Bloqueado, u.Activo);
             }
         }
 

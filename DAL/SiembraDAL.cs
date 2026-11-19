@@ -94,12 +94,8 @@ namespace DAL
                     foreach (UsuarioSembrado u in plan.Usuarios)
                     {
                         if (!idsRol.TryGetValue(u.Rol, out int rolId)) continue;
-                        int usuarioId = Convert.ToInt32(_acceso.EscribirConRetorno("USUARIO_INSERTAR", new List<SqlParameter>
-                        {
-                            _acceso.CrearParametro("@usuario", u.Usuario),
-                            _acceso.CrearParametro("@pass", u.PassHash),
-                            _acceso.CrearParametro("@direccion", (byte[])null)
-                        }));
+                        int usuarioId = Convert.ToInt32(_acceso.EscribirConRetorno("USUARIO_INSERTAR",
+                            UsuarioDAL.ParametrosAlta(_acceso, u.Usuario, u.PassHash, null)));
                         AsignarPerfil(usuarioId, rolId);
                         resultado.Usuarios++;
                         resultado.UsuarioPerfiles++;

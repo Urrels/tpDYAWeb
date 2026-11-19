@@ -148,7 +148,8 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaUsuario(int id, string usuario, string pass, byte[] direccion, bool activo)
+        public void RestaurarFilaUsuario(int id, byte[] usuario, byte[] pass, byte[] direccion,
+            byte[] intentos, byte[] bloqueado, byte[] activo)
         {
             var p = new List<SqlParameter>
             {
@@ -156,7 +157,9 @@ namespace DAL
                 _acceso.CrearParametro("@usuario", usuario),
                 _acceso.CrearParametro("@pass", pass),
                 _acceso.CrearParametro("@direccion", direccion),
-                new SqlParameter("@activo", SqlDbType.Bit) { Value = activo }
+                _acceso.CrearParametro("@intentos", intentos),
+                _acceso.CrearParametro("@bloqueado", bloqueado),
+                _acceso.CrearParametro("@activo", activo)
             };
             try { _acceso.Abrir(); _acceso.Escribir("USUARIO_RESTAURAR_FILA", p); }
             finally { _acceso.Cerrar(); }

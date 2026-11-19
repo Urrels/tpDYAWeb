@@ -659,7 +659,7 @@ namespace BLL
         public int CrearUsuario(string usuario, string contrasena, string confirmacion, string direccion,
             List<int> rolIds, BE.USUARIO actor)
         {
-            usuario = (usuario ?? "").Trim();
+            usuario = BE.Normalizador.Usuario(usuario);
             if (usuario.Length == 0) throw new InvalidOperationException("El nombre de usuario es obligatorio.");
             if (usuario.Length > 50) throw new InvalidOperationException("El nombre de usuario no puede superar los 50 caracteres.");
             ValidarContrasena(contrasena, confirmacion);

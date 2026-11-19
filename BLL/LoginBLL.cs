@@ -26,6 +26,7 @@ namespace BLL
             if (string.IsNullOrEmpty(usuario) || string.IsNullOrEmpty(contrasena))
                 return LoginResultado.CredencialesInvalidas;
 
+            usuario = BE.Normalizador.Usuario(usuario);
             IntegridadBLL.IntentarInicializarDatosBase();
 
             if (_dal.EstaBloqueado(usuario))
