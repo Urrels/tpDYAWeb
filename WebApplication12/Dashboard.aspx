@@ -97,8 +97,8 @@
     <div class="card border-0 shadow-sm mt-4">
         <div class="card-body">
             <div class="d-flex align-items-center gap-2 mb-2">
-                <h6 class="card-section-title mb-0 me-3"><asp:Literal ID="litWs" runat="server" Text="Resumen vía Web Service"/></h6>
-                <button type="button" id="btnResumenWs" class="btn btn-outline-secondary btn-sm"><asp:Literal ID="litConsultarMateriasservice" runat="server" Text="Consultar MateriasService"/></button>
+                <h6 class="card-section-title mb-0 me-3"><asp:Literal ID="litWs" runat="server" Text="Resumen académico"/></h6>
+                <button type="button" id="btnResumenWs" class="btn btn-outline-secondary btn-sm"><asp:Literal ID="litConsultarMateriasservice" runat="server" Text="Actualizar resumen"/></button>
             </div>
             <div id="wsResumen" class="small text-muted"></div>
         </div>

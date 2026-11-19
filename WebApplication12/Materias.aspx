@@ -66,8 +66,8 @@
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-3">
             <div class="d-flex align-items-center gap-2 mb-2">
-                <h6 class="card-section-title mb-0 me-3"><asp:Literal ID="litWs" runat="server" Text="Plan de estudios vía Web Service"/></h6>
-                <button type="button" id="btnConsultarWs" class="btn btn-outline-secondary btn-sm"><asp:Literal ID="litConsultarMateriasservice" runat="server" Text="Consultar MateriasService"/></button>
+                <h6 class="card-section-title mb-0 me-3"><asp:Literal ID="litWs" runat="server" Text="Plan de estudios"/></h6>
+                <button type="button" id="btnConsultarWs" class="btn btn-outline-secondary btn-sm"><asp:Literal ID="litConsultarMateriasservice" runat="server" Text="Ver plan completo"/></button>
             </div>
             <div id="wsEstado" class="small text-muted"></div>
             <div id="wsResultado" class="table-responsive"></div>
