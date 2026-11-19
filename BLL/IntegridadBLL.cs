@@ -64,6 +64,54 @@ namespace BLL
         private static readonly string[] ColumnasUsuarioPerfil =
             { "ID", "USUARIO_ID", "ROL_ID" };
 
+        private static readonly Dictionary<string, string[]> ColumnasDeTabla = new Dictionary<string, string[]>
+        {
+            { "USUARIO", ColumnasUsuario },
+            { "BITACORA", ColumnasBitacora },
+            { "MATERIA", ColumnasMateria },
+            { "CORRELATIVA", ColumnasCorrelativa },
+            { "ALUMNO_MATERIA", ColumnasAlumnoMateria },
+            { "EVENTO_ACADEMICO", ColumnasEventoAcademico },
+            { "PERIODO_ACADEMICO", ColumnasPeriodoAcademico },
+            { "INSCRIPCION", ColumnasInscripcion },
+            { "INSCRIPCION_DETALLE", ColumnasInscripcionDetalle },
+            { "ROL", ColumnasRol },
+            { "PERMISO", ColumnasPermiso },
+            { "ROL_PERMISO", ColumnasRolPermiso },
+            { "USUARIO_PERFIL", ColumnasUsuarioPerfil }
+        };
+
+        public static readonly string[] TablasDeNegocio =
+        {
+            "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
+            "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE",
+            "ROL", "PERMISO", "ROL_PERMISO", "USUARIO_PERFIL"
+        };
+
+        private static readonly Dictionary<string, HashSet<string>> ColumnasCifradas = new Dictionary<string, HashSet<string>>
+        {
+            { "USUARIO", new HashSet<string> { "USUARIO", "PASS", "DIRECCION", "INTENTOS_FALLIDOS", "BLOQUEADO", "ACTIVO" } },
+            { "BITACORA", new HashSet<string> { "USUARIO", "ACCION", "FECHA", "CRITICIDAD" } },
+            { "MATERIA", new HashSet<string> { "NOMBRE", "CODIGO", "MODALIDAD", "PESO", "ACTIVA" } },
+            { "ALUMNO_MATERIA", new HashSet<string> { "ESTADO", "NOTA_PARCIAL1", "NOTA_PARCIAL2", "NOTA_RECUPERATORIO",
+                                                      "NOTA_FINAL", "FECHA_FINAL", "FECHA_RECUPERATORIO" } },
+            { "EVENTO_ACADEMICO", new HashSet<string> { "TIPO", "DESCRIPCION", "FECHA", "PESO" } },
+            { "PERIODO_ACADEMICO", new HashSet<string> { "ANIO", "CUATRIMESTRE", "DESCRIPCION", "FECHA_INICIO", "FECHA_FIN" } },
+            { "INSCRIPCION", new HashSet<string> { "FECHA_INSCRIPCION" } },
+            { "ROL", new HashSet<string> { "NOMBRE", "PROTEGIDO" } },
+            { "PERMISO", new HashSet<string> { "NOMBRE" } }
+        };
+
+        private static string ValorLegible(string tabla, string columna, string valor)
+        {
+            if (string.IsNullOrEmpty(valor)) return string.Empty;
+            if (!ColumnasCifradas.TryGetValue(tabla, out HashSet<string> cifradas) || !cifradas.Contains(columna))
+                return valor;
+            if (columna == "PASS") return "(oculto)";
+            try { return BE.AESHelper.DesencriptarTexto(Convert.FromBase64String(valor)); }
+            catch (FormatException) { return valor; }
+        }
+
         private void VerificarTabla(string nombreTabla, string[] columnas, DataTable datos,
             Func<DataRow, string[]> extraerAtributos, ResultadoIntegridad resultado)
         {
@@ -193,9 +241,13 @@ namespace BLL
                 int largo = Math.Min(columnas.Length, Math.Min(antes.Length, actual.Length));
                 for (int i = 0; i < largo; i++)
                 {
-                    if (antes[i] != actual[i])
+                    if (antes[i] == actual[i]) continue;
+                    if (columnas[i] == "PASS" && ColumnasCifradas.ContainsKey(nombreTabla))
+                        resultado.Errores.Add($"{nombreTabla}: se modificó el campo {columnas[i]} del registro {id}.");
+                    else
                         resultado.Errores.Add($"{nombreTabla}: se modificó el campo {columnas[i]} del registro {id} " +
-                            $"(antes: '{antes[i]}', ahora: '{actual[i]}').");
+                            $"(antes: '{ValorLegible(nombreTabla, columnas[i], antes[i])}', " +
+                            $"ahora: '{ValorLegible(nombreTabla, columnas[i], actual[i])}').");
                 }
             }
         }
@@ -596,19 +648,14 @@ namespace BLL
                 recalcular();
         }
 
+        public const int VersionBackup = 2;
+
         public string ExportarBackupJson()
         {
-            var tablas = new[]
-            {
-                "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
-                "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE",
-                "ROL", "PERMISO", "ROL_PERMISO", "USUARIO_PERFIL"
-            };
-
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
             var tablasData = new Dictionary<string, object>();
 
-            foreach (var tabla in tablas)
+            foreach (var tabla in TablasDeNegocio)
             {
                 string json = _dal.ObtenerSnapshot(tabla);
                 tablasData[tabla] = string.IsNullOrEmpty(json)
@@ -618,6 +665,7 @@ namespace BLL
 
             var backup = new Dictionary<string, object>
             {
+                { "Version", VersionBackup },
                 { "FechaBackup", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
                 { "Tablas", tablasData }
             };
@@ -630,108 +678,40 @@ namespace BLL
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
             var backup = (Dictionary<string, object>)serializer.DeserializeObject(backupJson);
 
+            if (!backup.TryGetValue("Version", out object version) || !(version is int v) || v != VersionBackup)
+                throw new ArgumentException($"El backup no es de la versión {VersionBackup} (datos cifrados). " +
+                    "Los backups anteriores guardan los datos sin cifrar y no se pueden restaurar: generá uno nuevo desde esta versión.");
+
             if (!backup.TryGetValue("Tablas", out object tablasObj))
                 throw new ArgumentException("El archivo no tiene el formato de backup esperado (falta 'Tablas').");
 
             var tablasData = (Dictionary<string, object>)tablasObj;
-            var tablasBase = new[]
-            {
-                "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
-                "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE"
-            };
-            var tablasPerfiles = new[] { "ROL", "PERMISO", "ROL_PERMISO", "USUARIO_PERFIL" };
-
-            foreach (var tabla in tablasBase)
+            foreach (var tabla in TablasDeNegocio)
                 if (!tablasData.ContainsKey(tabla))
                     throw new ArgumentException($"El backup no contiene datos para la tabla {tabla}.");
 
-            var omitidas = new HashSet<string>();
-            var avisos = new List<string>();
-            if (tablasPerfiles.Any(t => !tablasData.ContainsKey(t)))
-            {
-                foreach (var t in tablasPerfiles) omitidas.Add(t);
-                avisos.Add("El backup es anterior a los perfiles dinámicos: no incluye ROL, PERMISO, ROL_PERMISO ni " +
-                           "USUARIO_PERFIL. Esas tablas se dejaron como estaban.");
-            }
-
             var aGuardar = new Dictionary<string, string>();
-            var rolesPorUsuarioViejo = new Dictionary<int, string>();
-            foreach (var tabla in tablasBase.Concat(tablasPerfiles.Where(t => !omitidas.Contains(t))))
+            foreach (var tabla in TablasDeNegocio)
             {
-                object filas = tablasData[tabla];
-                if (tabla == "USUARIO")
-                    filas = AdaptarUsuarioDeBackup(serializer, filas, rolesPorUsuarioViejo, avisos);
+                var filas = serializer.Deserialize<List<FilaSnapshot>>(serializer.Serialize(tablasData[tabla]));
+                int largo = ColumnasDeTabla[tabla].Length;
+                if (filas.Any(f => f.Atributos == null || f.Atributos.Length != largo))
+                    throw new ArgumentException($"El backup tiene un formato de {tabla} que no se reconoce; no se restauró nada.");
                 aGuardar[tabla] = serializer.Serialize(filas);
             }
 
             foreach (var par in aGuardar)
                 _dal.GuardarSnapshot(par.Key, par.Value);
 
-            avisos.AddRange(RestaurarTablas(omitidas));
-
-            if (rolesPorUsuarioViejo.Count > 0 && omitidas.Count > 0)
-                avisos.AddRange(AsignarPerfilesDesdeRolViejo(rolesPorUsuarioViejo));
-
-            return avisos;
-        }
-
-        private static object AdaptarUsuarioDeBackup(System.Web.Script.Serialization.JavaScriptSerializer serializer,
-            object filas, Dictionary<int, string> rolesViejos, List<string> avisos)
-        {
-            var lista = serializer.Deserialize<List<FilaSnapshot>>(serializer.Serialize(filas));
-            int largoActual = ColumnasUsuario.Length;
-            bool adaptado = false;
-            foreach (var f in lista)
-            {
-                int n = f.Atributos == null ? -1 : f.Atributos.Length;
-
-                if (n == largoActual && !int.TryParse(f.Atributos[4], out _))
-                {
-                    rolesViejos[f.Id] = f.Atributos[4];
-                    var sinRol = new List<string>(f.Atributos);
-                    sinRol.RemoveAt(4);
-                    sinRol.Add("1");
-                    f.Atributos = sinRol.ToArray();
-                    adaptado = true;
-                }
-                else if (n == largoActual - 1)
-                {
-                    f.Atributos = f.Atributos.Concat(new[] { "1" }).ToArray();
-                    adaptado = true;
-                }
-                else if (n != largoActual)
-                    throw new ArgumentException("El backup tiene un formato de USUARIO que no se reconoce; no se restauró nada.");
-            }
-            if (adaptado)
-                avisos.Add("El backup tiene un formato anterior de USUARIO: se adaptó (los usuarios quedan activos" +
-                           (rolesViejos.Count > 0 ? " y los que no tienen perfil se reasignan según su rol de entonces" : "") + ").");
-            return lista;
-        }
-
-        private List<string> AsignarPerfilesDesdeRolViejo(Dictionary<int, string> rolesViejos)
-        {
-            var avisos = new List<string>();
-            var perfilDal = new DAL.PerfilDAL();
-            var idsRol = perfilDal.ListarRoles().ToDictionary(r => r.Nombre, r => r.Id);
-            foreach (var par in rolesViejos)
-            {
-                if (perfilDal.ListarRolesDeUsuario(par.Key).Count > 0) continue;
-                string nombre = par.Value == "Admin" ? "Administrador" : par.Value == "Webmaster" ? "Webmaster" : "Alumno";
-                if (idsRol.TryGetValue(nombre, out int rolId))
-                    perfilDal.AsignarPerfil(par.Key, rolId);
-                else
-                    avisos.Add($"No se encontró el perfil {nombre} para el usuario {par.Key}.");
-            }
-            RecalcularUsuarioPerfil();
-            return avisos;
+            return RestaurarTablas();
         }
 
         public List<string> RestaurarTodasLasTablas()
         {
-            return RestaurarTablas(new HashSet<string>());
+            return RestaurarTablas();
         }
 
-        private List<string> RestaurarTablas(HashSet<string> omitidas)
+        private List<string> RestaurarTablas()
         {
             var avisos = new List<string>();
 
@@ -741,12 +721,11 @@ namespace BLL
                 "ALUMNO_MATERIA", "CORRELATIVA", "BITACORA", "PERIODO_ACADEMICO", "MATERIA",
                 "ROL", "PERMISO", "USUARIO"
             })
-                if (!omitidas.Contains(tabla))
-                    BorrarAgregadosExternamente(tabla, avisos);
+                BorrarAgregadosExternamente(tabla, avisos);
 
             RestaurarUpsertUsuario();
-            if (!omitidas.Contains("ROL")) RestaurarUpsertRol();
-            if (!omitidas.Contains("PERMISO")) RestaurarUpsertPermiso();
+            RestaurarUpsertRol();
+            RestaurarUpsertPermiso();
             RestaurarUpsertMateria();
             RestaurarUpsertPeriodoAcademico();
             RestaurarUpsertBitacora();
@@ -755,8 +734,8 @@ namespace BLL
             RestaurarUpsertEventoAcademico();
             RestaurarUpsertInscripcion();
             RestaurarUpsertInscripcionDetalle();
-            if (!omitidas.Contains("ROL_PERMISO")) RestaurarUpsertRolPermiso();
-            if (!omitidas.Contains("USUARIO_PERFIL")) RestaurarUpsertUsuarioPerfil();
+            RestaurarUpsertRolPermiso();
+            RestaurarUpsertUsuarioPerfil();
 
             RecalcularTodasLasTablas();
             return avisos;
