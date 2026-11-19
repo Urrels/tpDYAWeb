@@ -33,10 +33,11 @@ PAGE -> BLL : ListarPorMes(idUsuario, Anio, Mes)
 activate BLL
 BLL -> DAL : ListarPorMes(idUsuario, anio, mes)
 activate DAL
-DAL -> DB : EVENTO_LISTAR_MES
+DAL -> DB : EVENTO_LISTAR_USUARIO
 activate DB
-DB --> DAL : filas de eventos
+DB --> DAL : filas de eventos del usuario (cifradas)
 deactivate DB
+DAL -> DAL : descifra y filtra por año y mes en C#\n(la fecha está cifrada), ordena por fecha
 DAL --> BLL : List<EVENTO_ACADEMICO>
 deactivate DAL
 BLL -> BLL : AplicarMapaDeCalor(eventos)
@@ -56,7 +57,8 @@ PAGE -> BLL : ListarPorMes(idUsuario, Anio, Mes)
 activate BLL
 BLL -> DAL : ListarPorMes(idUsuario, anio, mes)
 activate DAL
-DAL -> DB : EVENTO_LISTAR_MES
+DAL -> DB : EVENTO_LISTAR_USUARIO
+DAL -> DAL : descifra y filtra por año y mes en C#
 DAL --> BLL : List<EVENTO_ACADEMICO>
 deactivate DAL
 BLL -> BLL : AplicarMapaDeCalor(eventos)
@@ -86,6 +88,7 @@ alt la fecha está vacía
   PAGE --> A : "La fecha es obligatoria." (no se guarda)
 end
 PAGE -> BLL : Insertar(ev, u.Usuario)
+note right of BLL : ValidacionLongitud.Evento(e): descripción ≤ 170 caracteres
 activate BLL
 BLL -> DAL : Insertar(e)
 activate DAL

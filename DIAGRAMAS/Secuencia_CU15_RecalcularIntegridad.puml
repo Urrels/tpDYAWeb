@@ -49,6 +49,7 @@ loop por cada una de las 13 tablas de negocio
 
     loop por cada fila
         BLL -> BLL : dvh = BE.CalculadorDVH.Calcular(atributos)
+        note right of BLL : los atributos son el Base64 de cada varbinary (Base64Str)
         BLL -> DAL : ActualizarDVH(tabla, id, dvh)
         activate DAL
         DAL -> DB : EXEC {TABLA}_ACTUALIZAR_DVH
@@ -66,8 +67,10 @@ loop por cada una de las 13 tablas de negocio
     BLL -> BLL : GuardarSnapshot(tabla, datos, extraerAtributos)
     note right of BLL
         Serializa la lista de filas (Id + Atributos) a JSON
-        (JavaScriptSerializer) — este es "el último estado
-        válido conocido" a partir de ahora.
+        (JavaScriptSerializer, CrearSerializador) — este es "el
+        último estado válido conocido" a partir de ahora. Los
+        atributos de datos son el Base64 del texto cifrado:
+        recalcular y verificar nunca necesita la clave AES.
     end note
     BLL -> DAL : GuardarSnapshot(tabla, json)
     activate DAL

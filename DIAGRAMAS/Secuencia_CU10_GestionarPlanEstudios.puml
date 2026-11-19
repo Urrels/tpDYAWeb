@@ -23,10 +23,13 @@ activate PAGE
 
 PAGE -> BLL : Insertar(m, usuario)
 activate BLL
+BLL -> BLL : m.Codigo = Normalizador.CodigoMateria(m.Codigo) (trim + mayúsculas)
+BLL -> BLL : ValidacionLongitud.Materia(m)\n(nombre ≤ 100, código ≤ 20, modalidad ≤ 20)
 BLL -> DAL : Insertar(m)
 activate DAL
+DAL -> DAL : cifra nombre, código, modalidad, peso y activa (AESHelper)
 DAL -> DB : EscribirConRetorno("MATERIA_INSERTAR", params)
-note right of DB : SP: MATERIA_INSERTAR\nCODIGO tiene constraint UNIQUE en la tabla MATERIA
+note right of DB : SP: MATERIA_INSERTAR\nCODIGO (cifrado) tiene constraint UNIQUE: al ser el cifrado determinista,\ndos códigos iguales dan el mismo texto cifrado
 DB --> DAL : id (SCOPE_IDENTITY)
 DAL --> BLL : int id
 deactivate DAL
@@ -73,6 +76,7 @@ alt modificación de materia existente
   activate PAGE
   PAGE -> BLL : Actualizar(m, usuario)
   activate BLL
+  BLL -> BLL : Normalizador.CodigoMateria(m.Codigo) y ValidacionLongitud.Materia(m)
   BLL -> BLL : CodigoDuplicado(ListarTodasConInactivas(), codigo, m.Id)
   note right of BLL : si el código ya lo usa otra materia: mismo InvalidOperationException, no se guarda
   BLL -> DAL : Actualizar(m)

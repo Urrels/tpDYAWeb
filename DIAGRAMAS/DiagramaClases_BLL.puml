@@ -113,8 +113,12 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     +Recalcular{las 13 tablas}()
     +VerificarTodasLasTablas() : ResultadoIntegridad
     +RecalcularTodasLasTablas()
-    +CalcularDVHAlumnoMateria(am) : int
     +RestaurarTodasLasTablas()
+    +ExportarBackupJson() : string
+    +RestaurarDesdeBackupJson(json) : List<string>
+    +VersionBackup : int {const}
+    +IntentarInicializarDatosBase() {static}
+    +InicializarTablasNuncaCalculadas(modo)
   }
 
   class PerfilBLL {
@@ -137,6 +141,8 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   class SiembraBLL {
     +CatalogoDePermisos() : List<string> {static}
     +SembrarDatosBase() : bool
+    +MateriasDelPlan() : List<MATERIA> {static}
+    +CorrelativasDelPlan() : List<(codigo, correlativa)> {static}
   }
 
   class IdiomaBLL {
@@ -161,6 +167,10 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
 
   class Paginacion <<static>> {
     +ConsultarAjustando(pagina, consulta) : PaginaResultado<T>
+  }
+
+  class ValidacionLongitud <<static>> {
+    +Materia(m) / Evento(e) / Periodo(p)
   }
 
   LoginBLL         ..> LoginResultado
@@ -213,6 +223,9 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   FachadaIdioma    --> IdiomaManager
   BitacoraBLL      --> Paginacion
   PerfilBLL        --> Paginacion
+  MateriaBLL       ..> ValidacionLongitud
+  EventoBLL        ..> ValidacionLongitud
+  PeriodoBLL       ..> ValidacionLongitud
 
   LoginBLL         -[hidden]right-> LoginResultado
   LoginResultado   -[hidden]right-> UsuarioBLL
@@ -227,6 +240,7 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   FeriadosBLL      -[hidden]right-> IntegridadBLL
   IntegridadBLL    -[hidden]right-> PerfilBLL
   PerfilBLL        -[hidden]right-> Paginacion
+  Paginacion       -[hidden]down-> ValidacionLongitud
 }
 
 @enduml

@@ -25,7 +25,7 @@ activate BLL
 
 BLL -> BLL : tamaño ≤ 1 MB y no vacío
 BLL -> BLL : Cargar(): XmlReader con DtdProcessing.Prohibit y XmlResolver = null\n(protege contra XXE); la raíz debe ser <Materias>
-BLL -> BLL : LeerMaterias(): por cada <Materia> valida código (1-20, no repetido),\nnombre (1-100), modalidad (Presencial/Virtual) y peso (1-5)
+BLL -> BLL : LeerMaterias(): por cada <Materia> normaliza el código (Normalizador.CodigoMateria:\ntrim + mayúsculas) y valida código (1-20, no repetido),\nnombre (1-100), modalidad (Presencial/Virtual) y peso (1-5)
 
 alt el archivo o algún dato es inválido
   BLL --> PAGE : ResultadoImportacionXml con Errores (no se tocó la base)
@@ -45,6 +45,7 @@ else el archivo es válido
     PAGE --> ADM : alerta roja con el detalle
   else sin errores
     BLL -> DAL : Importar(materias, idPorCodigo, correlativas)
+note right of BLL : el DAL cifra los datos de cada materia con AESHelper y graba todo en una única transacción
     activate DAL
     DAL -> DB : IniciarTx()
     loop por materia

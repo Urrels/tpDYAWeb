@@ -37,6 +37,7 @@ A -> PAGE : modifica la dirección y confirma (btnGuardar_Click)
 activate PAGE
 PAGE -> BLL : ActualizarDireccion(usuario, direccion)
 activate BLL
+BLL -> BLL : PerfilBLL.ValidarDireccion(direccion)\n(máximo 100 caracteres y que el cifrado entre en la columna)
 BLL -> DAL : ActualizarDireccion(usuario, direccion)
 activate DAL
 DAL -> DAL : BE.AESHelper.Encriptar(direccion)

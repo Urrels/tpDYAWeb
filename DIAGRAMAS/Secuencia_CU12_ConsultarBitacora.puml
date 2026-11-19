@@ -23,7 +23,8 @@ activate BLL
 BLL -> DAL : ListarUsuariosDistinct()
 activate DAL
 DAL -> DB : Leer("BITACORA_LISTAR_USUARIOS_DISTINCT")
-DB --> DAL : lista de usuarios distintos
+DB --> DAL : usuarios distintos (cifrados)
+DAL -> DAL : AESHelper.DesencriptarTexto, quita repetidos y ordena
 DAL --> BLL : List<string>
 deactivate DAL
 BLL --> PAGE : List<string>
@@ -34,9 +35,14 @@ PAGE -> BLL : ListarPaginado(null, null, null, null, 1, 50)
 activate BLL
 BLL -> DAL : ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta, pagina, tamanio)
 activate DAL
-DAL -> DB : Leer("BITACORA_LISTAR_PAGINADO", params)
-note right of DB : SP: BITACORA_LISTAR_PAGINADO
-DB --> DAL : filas de la página + TOTAL_FILAS
+DAL -> DB : Leer("BITACORA_LISTAR_FILTRADO", usuario y criticidad cifrados)
+note right of DB
+  SP: BITACORA_LISTAR_FILTRADO
+  Solo compara usuario y criticidad por igualdad
+  sobre el texto cifrado; ordena por ID DESC.
+end note
+DB --> DAL : filas cifradas
+DAL -> DAL : descifra, filtra por rango de fechas y pagina en C# (Paginar)
 DAL --> BLL : BE.PaginaResultado<BITACORA>
 deactivate DAL
 BLL --> PAGE : PaginaResultado<BITACORA>
@@ -50,13 +56,15 @@ PAGE -> BLL : ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta+1día, 
 activate BLL
 note right of PAGE
   fechaHasta se corre +1 día antes de llamar
-  al BLL porque el SP usa límite exclusivo
-  (FECHA < @fecha_hasta) — Bitacora.aspx.cs:48
+  al BLL porque el rango de fechas se aplica en C#
+  con límite exclusivo (Fecha < fechaHasta), ya que la
+  fecha está cifrada en la base — Bitacora.aspx.cs
 end note
 BLL -> DAL : ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta, pagina, tamanio)
 activate DAL
-DAL -> DB : Leer("BITACORA_LISTAR_PAGINADO", params)
-DB --> DAL : filas + TOTAL_FILAS
+DAL -> DB : Leer("BITACORA_LISTAR_FILTRADO", usuario y criticidad cifrados)
+DB --> DAL : filas cifradas
+DAL -> DAL : descifra, filtra por rango de fechas y pagina en C# (Paginar)
 DAL --> BLL : BE.PaginaResultado<BITACORA>
 deactivate DAL
 BLL --> PAGE : PaginaResultado<BITACORA>
@@ -71,8 +79,8 @@ alt no hay registros que coincidan con los filtros
   activate BLL
   BLL -> DAL : ListarPaginado(usuario, criticidad, fechaDesde, fechaHasta, pagina, tamanio)
   activate DAL
-  DAL -> DB : Leer("BITACORA_LISTAR_PAGINADO", params)
-  DB --> DAL : sin filas (TOTAL_FILAS = 0)
+  DAL -> DB : Leer("BITACORA_LISTAR_FILTRADO", usuario y criticidad cifrados)
+  DB --> DAL : sin filas que cumplan usuario/criticidad (o ninguna cae en el rango de fechas)
   DAL --> BLL : PaginaResultado<BITACORA> (Filas vacío)
   deactivate DAL
   BLL --> PAGE : PaginaResultado<BITACORA> (Filas vacío, TotalFilas = 0)

@@ -96,9 +96,10 @@ loop por cada una de las 13 tablas (en el orden padre → hijo de arriba)
     loop por cada fila del snapshot
         BLL -> BLL : Rehidratar{Tabla}(atributos)
         note right of BLL
-            Convierte cada string del snapshot de vuelta a su tipo
-            real (ParseInt/ParseDecNullable/ParseFechaNullable/
-            ParseBit/ParseBase64) antes de pasarlo como SqlParameter.
+            El snapshot guarda cada columna de datos como Base64 del texto
+            cifrado: Rehidratar convierte el Base64 de vuelta a byte[]
+            (ParseBase64) y los ids/FK a int (ParseInt), sin descifrar
+            nada, y los pasa como SqlParameter (varbinary).
         end note
         BLL -> DAL : RestaurarFila{Tabla}(id, ...)
         activate DAL
@@ -144,6 +145,18 @@ PAGE -> PAGE : MostrarResultado(resultado)
 PAGE --> WM : muestra resultado
 deactivate PAGE
 
+== Backup: descargar el estado actual ==
+
+WM -> PAGE : clic en "Backup" (btnBackup_Click)
+activate PAGE
+PAGE -> BLL : ExportarBackupJson()
+activate BLL
+BLL -> DAL : ObtenerSnapshot(tabla) por cada una de las 13 tablas
+BLL --> PAGE : JSON {Version = 3, ClaveControl, FechaBackup, Tablas}\n(solo contiene texto cifrado y ids)
+deactivate BLL
+PAGE --> WM : descarga backup_integridad_{fecha}.json
+deactivate PAGE
+
 == Alternativa: restaurar desde un backup .json subido ==
 
 note over WM, PAGE
@@ -155,8 +168,16 @@ WM -> PAGE : elige un backup .json y confirma
 activate PAGE
 PAGE -> BLL : RestaurarDesdeBackupJson(json)
 activate BLL
-BLL -> BLL : valida el formato (existe "Tablas" y las 9 tablas base);\nsi faltan las 4 de perfiles, las deja como estaban y avisa
-BLL -> DAL : guarda cada snapshot y ejecuta la misma restauración\n(RestaurarTablas + RecalcularTodasLasTablas)
+BLL -> BLL : valida "Version" = IntegridadBLL.VersionBackup (3, datos cifrados);\nlos backups viejos (texto plano) se rechazan
+BLL -> BLL : valida "ClaveControl": el canario (Base64 del cifrado de un texto\nfijo) debe coincidir con el de esta instalación (mismo AesKey/AesIV);\nsi falta o es de otra clave se rechaza: no se restaura nada
+BLL -> BLL : exige "Tablas" con las 13 tablas de negocio
+BLL -> BLL : ValidarFilasDeBackup: valida cada celda de cada tabla\n(Base64, largo de bloque AES, tamaño de columna según EspecColumnas,\nids y FK enteros, ids y valores únicos sin repetir)
+note right of BLL
+  Todo se valida ANTES de guardar cualquier snapshot:
+  un backup defectuoso no cambia nada.
+end note
+BLL -> DAL : GuardarSnapshot(tabla, json) por cada tabla
+BLL -> BLL : misma restauración que arriba\n(RestaurarTablas + RecalcularTodasLasTablas)
 BLL --> PAGE : avisos
 deactivate BLL
 PAGE -> BITB : RegistrarAccion(usuario, "RESTAURACION_BACKUP")

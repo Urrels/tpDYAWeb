@@ -41,6 +41,7 @@ end note
 
 BLL -> DAL : Registrar(usuario, accion, criticidad)
 activate DAL
+DAL -> DAL : usuario, acción, fecha (la pone C#, DateTime.Now) y criticidad\ncifrados con AESHelper (BITACORA es varbinary)
 DAL -> DB : EXEC BITACORA_INSERTAR
 DB --> DAL : (rows affected)
 DAL --> BLL : (retorna, void)

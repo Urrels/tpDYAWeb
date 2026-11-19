@@ -167,8 +167,21 @@ package "BE — Entidades" as BE #DBEAFE {
   }
 
   class AESHelper <<static>> {
+    +TextoIlegible : string {const}
     +Encriptar(texto) : byte[]
     +Desencriptar(datos) : string
+    +EncriptarEntero/Bool/Decimal/Fecha(valor) : byte[]
+    +DesencriptarTexto/Entero/Bool/Decimal/Fecha(valor)
+  }
+
+  class Normalizador <<static>> {
+    +Usuario(texto) : string
+    +CodigoMateria(texto) : string
+  }
+
+  class PoliticaBloqueo <<static>> {
+    +MaximoIntentos : int {const}
+    +Siguiente(intentos, bloqueado, out intentos, out bloqueado)
   }
 
   class HashHelper <<static>> {
@@ -216,6 +229,8 @@ package "BE — Entidades" as BE #DBEAFE {
   HashHelper        -[hidden]right-> CalculadorDVH
   CalculadorDVH     -[hidden]right-> SessionRegistry
   PERIODO_ACADEMICO -[hidden]down-> AESHelper
+  AESHelper         -[hidden]down-> Normalizador
+  HashHelper        -[hidden]down-> PoliticaBloqueo
 }
 
 @enduml

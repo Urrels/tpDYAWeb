@@ -46,10 +46,11 @@ activate DAL
 DAL -> DB : Escribir("USUARIO_DESBLOQUEAR", params)
 note right of DB
   SP: USUARIO_DESBLOQUEAR
-  UPDATE USUARIO SET BLOQUEADO = 0, INTENTOS_FALLIDOS = 0
+  UPDATE USUARIO SET BLOQUEADO = @bloqueado, INTENTOS_FALLIDOS = @intentos
   WHERE USUARIO = @usuario
-  El contador de intentos fallidos se resetea en el
-  MISMO UPDATE del SP de desbloqueo.
+  Los tres parámetros viajan cifrados (AESHelper): el DAL manda
+  BLOQUEADO = false e INTENTOS_FALLIDOS = 0, así el contador se
+  resetea en el MISMO UPDATE del desbloqueo.
 end note
 deactivate DAL
 
