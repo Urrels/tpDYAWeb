@@ -50,6 +50,8 @@ namespace CAPAS_Web
             Plantilla(@"^Los perfiles se guardaron, pero falló la actualización de la dirección \((.*)\)\.$", "Los perfiles se guardaron, pero falló la actualización de la dirección ({0})."),
             Plantilla(@"^No se guardó: falló la actualización de la dirección \((.*)\)\.$", "No se guardó: falló la actualización de la dirección ({0})."),
             Plantilla(@"^El backup no contiene datos para la tabla (.+)\.$", "El backup no contiene datos para la tabla {0}."),
+            Plantilla(@"^El backup tiene un dato inválido en (\w+), fila (-?\d+), columna (\w+): (.+)\. No se restauró nada\.$",
+                      "El backup tiene un dato inválido en {0}, fila {1}, columna {2}: {3}. No se restauró nada."),
         };
 
         private static KeyValuePair<Regex, string> Plantilla(string patron, string plantilla) =>

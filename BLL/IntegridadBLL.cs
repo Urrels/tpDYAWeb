@@ -17,6 +17,9 @@ namespace BLL
     {
         private readonly DAL.IntegridadDAL _dal = new DAL.IntegridadDAL();
 
+        private static System.Web.Script.Serialization.JavaScriptSerializer CrearSerializador() =>
+            new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = int.MaxValue };
+
         private class FilaSnapshot
         {
             public int Id { get; set; }
@@ -258,7 +261,7 @@ namespace BLL
             foreach (DataRow fila in datos.Rows)
                 snapshot.Add(new FilaSnapshot { Id = Convert.ToInt32(fila["ID"]), Atributos = extraerAtributos(fila) });
 
-            string json = new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(snapshot);
+            string json = CrearSerializador().Serialize(snapshot);
             _dal.GuardarSnapshot(nombreTabla, json);
         }
 
@@ -267,7 +270,7 @@ namespace BLL
             string json = _dal.ObtenerSnapshot(nombreTabla);
             if (string.IsNullOrEmpty(json))
                 return new List<FilaSnapshot>();
-            return new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<List<FilaSnapshot>>(json);
+            return CrearSerializador().Deserialize<List<FilaSnapshot>>(json);
         }
 
         private static string IntStr(object valor) =>
@@ -620,11 +623,16 @@ namespace BLL
                 recalcular();
         }
 
-        public const int VersionBackup = 2;
+        public const int VersionBackup = 3;
+
+        public const string TextoControlClave = "CONTROL-CLAVE-AES-v1";
+
+        private static string CanarioDeClave() =>
+            Convert.ToBase64String(BE.AESHelper.Encriptar(TextoControlClave));
 
         public string ExportarBackupJson()
         {
-            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var serializer = CrearSerializador();
             var tablasData = new Dictionary<string, object>();
 
             foreach (var tabla in TablasDeNegocio)
@@ -638,6 +646,7 @@ namespace BLL
             var backup = new Dictionary<string, object>
             {
                 { "Version", VersionBackup },
+                { "ClaveControl", CanarioDeClave() },
                 { "FechaBackup", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
                 { "Tablas", tablasData }
             };
@@ -647,12 +656,20 @@ namespace BLL
 
         public List<string> RestaurarDesdeBackupJson(string backupJson)
         {
-            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var serializer = CrearSerializador();
             var backup = (Dictionary<string, object>)serializer.DeserializeObject(backupJson);
 
             if (!backup.TryGetValue("Version", out object version) || !(version is int v) || v != VersionBackup)
                 throw new ArgumentException($"El backup no es de la versión {VersionBackup} (datos cifrados). " +
                     "Los backups anteriores guardan los datos sin cifrar y no se pueden restaurar: generá uno nuevo desde esta versión.");
+
+            if (!backup.TryGetValue("ClaveControl", out object canario) || !(canario is string canarioTexto) || canarioTexto.Length == 0)
+                throw new ArgumentException("El backup no incluye la verificación de la clave de cifrado, por lo que no se puede comprobar que se pueda leer con esta instalación. " +
+                    "Generá uno nuevo desde esta versión.");
+
+            if (canarioTexto != CanarioDeClave())
+                throw new ArgumentException("El backup se hizo con otra clave de cifrado (AesKey/AesIV) distinta de la de esta instalación: sus datos quedarían ilegibles. " +
+                    "No se restauró nada.");
 
             if (!backup.TryGetValue("Tablas", out object tablasObj))
                 throw new ArgumentException("El archivo no tiene el formato de backup esperado (falta 'Tablas').");
@@ -666,9 +683,7 @@ namespace BLL
             foreach (var tabla in TablasDeNegocio)
             {
                 var filas = serializer.Deserialize<List<FilaSnapshot>>(serializer.Serialize(tablasData[tabla]));
-                int largo = ColumnasDeTabla[tabla].Length;
-                if (filas.Any(f => f.Atributos == null || f.Atributos.Length != largo))
-                    throw new ArgumentException($"El backup tiene un formato de {tabla} que no se reconoce; no se restauró nada.");
+                ValidarFilasDeBackup(tabla, filas);
                 aGuardar[tabla] = serializer.Serialize(filas);
             }
 
@@ -676,6 +691,85 @@ namespace BLL
                 _dal.GuardarSnapshot(par.Key, par.Value);
 
             return RestaurarTablas();
+        }
+
+        private static readonly Dictionary<string, string[]> EspecColumnas = new Dictionary<string, string[]>
+        {
+            { "USUARIO", new[] { "id", "c256", "c256", "c512?", "c64", "c64", "c64" } },
+            { "BITACORA", new[] { "id", "c256", "c512", "c64", "c64" } },
+            { "MATERIA", new[] { "id", "c512", "c64", "c64", "c64", "c64" } },
+            { "CORRELATIVA", new[] { "id", "fk", "fk" } },
+            { "ALUMNO_MATERIA", new[] { "id", "fk", "fk", "c128", "c64?", "c64?", "c64?", "c64?", "c64?", "c64?" } },
+            { "EVENTO_ACADEMICO", new[] { "id", "fk", "fk", "c128", "c512?", "c64", "c64" } },
+            { "PERIODO_ACADEMICO", new[] { "id", "c64", "c64", "c512?", "c64?", "c64?" } },
+            { "INSCRIPCION", new[] { "id", "fk", "fk", "c64" } },
+            { "INSCRIPCION_DETALLE", new[] { "id", "fk", "fk" } },
+            { "ROL", new[] { "id", "c512", "fk?", "c64" } },
+            { "PERMISO", new[] { "id", "c512" } },
+            { "ROL_PERMISO", new[] { "id", "fk", "fk" } },
+            { "USUARIO_PERFIL", new[] { "id", "fk", "fk" } }
+        };
+
+        private static readonly Dictionary<string, int> ColumnaUnica = new Dictionary<string, int>
+        {
+            { "USUARIO", 1 },
+            { "MATERIA", 2 }
+        };
+
+        private static ArgumentException CeldaInvalida(string tabla, int id, string columna, string motivo) =>
+            new ArgumentException($"El backup tiene un dato inválido en {tabla}, fila {id}, columna {columna}: {motivo}. No se restauró nada.");
+
+        private static void ValidarFilasDeBackup(string tabla, List<FilaSnapshot> filas)
+        {
+            string[] nombres = ColumnasDeTabla[tabla];
+            string[] spec = EspecColumnas[tabla];
+            var ids = new HashSet<int>();
+            var unicos = new HashSet<string>();
+
+            foreach (var f in filas)
+            {
+                if (f.Atributos == null || f.Atributos.Length != nombres.Length)
+                    throw new ArgumentException($"El backup tiene un formato de {tabla} que no se reconoce; no se restauró nada.");
+
+                for (int i = 0; i < nombres.Length; i++)
+                    ValidarCelda(tabla, f.Id, nombres[i], spec[i], f.Atributos[i]);
+
+                if (ParseInt(f.Atributos[0]) != f.Id)
+                    throw CeldaInvalida(tabla, f.Id, nombres[0], "el Id de la fila no coincide con su primer atributo");
+                if (!ids.Add(f.Id))
+                    throw CeldaInvalida(tabla, f.Id, nombres[0], "el Id está repetido");
+                if (ColumnaUnica.TryGetValue(tabla, out int columnaUnica) && !unicos.Add(f.Atributos[columnaUnica]))
+                    throw CeldaInvalida(tabla, f.Id, nombres[columnaUnica], "el valor está repetido y debe ser único");
+            }
+        }
+
+        private static void ValidarCelda(string tabla, int id, string columna, string spec, string valor)
+        {
+            bool nulable = spec.EndsWith("?");
+            string tipo = spec.TrimEnd('?');
+            bool vacio = string.IsNullOrEmpty(valor);
+
+            if (vacio)
+            {
+                if (!nulable) throw CeldaInvalida(tabla, id, columna, "el valor es obligatorio");
+                return;
+            }
+
+            if (tipo == "id" || tipo == "fk")
+            {
+                if (!int.TryParse(valor, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    throw CeldaInvalida(tabla, id, columna, "no es un número entero");
+                return;
+            }
+
+            byte[] bytes;
+            try { bytes = Convert.FromBase64String(valor); }
+            catch (FormatException) { throw CeldaInvalida(tabla, id, columna, "no es Base64 válido"); }
+
+            if (bytes.Length == 0 || bytes.Length % 16 != 0)
+                throw CeldaInvalida(tabla, id, columna, "no tiene largo de bloque AES");
+            if (bytes.Length > int.Parse(tipo.Substring(1), CultureInfo.InvariantCulture))
+                throw CeldaInvalida(tabla, id, columna, "supera el tamaño de la columna");
         }
 
         public List<string> RestaurarTodasLasTablas()

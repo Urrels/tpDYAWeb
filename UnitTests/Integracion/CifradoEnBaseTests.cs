@@ -143,6 +143,59 @@ namespace UnitTests.Integracion
             Assert.AreEqual(Tablas(json), Tablas(bll.ExportarBackupJson()), "el backup restaurado debe ser idéntico al original");
         }
 
+        [TestMethod]
+        [TestCategory("Escritura")]
+        public void UnBackupConUnaCeldaCorrupta_SeRechazaSinModificarLaBase()
+        {
+            Abrir().Dispose();
+            var bll = new global::BLL.IntegridadBLL();
+            if (new global::BLL.PerfilBLL().ListarRoles().Count == 0)
+                Assert.Inconclusive("la base todavía no fue sembrada: levantá la aplicación una vez");
+
+            string original = bll.ExportarBackupJson();
+            var serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
+            var backup = (Dictionary<string, object>)serializer.DeserializeObject(original);
+            var tablas = (Dictionary<string, object>)backup["Tablas"];
+            var usuarios = (System.Collections.IList)tablas["USUARIO"];
+            var primera = (Dictionary<string, object>)usuarios[usuarios.Count - 1];
+            var atributos = (System.Collections.IList)primera["Atributos"];
+            atributos[2] = "esto-no-es-base64!";
+            string corrupto = serializer.Serialize(backup);
+
+            Assert.ThrowsException<ArgumentException>(() => bll.RestaurarDesdeBackupJson(corrupto));
+
+            Assert.AreEqual(Tablas(original), Tablas(bll.ExportarBackupJson()), "el rechazo no debe tocar ni los snapshots");
+            Assert.IsTrue(bll.VerificarTodasLasTablas().EsValido);
+        }
+
+        [TestMethod]
+        public void LaEspecificacionDeColumnasDelBackup_CoincideConLosTamaniosYNulabilidadDeLaBase()
+        {
+            var spec = (System.Collections.IDictionary)typeof(global::BLL.IntegridadBLL)
+                .GetField("EspecColumnas", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            var columnas = (System.Collections.IDictionary)typeof(global::BLL.IntegridadBLL)
+                .GetField("ColumnasDeTabla", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            using (var c = Abrir())
+            {
+                foreach (string tabla in TablasDeNegocio)
+                {
+                    var nombres = (string[])columnas[tabla];
+                    var especs = (string[])spec[tabla];
+                    for (int i = 0; i < nombres.Length; i++)
+                    {
+                        if (!especs[i].StartsWith("c")) continue;
+                        bool nulable = especs[i].EndsWith("?");
+                        int tamanio = int.Parse(especs[i].Substring(1).TrimEnd('?'));
+                        var fila = Consultar(c, "SELECT CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '"
+                            + tabla + "' AND COLUMN_NAME = '" + nombres[i] + "'");
+                        Assert.AreEqual(1, fila.Count, tabla + "." + nombres[i]);
+                        Assert.AreEqual(tamanio, (int)fila[0][0], tabla + "." + nombres[i] + " tamaño");
+                        Assert.AreEqual(nulable, (string)fila[0][1] == "YES", tabla + "." + nombres[i] + " nulabilidad");
+                    }
+                }
+            }
+        }
+
         private static string Tablas(string backupJson)
         {
             var serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
