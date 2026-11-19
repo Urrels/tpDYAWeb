@@ -64,6 +64,9 @@ deactivate PAGE
 
 alt el usuario no modifica ningún campo
   PAGE --> A : no presiona "Guardar"; no se llega a llamar a ActualizarDireccion()
+else la dirección supera el largo permitido
+  BLL --x PAGE : InvalidOperationException("La dirección no puede superar los 100 caracteres." / no entra cifrada en la columna)
+  PAGE --> A : alerta con el mensaje (Textos.MH); no se guarda nada
 else error al guardar (ok = false)
   BLL --> PAGE : false
   PAGE --> A : "✖ Error al guardar."

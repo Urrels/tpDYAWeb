@@ -27,7 +27,7 @@ BLLEVT -> DALEVT : ListarPorUsuario(idUsuario)
 activate DALEVT
 DALEVT -> DB : EXEC EVENTO_LISTAR_USUARIO @id_usuario
 activate DB
-DB --> DALEVT : filas de eventos académicos
+DB --> DALEVT : filas de eventos académicos (cifradas); el DAL las descifra
 deactivate DB
 DALEVT --> BLLEVT : List<EVENTO_ACADEMICO>
 deactivate DALEVT
@@ -41,7 +41,7 @@ BLLAM -> DALAM : Listar(idUsuario)
 activate DALAM
 DALAM -> DB : EXEC ALUMNO_MATERIA_LISTAR @id_usuario
 activate DB
-DB --> DALAM : filas de cursadas del alumno
+DB --> DALAM : filas de cursadas del alumno (cifradas); el DAL las descifra
 deactivate DB
 DALAM --> BLLAM : List<ALUMNO_MATERIA>
 deactivate DALAM

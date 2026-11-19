@@ -18,7 +18,7 @@ participant "AlumnoMateriaBLL" as BLL <<BLL>>
 participant "AlumnoMateriaDAL" as DAL <<DAL>>
 database "SQL Server" as DB <<BD>>
 
-A -> PAGE : click "Consultar MateriasService" en "Resumen vía Web Service"
+A -> PAGE : click "Actualizar resumen" en "Resumen académico"
 activate PAGE
 PAGE -> WS : POST MateriasService.asmx/ObtenerResumenAcademico\nContent-Type: application/json + cookie de sesión
 activate WS
@@ -37,7 +37,7 @@ else autorizado
   activate BLL
   BLL -> DAL : Listar(idUsuario)
   DAL -> DB : Leer("ALUMNO_MATERIA_LISTAR")
-  DB --> DAL : cursadas del alumno
+  DB --> DAL : cursadas del alumno (cifradas); el DAL las descifra
   DAL --> BLL : List<ALUMNO_MATERIA>
   BLL -> BLL : cuenta Aprobadas / Cursando / FinalPendiente\nCalcularPromedioPonderado()
   BLL --> WS : ResumenAcademico\n(TotalMaterias, Aprobadas, Cursando, FinalPendiente,\nPromedioPonderado, MensajePromedio)

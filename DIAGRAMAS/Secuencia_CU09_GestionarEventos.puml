@@ -114,6 +114,11 @@ PAGE -> PAGE : RenderizarCalendario(); CargarGrillaEventos()
 PAGE --> A : "✔ Evento creado."
 deactivate PAGE
 
+alt la descripción supera los 170 caracteres (alta o edición)
+  BLL --x PAGE : InvalidOperationException("La descripción del evento no puede superar los 170 caracteres.")
+  PAGE --> A : alerta roja con el mensaje (Textos.MH); el formulario sigue abierto y no se guarda nada
+end
+
 == Edición de evento ==
 
 A -> PAGE : click "Editar" en fila de la grilla

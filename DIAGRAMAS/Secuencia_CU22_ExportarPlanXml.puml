@@ -24,7 +24,7 @@ activate BLL
 BLL -> DAL : Listar()
 activate DAL
 DAL -> DB : Leer("MATERIA_LISTAR")
-DB --> DAL : materias activas
+DB --> DAL : materias activas (cifradas); el DAL las descifra
 DAL --> BLL : List<MATERIA>
 deactivate DAL
 

@@ -26,7 +26,7 @@ activate BLL
 BLL -> BLL : HashHelper.HashSHA256(actual)
 BLL -> DAL : ObtenerPorCredenciales(usuario, hash)
 activate DAL
-DAL -> DB : SP USUARIO_LOGIN
+DAL -> DB : SP USUARIO_LOGIN (usuario y hash cifrados con AESHelper, se comparan por igualdad)
 DB --> DAL : datos del usuario
 DAL --> BLL : USUARIO
 deactivate DAL
@@ -38,7 +38,7 @@ activate BLL
 BLL -> BLL : HashHelper.HashSHA256(nueva)
 BLL -> DAL : CambiarContrasena(usuario, hash)
 activate DAL
-DAL -> DB : SP USUARIO_CAMBIAR_PASS
+DAL -> DB : SP USUARIO_CAMBIAR_PASS (PASS = AES(SHA-256 de la contraseña))
 DB --> DAL : filas afectadas
 DAL --> BLL : true
 deactivate DAL
