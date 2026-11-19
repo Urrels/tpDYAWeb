@@ -275,5 +275,65 @@ namespace UnitTests.BLL
             Assert.AreEqual(a, b);
             Assert.AreNotEqual(a, c);
         }
+
+        [TestMethod]
+        public void Bitacora_TodoSalvoElIdSaleCifrado_YLaCriticidadSeRehidrata()
+        {
+            byte[] usuario = global::BE.AESHelper.Encriptar("admin");
+            byte[] accion = global::BE.AESHelper.Encriptar("LOGIN");
+            byte[] fecha = global::BE.AESHelper.EncriptarFecha(new DateTime(2026, 11, 19, 8, 0, 0));
+            byte[] criticidad = global::BE.AESHelper.Encriptar("Baja");
+            DataRow r = FilaCon("ID", 21, "USUARIO", usuario, "ACCION", accion, "FECHA", fecha, "CRITICIDAD", criticidad);
+            string[] a = Invocar<string[]>("ExtraerBitacora", r);
+
+            Assert.AreEqual("21", a[0]);
+            AssertCifradoEnBase64(a, 1, usuario);
+            AssertCifradoEnBase64(a, 2, accion);
+            AssertCifradoEnBase64(a, 3, fecha);
+            AssertCifradoEnBase64(a, 4, criticidad);
+
+            object h = Invocar<object>("RehidratarBitacora", new object[] { a });
+            Type t = h.GetType();
+            CollectionAssert.AreEqual(criticidad, (byte[])t.GetField("Criticidad").GetValue(h));
+            CollectionAssert.AreEqual(fecha, (byte[])t.GetField("Fecha").GetValue(h));
+        }
+
+        [TestMethod]
+        public void TodasLasTablas_LasColumnasCifradasSalenEnBase64_YLasDemasEnClaro()
+        {
+            var columnas = (System.Collections.Generic.Dictionary<string, string[]>)typeof(global::BLL.IntegridadBLL)
+                .GetField("ColumnasDeTabla", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            var cifradas = (System.Collections.Generic.Dictionary<string, System.Collections.Generic.HashSet<string>>)typeof(global::BLL.IntegridadBLL)
+                .GetField("ColumnasCifradas", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+
+            Assert.AreEqual(13, columnas.Count);
+            foreach (var tabla in columnas)
+            {
+                var cifradasDeLaTabla = cifradas.TryGetValue(tabla.Key, out var c) ? c : new System.Collections.Generic.HashSet<string>();
+                var pares = new System.Collections.Generic.List<object>();
+                foreach (string columna in tabla.Value)
+                {
+                    pares.Add(columna);
+                    pares.Add(cifradasDeLaTabla.Contains(columna) ? (object)global::BE.AESHelper.Encriptar("valor-" + columna) : 7);
+                }
+                pares.Add("DVH");
+                pares.Add(0);
+
+                string metodo = "Extraer" + string.Concat(tabla.Key.Split('_').Select(p => p.Substring(0, 1) + p.Substring(1).ToLowerInvariant()));
+                string[] atributos = Invocar<string[]>(metodo, FilaCon(pares.ToArray()));
+
+                Assert.AreEqual(tabla.Value.Length, atributos.Length, tabla.Key);
+                for (int i = 0; i < tabla.Value.Length; i++)
+                {
+                    if (cifradasDeLaTabla.Contains(tabla.Value[i]))
+                    {
+                        StringAssert.DoesNotMatch(atributos[i], new System.Text.RegularExpressions.Regex("valor-"), tabla.Key + "." + tabla.Value[i]);
+                        Assert.AreEqual("valor-" + tabla.Value[i], global::BE.AESHelper.Desencriptar(Convert.FromBase64String(atributos[i])));
+                    }
+                    else
+                        Assert.AreEqual("7", atributos[i], tabla.Key + "." + tabla.Value[i]);
+                }
+            }
+        }
     }
 }

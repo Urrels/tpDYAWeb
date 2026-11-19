@@ -32,10 +32,11 @@ GO
 
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BITACORA' AND xtype='U')
 CREATE TABLE BITACORA (
-    ID      INT IDENTITY(1,1) PRIMARY KEY,
-    USUARIO VARCHAR(50)  NOT NULL,
-    ACCION  VARCHAR(100) NOT NULL,
-    FECHA   DATETIME     NOT NULL DEFAULT GETDATE()
+    ID         INT IDENTITY(1,1) PRIMARY KEY,
+    USUARIO    VARBINARY(256) NOT NULL,
+    ACCION     VARBINARY(512) NOT NULL,
+    FECHA      VARBINARY(64)  NOT NULL,
+    CRITICIDAD VARBINARY(64)  NOT NULL
 )
 GO
 
@@ -84,14 +85,6 @@ CREATE TABLE EVENTO_ACADEMICO (
     DESCRIPCION VARBINARY(512) NULL,
     FECHA       VARBINARY(64)  NOT NULL,
     PESO        VARBINARY(64)  NOT NULL
-)
-GO
-
-IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DVV_NOTAS' AND xtype='U')
-CREATE TABLE DVV_NOTAS (
-    ID_USUARIO INT      NOT NULL REFERENCES USUARIO(ID) PRIMARY KEY,
-    DVV        INT      NOT NULL,
-    FECHA      DATETIME NOT NULL DEFAULT GETDATE()
 )
 GO
 
@@ -197,7 +190,7 @@ CREATE PROCEDURE BITACORA_LISTAR
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO, ACCION, FECHA FROM BITACORA ORDER BY FECHA DESC, ID DESC;
+    SELECT ID, USUARIO, ACCION, FECHA, CRITICIDAD FROM BITACORA ORDER BY ID DESC;
 END
 GO
 
@@ -636,8 +629,7 @@ GO
 -- con el script anterior. Generaliza el mecanismo de dígitos verificadores
 -- horizontal (DVH, por fila) y vertical (DVV, por columna) a las 9 tablas
 -- de negocio, reemplazando el mecanismo de propósito único que solo cubría
--- ALUMNO_MATERIA vía DVV_NOTAS (tabla que se deja en la base sin usar, por
--- las dudas de que algo la lea, pero el código C# ya no la toca).
+-- ALUMNO_MATERIA vía DVV_NOTAS (tabla que ya no se crea: el código C# no la usa).
 -- =============================================
 
 USE BDUNIVERSIDAD
@@ -653,14 +645,6 @@ GO
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'DVH' AND Object_ID = Object_ID('BITACORA'))
     ALTER TABLE BITACORA ADD DVH INT NOT NULL DEFAULT 0
-GO
-
--- CRITICIDAD se agrega acá (no en el bloque de "Bitácora: filtros y
--- paginado" más abajo) por la misma razón que INTENTOS_FALLIDOS/BLOQUEADO:
--- BITACORA_LISTAR_PARA_INTEGRIDAD, unas líneas más abajo en este mismo
--- bloque, ya hace SELECT de esta columna.
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'CRITICIDAD' AND Object_ID = Object_ID('BITACORA'))
-    ALTER TABLE BITACORA ADD CRITICIDAD VARCHAR(10) NOT NULL DEFAULT 'Media'
 GO
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'DVH' AND Object_ID = Object_ID('MATERIA'))
@@ -711,7 +695,7 @@ GO
 -- ---------------------------------------------
 -- Tabla genérica de dígitos verificadores verticales (uno por TABLA+COLUMNA)
 -- Reemplaza a DVV_NOTAS (que quedaba atada a un único usuario, sin noción
--- de columna). DVV_NOTAS se deja en la base sin usar; no se migra su
+-- de columna). DVV_NOTAS ya no se crea; no se migra su
 -- contenido porque usaba una fórmula distinta (mod 10) que este mecanismo
 -- reemplaza — los DVV nuevos se generan desde cero la primera vez que se
 -- invoque IntegridadBLL.RecalcularAlumnoMateria() (o RecalcularTodasLasTablas()).
@@ -1190,19 +1174,20 @@ GO
 IF OBJECT_ID('BITACORA_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE BITACORA_RESTAURAR_FILA
 GO
 CREATE PROCEDURE BITACORA_RESTAURAR_FILA
-    @id      INT,
-    @usuario VARCHAR(50),
-    @accion  VARCHAR(100),
-    @fecha   DATETIME
+    @id         INT,
+    @usuario    VARBINARY(256),
+    @accion     VARBINARY(512),
+    @fecha      VARBINARY(64),
+    @criticidad VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
     IF EXISTS (SELECT 1 FROM BITACORA WHERE ID = @id)
-        UPDATE BITACORA SET USUARIO = @usuario, ACCION = @accion, FECHA = @fecha WHERE ID = @id;
+        UPDATE BITACORA SET USUARIO = @usuario, ACCION = @accion, FECHA = @fecha, CRITICIDAD = @criticidad WHERE ID = @id;
     ELSE
     BEGIN
         SET IDENTITY_INSERT BITACORA ON;
-        INSERT INTO BITACORA (ID, USUARIO, ACCION, FECHA) VALUES (@id, @usuario, @accion, @fecha);
+        INSERT INTO BITACORA (ID, USUARIO, ACCION, FECHA, CRITICIDAD) VALUES (@id, @usuario, @accion, @fecha, @criticidad);
         SET IDENTITY_INSERT BITACORA OFF;
     END
 END
@@ -1491,21 +1476,21 @@ PRINT '✔ Bloqueo de cuenta por intentos fallidos instalado correctamente.';
 GO
 
 -- =============================================
--- Bitácora: filtros + paginado (CRITICIDAD ya fue agregada más arriba,
--- junto a DVH de BITACORA, porque BITACORA_LISTAR_PARA_INTEGRIDAD la
--- necesitaba antes)
+-- Bitácora: filtros por igualdad cifrada. El rango de fechas y el paginado se
+-- resuelven en C# (BE.AESHelper no es consultable desde SQL).
 -- =============================================
 
 IF OBJECT_ID('BITACORA_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE BITACORA_INSERTAR
 GO
 CREATE PROCEDURE BITACORA_INSERTAR
-    @usuario    VARCHAR(50),
-    @accion     VARCHAR(100),
-    @criticidad VARCHAR(10)
+    @usuario    VARBINARY(256),
+    @accion     VARBINARY(512),
+    @fecha      VARBINARY(64),
+    @criticidad VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO BITACORA (USUARIO, ACCION, FECHA, CRITICIDAD) VALUES (@usuario, @accion, GETDATE(), @criticidad);
+    INSERT INTO BITACORA (USUARIO, ACCION, FECHA, CRITICIDAD) VALUES (@usuario, @accion, @fecha, @criticidad);
 END
 GO
 
@@ -1515,35 +1500,26 @@ CREATE PROCEDURE BITACORA_LISTAR_USUARIOS_DISTINCT
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT DISTINCT USUARIO FROM BITACORA ORDER BY USUARIO;
+    SELECT DISTINCT USUARIO FROM BITACORA;
 END
 GO
 
 IF OBJECT_ID('BITACORA_LISTAR_PAGINADO', 'P') IS NOT NULL DROP PROCEDURE BITACORA_LISTAR_PAGINADO
 GO
-CREATE PROCEDURE BITACORA_LISTAR_PAGINADO
-    @usuario     VARCHAR(50) = NULL,
-    @criticidad  VARCHAR(10) = NULL,
-    @fecha_desde DATETIME    = NULL,
-    @fecha_hasta DATETIME    = NULL,
-    @pagina      INT         = 1,
-    @tamanio     INT         = 50
+
+IF OBJECT_ID('BITACORA_LISTAR_FILTRADO', 'P') IS NOT NULL DROP PROCEDURE BITACORA_LISTAR_FILTRADO
+GO
+CREATE PROCEDURE BITACORA_LISTAR_FILTRADO
+    @usuario    VARBINARY(256) = NULL,
+    @criticidad VARBINARY(64)  = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF @pagina  < 1 SET @pagina  = 1;
-    IF @tamanio < 1 SET @tamanio = 50;
-
-    SELECT ID, USUARIO, ACCION, FECHA, CRITICIDAD,
-           COUNT(*) OVER() AS TOTAL_FILAS
+    SELECT ID, USUARIO, ACCION, FECHA, CRITICIDAD
     FROM BITACORA
-    WHERE (@usuario     IS NULL OR USUARIO    = @usuario)
-      AND (@criticidad  IS NULL OR CRITICIDAD = @criticidad)
-      AND (@fecha_desde IS NULL OR FECHA     >= @fecha_desde)
-      AND (@fecha_hasta IS NULL OR FECHA     <  @fecha_hasta)
-    ORDER BY FECHA DESC, ID DESC
-    OFFSET (@pagina - 1) * @tamanio ROWS
-    FETCH NEXT @tamanio ROWS ONLY;
+    WHERE (@usuario    IS NULL OR USUARIO    = @usuario)
+      AND (@criticidad IS NULL OR CRITICIDAD = @criticidad)
+    ORDER BY ID DESC;
 END
 GO
 
@@ -2065,7 +2041,7 @@ GO
 IF OBJECT_ID('BITACORA_EXISTE_ACCION', 'P') IS NOT NULL DROP PROCEDURE BITACORA_EXISTE_ACCION
 GO
 CREATE PROCEDURE BITACORA_EXISTE_ACCION
-    @accion VARCHAR(100)
+    @accion VARBINARY(512)
 AS
 BEGIN
     SET NOCOUNT ON;

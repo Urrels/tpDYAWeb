@@ -196,14 +196,15 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaBitacora(int id, string usuario, string accion, DateTime fecha)
+        public void RestaurarFilaBitacora(int id, byte[] usuario, byte[] accion, byte[] fecha, byte[] criticidad)
         {
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@id", id),
                 _acceso.CrearParametro("@usuario", usuario),
                 _acceso.CrearParametro("@accion", accion),
-                _acceso.CrearParametro("@fecha", fecha)
+                _acceso.CrearParametro("@fecha", fecha),
+                _acceso.CrearParametro("@criticidad", criticidad)
             };
             try { _acceso.Abrir(); _acceso.Escribir("BITACORA_RESTAURAR_FILA", p); }
             finally { _acceso.Cerrar(); }

@@ -270,20 +270,8 @@ namespace BLL
             return new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<List<FilaSnapshot>>(json);
         }
 
-        private static string StrStr(object valor) =>
-            valor == null || valor == DBNull.Value ? string.Empty : valor.ToString();
-
         private static string IntStr(object valor) =>
             valor == null || valor == DBNull.Value ? string.Empty : Convert.ToInt32(valor).ToString(CultureInfo.InvariantCulture);
-
-        private static string DecStr(object valor) =>
-            valor == null || valor == DBNull.Value ? string.Empty : Convert.ToDecimal(valor).ToString(CultureInfo.InvariantCulture);
-
-        private static string DateStr(object valor) =>
-            valor == null || valor == DBNull.Value ? string.Empty : Convert.ToDateTime(valor).ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
-
-        private static string BitStr(object valor) =>
-            valor == null || valor == DBNull.Value ? string.Empty : (Convert.ToBoolean(valor) ? "1" : "0");
 
         private static string Base64Str(object valor) =>
             valor == null || valor == DBNull.Value ? string.Empty : Convert.ToBase64String((byte[])valor);
@@ -296,7 +284,7 @@ namespace BLL
 
         private static string[] ExtraerBitacora(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["ACCION"]), DateStr(r["FECHA"]), StrStr(r["CRITICIDAD"])
+            IntStr(r["ID"]), Base64Str(r["USUARIO"]), Base64Str(r["ACCION"]), Base64Str(r["FECHA"]), Base64Str(r["CRITICIDAD"])
         };
 
         private static string[] ExtraerMateria(DataRow r) => new[]
@@ -749,18 +737,8 @@ namespace BLL
 
         private static int ParseInt(string s) => int.Parse(s, CultureInfo.InvariantCulture);
 
-        private static decimal? ParseDecNullable(string s) =>
-            string.IsNullOrEmpty(s) ? (decimal?)null : decimal.Parse(s, CultureInfo.InvariantCulture);
-
-        private static DateTime? ParseFechaNullable(string s) =>
-            string.IsNullOrEmpty(s) ? (DateTime?)null : DateTime.ParseExact(s, "yyyyMMddHHmmss", CultureInfo.InvariantCulture);
-
-        private static bool ParseBit(string s) => s == "1";
-
         private static byte[] ParseBase64(string s) =>
             string.IsNullOrEmpty(s) ? null : Convert.FromBase64String(s);
-
-        private static string ParseStrNullable(string s) => string.IsNullOrEmpty(s) ? null : s;
 
         private class FilaUsuarioRestaurada
         {
@@ -804,9 +782,10 @@ namespace BLL
         private class FilaBitacoraRestaurada
         {
             public int Id;
-            public string Usuario;
-            public string Accion;
-            public DateTime Fecha;
+            public byte[] Usuario;
+            public byte[] Accion;
+            public byte[] Fecha;
+            public byte[] Criticidad;
         }
 
         private class FilaMateriaRestaurada
@@ -918,9 +897,10 @@ namespace BLL
         private static FilaBitacoraRestaurada RehidratarBitacora(string[] a) => new FilaBitacoraRestaurada
         {
             Id = ParseInt(a[0]),
-            Usuario = a[1],
-            Accion = a[2],
-            Fecha = ParseFechaNullable(a[3]).Value
+            Usuario = ParseBase64(a[1]),
+            Accion = ParseBase64(a[2]),
+            Fecha = ParseBase64(a[3]),
+            Criticidad = ParseBase64(a[4])
         };
 
         private static FilaMateriaRestaurada RehidratarMateria(string[] a) => new FilaMateriaRestaurada
@@ -1071,7 +1051,7 @@ namespace BLL
             foreach (var f in ObtenerSnapshot("BITACORA"))
             {
                 var b = RehidratarBitacora(f.Atributos);
-                _dal.RestaurarFilaBitacora(b.Id, b.Usuario, b.Accion, b.Fecha);
+                _dal.RestaurarFilaBitacora(b.Id, b.Usuario, b.Accion, b.Fecha, b.Criticidad);
             }
         }
 

@@ -43,7 +43,7 @@ namespace DAL
             {
                 _acceso.Abrir();
                 DataTable dt = _acceso.Leer("BITACORA_EXISTE_ACCION",
-                    new List<SqlParameter> { _acceso.CrearParametro("@accion", AccionMarcador) });
+                    new List<SqlParameter> { _acceso.CrearParametro("@accion", BE.AESHelper.Encriptar(AccionMarcador)) });
                 return Convert.ToInt32(dt.Rows[0]["EXISTE"]) == 1;
             }
             finally { _acceso.Cerrar(); }
@@ -114,12 +114,7 @@ namespace DAL
 
                     if (plan.EscribirMarcador)
                     {
-                        _acceso.Escribir("BITACORA_INSERTAR", new List<SqlParameter>
-                        {
-                            _acceso.CrearParametro("@usuario", "SISTEMA"),
-                            _acceso.CrearParametro("@accion", AccionMarcador),
-                            _acceso.CrearParametro("@criticidad", "Media")
-                        });
+                        _acceso.Escribir("BITACORA_INSERTAR", BitacoraDAL.ParametrosAlta(_acceso, "SISTEMA", AccionMarcador, "Media"));
                         resultado.Marcador = true;
                     }
 
