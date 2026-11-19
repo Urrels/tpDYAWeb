@@ -14,6 +14,17 @@ GO
 USE BDUNIVERSIDAD
 GO
 
+-- Esta versión guarda las columnas de negocio cifradas (varbinary) y no migra datos:
+-- si la base es de una versión anterior (texto en claro) el script se detiene.
+IF OBJECT_ID('USUARIO', 'U') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM sys.columns
+               WHERE object_id = OBJECT_ID('USUARIO') AND name = 'USUARIO' AND system_type_id <> 165)
+BEGIN
+    RAISERROR('BDUNIVERSIDAD tiene el esquema anterior (datos sin cifrar). Esta versión no migra datos: borrá la base y volvé a correr el script.', 16, 1);
+    SET NOEXEC ON;
+END
+GO
+
 -- =============================================
 -- TABLAS
 -- =============================================
