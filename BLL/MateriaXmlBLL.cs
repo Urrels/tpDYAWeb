@@ -205,7 +205,7 @@ namespace BLL
 
             foreach (XmlElement el in doc.DocumentElement.SelectNodes("Materia"))
             {
-                string codigo = (el.GetAttribute("codigo") ?? "").Trim();
+                string codigo = BE.Normalizador.CodigoMateria(el.GetAttribute("codigo"));
                 string nombre = (el.SelectSingleNode("Nombre")?.InnerText ?? "").Trim();
                 string modalidad = (el.SelectSingleNode("Modalidad")?.InnerText ?? "").Trim();
                 string pesoTexto = (el.SelectSingleNode("Peso")?.InnerText ?? "").Trim();
@@ -228,7 +228,7 @@ namespace BLL
                 };
                 foreach (XmlElement c in el.SelectNodes("Correlativas/Correlativa"))
                 {
-                    string cod = (c.GetAttribute("codigo") ?? "").Trim();
+                    string cod = BE.Normalizador.CodigoMateria(c.GetAttribute("codigo"));
                     if (cod.Length == 0)
                         resultado.Errores.Add($"Materia {etiqueta}: hay una correlativa sin código.");
                     else if (!entrante.Correlativas.Contains(cod, StringComparer.OrdinalIgnoreCase))

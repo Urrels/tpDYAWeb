@@ -29,7 +29,6 @@ namespace BLL
 
         public bool ActualizarNotas(BE.ALUMNO_MATERIA am, string usuarioAccion)
         {
-            am.DVH = _integridad.CalcularDVHAlumnoMateria(am);
             bool ok = _dal.Actualizar(am);
 
             if (ok)

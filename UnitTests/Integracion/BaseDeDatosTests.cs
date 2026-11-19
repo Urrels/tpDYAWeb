@@ -114,7 +114,8 @@ namespace UnitTests.Integracion
         {
             RequiereBase();
             var materias = new global::BLL.MateriaBLL().Listar();
-            Assert.IsTrue(materias.Count > 0, "no hay materias: ¿se corrió BD_Universidad.sql?");
+            if (materias.Count == 0)
+                Assert.Inconclusive("todavía no hay materias: el plan de estudios lo siembra la aplicación; levantala una vez");
             Assert.AreEqual(materias.Count, materias.Select(m => m.Codigo.ToLowerInvariant()).Distinct().Count(), "códigos repetidos");
             Assert.IsTrue(materias.All(m => m.Modalidad == "Presencial" || m.Modalidad == "Virtual"), "modalidad inválida");
             Assert.IsTrue(materias.All(m => m.Peso >= 1 && m.Peso <= 5), "peso fuera de 1-5");
@@ -126,6 +127,8 @@ namespace UnitTests.Integracion
             RequiereBase();
             var bll = new global::BLL.MateriaBLL();
             var materias = bll.Listar();
+            if (materias.Count == 0)
+                Assert.Inconclusive("todavía no hay materias: el plan de estudios lo siembra la aplicación; levantala una vez");
             var aristas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var m in materias)
                 foreach (var c in bll.ListarCorrelativas(m.Id))

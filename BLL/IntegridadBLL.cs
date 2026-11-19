@@ -17,6 +17,9 @@ namespace BLL
     {
         private readonly DAL.IntegridadDAL _dal = new DAL.IntegridadDAL();
 
+        private static System.Web.Script.Serialization.JavaScriptSerializer CrearSerializador() =>
+            new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = int.MaxValue };
+
         private class FilaSnapshot
         {
             public int Id { get; set; }
@@ -63,6 +66,54 @@ namespace BLL
 
         private static readonly string[] ColumnasUsuarioPerfil =
             { "ID", "USUARIO_ID", "ROL_ID" };
+
+        private static readonly Dictionary<string, string[]> ColumnasDeTabla = new Dictionary<string, string[]>
+        {
+            { "USUARIO", ColumnasUsuario },
+            { "BITACORA", ColumnasBitacora },
+            { "MATERIA", ColumnasMateria },
+            { "CORRELATIVA", ColumnasCorrelativa },
+            { "ALUMNO_MATERIA", ColumnasAlumnoMateria },
+            { "EVENTO_ACADEMICO", ColumnasEventoAcademico },
+            { "PERIODO_ACADEMICO", ColumnasPeriodoAcademico },
+            { "INSCRIPCION", ColumnasInscripcion },
+            { "INSCRIPCION_DETALLE", ColumnasInscripcionDetalle },
+            { "ROL", ColumnasRol },
+            { "PERMISO", ColumnasPermiso },
+            { "ROL_PERMISO", ColumnasRolPermiso },
+            { "USUARIO_PERFIL", ColumnasUsuarioPerfil }
+        };
+
+        public static readonly string[] TablasDeNegocio =
+        {
+            "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
+            "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE",
+            "ROL", "PERMISO", "ROL_PERMISO", "USUARIO_PERFIL"
+        };
+
+        private static readonly Dictionary<string, HashSet<string>> ColumnasCifradas = new Dictionary<string, HashSet<string>>
+        {
+            { "USUARIO", new HashSet<string> { "USUARIO", "PASS", "DIRECCION", "INTENTOS_FALLIDOS", "BLOQUEADO", "ACTIVO" } },
+            { "BITACORA", new HashSet<string> { "USUARIO", "ACCION", "FECHA", "CRITICIDAD" } },
+            { "MATERIA", new HashSet<string> { "NOMBRE", "CODIGO", "MODALIDAD", "PESO", "ACTIVA" } },
+            { "ALUMNO_MATERIA", new HashSet<string> { "ESTADO", "NOTA_PARCIAL1", "NOTA_PARCIAL2", "NOTA_RECUPERATORIO",
+                                                      "NOTA_FINAL", "FECHA_FINAL", "FECHA_RECUPERATORIO" } },
+            { "EVENTO_ACADEMICO", new HashSet<string> { "TIPO", "DESCRIPCION", "FECHA", "PESO" } },
+            { "PERIODO_ACADEMICO", new HashSet<string> { "ANIO", "CUATRIMESTRE", "DESCRIPCION", "FECHA_INICIO", "FECHA_FIN" } },
+            { "INSCRIPCION", new HashSet<string> { "FECHA_INSCRIPCION" } },
+            { "ROL", new HashSet<string> { "NOMBRE", "PROTEGIDO" } },
+            { "PERMISO", new HashSet<string> { "NOMBRE" } }
+        };
+
+        private static string ValorLegible(string tabla, string columna, string valor)
+        {
+            if (string.IsNullOrEmpty(valor)) return string.Empty;
+            if (!ColumnasCifradas.TryGetValue(tabla, out HashSet<string> cifradas) || !cifradas.Contains(columna))
+                return valor;
+            if (columna == "PASS") return "(oculto)";
+            try { return BE.AESHelper.DesencriptarTexto(Convert.FromBase64String(valor)); }
+            catch (FormatException) { return valor; }
+        }
 
         private void VerificarTabla(string nombreTabla, string[] columnas, DataTable datos,
             Func<DataRow, string[]> extraerAtributos, ResultadoIntegridad resultado)
@@ -193,9 +244,13 @@ namespace BLL
                 int largo = Math.Min(columnas.Length, Math.Min(antes.Length, actual.Length));
                 for (int i = 0; i < largo; i++)
                 {
-                    if (antes[i] != actual[i])
+                    if (antes[i] == actual[i]) continue;
+                    if (columnas[i] == "PASS" && ColumnasCifradas.ContainsKey(nombreTabla))
+                        resultado.Errores.Add($"{nombreTabla}: se modificó el campo {columnas[i]} del registro {id}.");
+                    else
                         resultado.Errores.Add($"{nombreTabla}: se modificó el campo {columnas[i]} del registro {id} " +
-                            $"(antes: '{antes[i]}', ahora: '{actual[i]}').");
+                            $"(antes: '{ValorLegible(nombreTabla, columnas[i], antes[i])}', " +
+                            $"ahora: '{ValorLegible(nombreTabla, columnas[i], actual[i])}').");
                 }
             }
         }
@@ -206,7 +261,7 @@ namespace BLL
             foreach (DataRow fila in datos.Rows)
                 snapshot.Add(new FilaSnapshot { Id = Convert.ToInt32(fila["ID"]), Atributos = extraerAtributos(fila) });
 
-            string json = new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(snapshot);
+            string json = CrearSerializador().Serialize(snapshot);
             _dal.GuardarSnapshot(nombreTabla, json);
         }
 
@@ -215,41 +270,30 @@ namespace BLL
             string json = _dal.ObtenerSnapshot(nombreTabla);
             if (string.IsNullOrEmpty(json))
                 return new List<FilaSnapshot>();
-            return new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<List<FilaSnapshot>>(json);
+            return CrearSerializador().Deserialize<List<FilaSnapshot>>(json);
         }
-
-        private static string StrStr(object valor) =>
-            valor == null || valor == DBNull.Value ? string.Empty : valor.ToString();
 
         private static string IntStr(object valor) =>
             valor == null || valor == DBNull.Value ? string.Empty : Convert.ToInt32(valor).ToString(CultureInfo.InvariantCulture);
-
-        private static string DecStr(object valor) =>
-            valor == null || valor == DBNull.Value ? string.Empty : Convert.ToDecimal(valor).ToString(CultureInfo.InvariantCulture);
-
-        private static string DateStr(object valor) =>
-            valor == null || valor == DBNull.Value ? string.Empty : Convert.ToDateTime(valor).ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
-
-        private static string BitStr(object valor) =>
-            valor == null || valor == DBNull.Value ? string.Empty : (Convert.ToBoolean(valor) ? "1" : "0");
 
         private static string Base64Str(object valor) =>
             valor == null || valor == DBNull.Value ? string.Empty : Convert.ToBase64String((byte[])valor);
 
         private static string[] ExtraerUsuario(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["PASS"]), Base64Str(r["DIRECCION"]),
-            IntStr(r["INTENTOS_FALLIDOS"]), BitStr(r["BLOQUEADO"]), BitStr(r["ACTIVO"])
+            IntStr(r["ID"]), Base64Str(r["USUARIO"]), Base64Str(r["PASS"]), Base64Str(r["DIRECCION"]),
+            Base64Str(r["INTENTOS_FALLIDOS"]), Base64Str(r["BLOQUEADO"]), Base64Str(r["ACTIVO"])
         };
 
         private static string[] ExtraerBitacora(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["USUARIO"]), StrStr(r["ACCION"]), DateStr(r["FECHA"]), StrStr(r["CRITICIDAD"])
+            IntStr(r["ID"]), Base64Str(r["USUARIO"]), Base64Str(r["ACCION"]), Base64Str(r["FECHA"]), Base64Str(r["CRITICIDAD"])
         };
 
         private static string[] ExtraerMateria(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["NOMBRE"]), StrStr(r["CODIGO"]), StrStr(r["MODALIDAD"]), IntStr(r["PESO"]), BitStr(r["ACTIVA"])
+            IntStr(r["ID"]), Base64Str(r["NOMBRE"]), Base64Str(r["CODIGO"]), Base64Str(r["MODALIDAD"]),
+            Base64Str(r["PESO"]), Base64Str(r["ACTIVA"])
         };
 
         private static string[] ExtraerCorrelativa(DataRow r) => new[]
@@ -259,24 +303,26 @@ namespace BLL
 
         private static string[] ExtraerAlumnoMateria(DataRow r) => new[]
         {
-            IntStr(r["ID"]), IntStr(r["ID_USUARIO"]), IntStr(r["ID_MATERIA"]), StrStr(r["ESTADO"]),
-            DecStr(r["NOTA_PARCIAL1"]), DecStr(r["NOTA_PARCIAL2"]), DecStr(r["NOTA_RECUPERATORIO"]), DecStr(r["NOTA_FINAL"]),
-            DateStr(r["FECHA_FINAL"]), DateStr(r["FECHA_RECUPERATORIO"])
+            IntStr(r["ID"]), IntStr(r["ID_USUARIO"]), IntStr(r["ID_MATERIA"]), Base64Str(r["ESTADO"]),
+            Base64Str(r["NOTA_PARCIAL1"]), Base64Str(r["NOTA_PARCIAL2"]), Base64Str(r["NOTA_RECUPERATORIO"]), Base64Str(r["NOTA_FINAL"]),
+            Base64Str(r["FECHA_FINAL"]), Base64Str(r["FECHA_RECUPERATORIO"])
         };
 
         private static string[] ExtraerEventoAcademico(DataRow r) => new[]
         {
-            IntStr(r["ID"]), IntStr(r["ID_MATERIA"]), IntStr(r["ID_USUARIO"]), StrStr(r["TIPO"]), StrStr(r["DESCRIPCION"]), DateStr(r["FECHA"]), IntStr(r["PESO"])
+            IntStr(r["ID"]), IntStr(r["ID_MATERIA"]), IntStr(r["ID_USUARIO"]), Base64Str(r["TIPO"]), Base64Str(r["DESCRIPCION"]),
+            Base64Str(r["FECHA"]), Base64Str(r["PESO"])
         };
 
         private static string[] ExtraerPeriodoAcademico(DataRow r) => new[]
         {
-            IntStr(r["ID"]), IntStr(r["ANIO"]), IntStr(r["CUATRIMESTRE"]), StrStr(r["DESCRIPCION"]), DateStr(r["FECHA_INICIO"]), DateStr(r["FECHA_FIN"])
+            IntStr(r["ID"]), Base64Str(r["ANIO"]), Base64Str(r["CUATRIMESTRE"]), Base64Str(r["DESCRIPCION"]),
+            Base64Str(r["FECHA_INICIO"]), Base64Str(r["FECHA_FIN"])
         };
 
         private static string[] ExtraerInscripcion(DataRow r) => new[]
         {
-            IntStr(r["ID"]), IntStr(r["ID_USUARIO"]), IntStr(r["ID_PERIODO"]), DateStr(r["FECHA_INSCRIPCION"])
+            IntStr(r["ID"]), IntStr(r["ID_USUARIO"]), IntStr(r["ID_PERIODO"]), Base64Str(r["FECHA_INSCRIPCION"])
         };
 
         private static string[] ExtraerInscripcionDetalle(DataRow r) => new[]
@@ -286,12 +332,12 @@ namespace BLL
 
         private static string[] ExtraerRol(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["NOMBRE"]), IntStr(r["PADRE_ID"]), BitStr(r["PROTEGIDO"])
+            IntStr(r["ID"]), Base64Str(r["NOMBRE"]), IntStr(r["PADRE_ID"]), Base64Str(r["PROTEGIDO"])
         };
 
         private static string[] ExtraerPermiso(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["NOMBRE"])
+            IntStr(r["ID"]), Base64Str(r["NOMBRE"])
         };
 
         private static string[] ExtraerRolPermiso(DataRow r) => new[]
@@ -350,24 +396,6 @@ namespace BLL
         {
             RecalcularTabla("CORRELATIVA", ColumnasCorrelativa, _dal.ListarParaIntegridad("CORRELATIVA"), ExtraerCorrelativa,
                 (id, dvh) => _dal.ActualizarDVH("CORRELATIVA", id, dvh));
-        }
-
-        public int CalcularDVHAlumnoMateria(BE.ALUMNO_MATERIA am)
-        {
-            string[] atributos =
-            {
-                am.Id.ToString(CultureInfo.InvariantCulture),
-                am.IdUsuario.ToString(CultureInfo.InvariantCulture),
-                am.IdMateria.ToString(CultureInfo.InvariantCulture),
-                am.Estado ?? string.Empty,
-                am.NotaParcial1.HasValue ? am.NotaParcial1.Value.ToString(CultureInfo.InvariantCulture) : string.Empty,
-                am.NotaParcial2.HasValue ? am.NotaParcial2.Value.ToString(CultureInfo.InvariantCulture) : string.Empty,
-                am.NotaRecuperatorio.HasValue ? am.NotaRecuperatorio.Value.ToString(CultureInfo.InvariantCulture) : string.Empty,
-                am.NotaFinal.HasValue ? am.NotaFinal.Value.ToString(CultureInfo.InvariantCulture) : string.Empty,
-                am.FechaFinal.HasValue ? am.FechaFinal.Value.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture) : string.Empty,
-                am.FechaRecuperatorio.HasValue ? am.FechaRecuperatorio.Value.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture) : string.Empty
-            };
-            return BE.CalculadorDVH.Calcular(atributos);
         }
 
         public ResultadoIntegridad VerificarAlumnoMateria()
@@ -595,19 +623,19 @@ namespace BLL
                 recalcular();
         }
 
+        public const int VersionBackup = 3;
+
+        public const string TextoControlClave = "CONTROL-CLAVE-AES-v1";
+
+        private static string CanarioDeClave() =>
+            Convert.ToBase64String(BE.AESHelper.Encriptar(TextoControlClave));
+
         public string ExportarBackupJson()
         {
-            var tablas = new[]
-            {
-                "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
-                "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE",
-                "ROL", "PERMISO", "ROL_PERMISO", "USUARIO_PERFIL"
-            };
-
-            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var serializer = CrearSerializador();
             var tablasData = new Dictionary<string, object>();
 
-            foreach (var tabla in tablas)
+            foreach (var tabla in TablasDeNegocio)
             {
                 string json = _dal.ObtenerSnapshot(tabla);
                 tablasData[tabla] = string.IsNullOrEmpty(json)
@@ -617,6 +645,8 @@ namespace BLL
 
             var backup = new Dictionary<string, object>
             {
+                { "Version", VersionBackup },
+                { "ClaveControl", CanarioDeClave() },
                 { "FechaBackup", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
                 { "Tablas", tablasData }
             };
@@ -626,111 +656,128 @@ namespace BLL
 
         public List<string> RestaurarDesdeBackupJson(string backupJson)
         {
-            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var serializer = CrearSerializador();
             var backup = (Dictionary<string, object>)serializer.DeserializeObject(backupJson);
+
+            if (!backup.TryGetValue("Version", out object version) || !(version is int v) || v != VersionBackup)
+                throw new ArgumentException($"El backup no es de la versión {VersionBackup} (datos cifrados). " +
+                    "Los backups anteriores guardan los datos sin cifrar y no se pueden restaurar: generá uno nuevo desde esta versión.");
+
+            if (!backup.TryGetValue("ClaveControl", out object canario) || !(canario is string canarioTexto) || canarioTexto.Length == 0)
+                throw new ArgumentException("El backup no incluye la verificación de la clave de cifrado, por lo que no se puede comprobar que se pueda leer con esta instalación. " +
+                    "Generá uno nuevo desde esta versión.");
+
+            if (canarioTexto != CanarioDeClave())
+                throw new ArgumentException("El backup se hizo con otra clave de cifrado (AesKey/AesIV) distinta de la de esta instalación: sus datos quedarían ilegibles. " +
+                    "No se restauró nada.");
 
             if (!backup.TryGetValue("Tablas", out object tablasObj))
                 throw new ArgumentException("El archivo no tiene el formato de backup esperado (falta 'Tablas').");
 
             var tablasData = (Dictionary<string, object>)tablasObj;
-            var tablasBase = new[]
-            {
-                "USUARIO", "BITACORA", "MATERIA", "CORRELATIVA", "ALUMNO_MATERIA",
-                "EVENTO_ACADEMICO", "PERIODO_ACADEMICO", "INSCRIPCION", "INSCRIPCION_DETALLE"
-            };
-            var tablasPerfiles = new[] { "ROL", "PERMISO", "ROL_PERMISO", "USUARIO_PERFIL" };
-
-            foreach (var tabla in tablasBase)
+            foreach (var tabla in TablasDeNegocio)
                 if (!tablasData.ContainsKey(tabla))
                     throw new ArgumentException($"El backup no contiene datos para la tabla {tabla}.");
 
-            var omitidas = new HashSet<string>();
-            var avisos = new List<string>();
-            if (tablasPerfiles.Any(t => !tablasData.ContainsKey(t)))
-            {
-                foreach (var t in tablasPerfiles) omitidas.Add(t);
-                avisos.Add("El backup es anterior a los perfiles dinámicos: no incluye ROL, PERMISO, ROL_PERMISO ni " +
-                           "USUARIO_PERFIL. Esas tablas se dejaron como estaban.");
-            }
-
             var aGuardar = new Dictionary<string, string>();
-            var rolesPorUsuarioViejo = new Dictionary<int, string>();
-            foreach (var tabla in tablasBase.Concat(tablasPerfiles.Where(t => !omitidas.Contains(t))))
+            foreach (var tabla in TablasDeNegocio)
             {
-                object filas = tablasData[tabla];
-                if (tabla == "USUARIO")
-                    filas = AdaptarUsuarioDeBackup(serializer, filas, rolesPorUsuarioViejo, avisos);
+                var filas = serializer.Deserialize<List<FilaSnapshot>>(serializer.Serialize(tablasData[tabla]));
+                ValidarFilasDeBackup(tabla, filas);
                 aGuardar[tabla] = serializer.Serialize(filas);
             }
 
             foreach (var par in aGuardar)
                 _dal.GuardarSnapshot(par.Key, par.Value);
 
-            avisos.AddRange(RestaurarTablas(omitidas));
-
-            if (rolesPorUsuarioViejo.Count > 0 && omitidas.Count > 0)
-                avisos.AddRange(AsignarPerfilesDesdeRolViejo(rolesPorUsuarioViejo));
-
-            return avisos;
+            return RestaurarTablas();
         }
 
-        private static object AdaptarUsuarioDeBackup(System.Web.Script.Serialization.JavaScriptSerializer serializer,
-            object filas, Dictionary<int, string> rolesViejos, List<string> avisos)
+        private static readonly Dictionary<string, string[]> EspecColumnas = new Dictionary<string, string[]>
         {
-            var lista = serializer.Deserialize<List<FilaSnapshot>>(serializer.Serialize(filas));
-            int largoActual = ColumnasUsuario.Length;
-            bool adaptado = false;
-            foreach (var f in lista)
-            {
-                int n = f.Atributos == null ? -1 : f.Atributos.Length;
+            { "USUARIO", new[] { "id", "c256", "c256", "c512?", "c64", "c64", "c64" } },
+            { "BITACORA", new[] { "id", "c256", "c512", "c64", "c64" } },
+            { "MATERIA", new[] { "id", "c512", "c64", "c64", "c64", "c64" } },
+            { "CORRELATIVA", new[] { "id", "fk", "fk" } },
+            { "ALUMNO_MATERIA", new[] { "id", "fk", "fk", "c128", "c64?", "c64?", "c64?", "c64?", "c64?", "c64?" } },
+            { "EVENTO_ACADEMICO", new[] { "id", "fk", "fk", "c128", "c512?", "c64", "c64" } },
+            { "PERIODO_ACADEMICO", new[] { "id", "c64", "c64", "c512?", "c64?", "c64?" } },
+            { "INSCRIPCION", new[] { "id", "fk", "fk", "c64" } },
+            { "INSCRIPCION_DETALLE", new[] { "id", "fk", "fk" } },
+            { "ROL", new[] { "id", "c512", "fk?", "c64" } },
+            { "PERMISO", new[] { "id", "c512" } },
+            { "ROL_PERMISO", new[] { "id", "fk", "fk" } },
+            { "USUARIO_PERFIL", new[] { "id", "fk", "fk" } }
+        };
 
-                if (n == largoActual && !int.TryParse(f.Atributos[4], out _))
-                {
-                    rolesViejos[f.Id] = f.Atributos[4];
-                    var sinRol = new List<string>(f.Atributos);
-                    sinRol.RemoveAt(4);
-                    sinRol.Add("1");
-                    f.Atributos = sinRol.ToArray();
-                    adaptado = true;
-                }
-                else if (n == largoActual - 1)
-                {
-                    f.Atributos = f.Atributos.Concat(new[] { "1" }).ToArray();
-                    adaptado = true;
-                }
-                else if (n != largoActual)
-                    throw new ArgumentException("El backup tiene un formato de USUARIO que no se reconoce; no se restauró nada.");
+        private static readonly Dictionary<string, int> ColumnaUnica = new Dictionary<string, int>
+        {
+            { "USUARIO", 1 },
+            { "MATERIA", 2 }
+        };
+
+        private static ArgumentException CeldaInvalida(string tabla, int id, string columna, string motivo) =>
+            new ArgumentException($"El backup tiene un dato inválido en {tabla}, fila {id}, columna {columna}: {motivo}. No se restauró nada.");
+
+        private static void ValidarFilasDeBackup(string tabla, List<FilaSnapshot> filas)
+        {
+            string[] nombres = ColumnasDeTabla[tabla];
+            string[] spec = EspecColumnas[tabla];
+            var ids = new HashSet<int>();
+            var unicos = new HashSet<string>();
+
+            foreach (var f in filas)
+            {
+                if (f.Atributos == null || f.Atributos.Length != nombres.Length)
+                    throw new ArgumentException($"El backup tiene un formato de {tabla} que no se reconoce; no se restauró nada.");
+
+                for (int i = 0; i < nombres.Length; i++)
+                    ValidarCelda(tabla, f.Id, nombres[i], spec[i], f.Atributos[i]);
+
+                if (ParseInt(f.Atributos[0]) != f.Id)
+                    throw CeldaInvalida(tabla, f.Id, nombres[0], "el Id de la fila no coincide con su primer atributo");
+                if (!ids.Add(f.Id))
+                    throw CeldaInvalida(tabla, f.Id, nombres[0], "el Id está repetido");
+                if (ColumnaUnica.TryGetValue(tabla, out int columnaUnica) && !unicos.Add(f.Atributos[columnaUnica]))
+                    throw CeldaInvalida(tabla, f.Id, nombres[columnaUnica], "el valor está repetido y debe ser único");
             }
-            if (adaptado)
-                avisos.Add("El backup tiene un formato anterior de USUARIO: se adaptó (los usuarios quedan activos" +
-                           (rolesViejos.Count > 0 ? " y los que no tienen perfil se reasignan según su rol de entonces" : "") + ").");
-            return lista;
         }
 
-        private List<string> AsignarPerfilesDesdeRolViejo(Dictionary<int, string> rolesViejos)
+        private static void ValidarCelda(string tabla, int id, string columna, string spec, string valor)
         {
-            var avisos = new List<string>();
-            var perfilDal = new DAL.PerfilDAL();
-            var idsRol = perfilDal.ListarRoles().ToDictionary(r => r.Nombre, r => r.Id);
-            foreach (var par in rolesViejos)
+            bool nulable = spec.EndsWith("?");
+            string tipo = spec.TrimEnd('?');
+            bool vacio = string.IsNullOrEmpty(valor);
+
+            if (vacio)
             {
-                if (perfilDal.ListarRolesDeUsuario(par.Key).Count > 0) continue;
-                string nombre = par.Value == "Admin" ? "Administrador" : par.Value == "Webmaster" ? "Webmaster" : "Alumno";
-                if (idsRol.TryGetValue(nombre, out int rolId))
-                    perfilDal.AsignarPerfil(par.Key, rolId);
-                else
-                    avisos.Add($"No se encontró el perfil {nombre} para el usuario {par.Key}.");
+                if (!nulable) throw CeldaInvalida(tabla, id, columna, "el valor es obligatorio");
+                return;
             }
-            RecalcularUsuarioPerfil();
-            return avisos;
+
+            if (tipo == "id" || tipo == "fk")
+            {
+                if (!int.TryParse(valor, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    throw CeldaInvalida(tabla, id, columna, "no es un número entero");
+                return;
+            }
+
+            byte[] bytes;
+            try { bytes = Convert.FromBase64String(valor); }
+            catch (FormatException) { throw CeldaInvalida(tabla, id, columna, "no es Base64 válido"); }
+
+            if (bytes.Length == 0 || bytes.Length % 16 != 0)
+                throw CeldaInvalida(tabla, id, columna, "no tiene largo de bloque AES");
+            if (bytes.Length > int.Parse(tipo.Substring(1), CultureInfo.InvariantCulture))
+                throw CeldaInvalida(tabla, id, columna, "supera el tamaño de la columna");
         }
 
         public List<string> RestaurarTodasLasTablas()
         {
-            return RestaurarTablas(new HashSet<string>());
+            return RestaurarTablas();
         }
 
-        private List<string> RestaurarTablas(HashSet<string> omitidas)
+        private List<string> RestaurarTablas()
         {
             var avisos = new List<string>();
 
@@ -740,12 +787,11 @@ namespace BLL
                 "ALUMNO_MATERIA", "CORRELATIVA", "BITACORA", "PERIODO_ACADEMICO", "MATERIA",
                 "ROL", "PERMISO", "USUARIO"
             })
-                if (!omitidas.Contains(tabla))
-                    BorrarAgregadosExternamente(tabla, avisos);
+                BorrarAgregadosExternamente(tabla, avisos);
 
             RestaurarUpsertUsuario();
-            if (!omitidas.Contains("ROL")) RestaurarUpsertRol();
-            if (!omitidas.Contains("PERMISO")) RestaurarUpsertPermiso();
+            RestaurarUpsertRol();
+            RestaurarUpsertPermiso();
             RestaurarUpsertMateria();
             RestaurarUpsertPeriodoAcademico();
             RestaurarUpsertBitacora();
@@ -754,8 +800,8 @@ namespace BLL
             RestaurarUpsertEventoAcademico();
             RestaurarUpsertInscripcion();
             RestaurarUpsertInscripcionDetalle();
-            if (!omitidas.Contains("ROL_PERMISO")) RestaurarUpsertRolPermiso();
-            if (!omitidas.Contains("USUARIO_PERFIL")) RestaurarUpsertUsuarioPerfil();
+            RestaurarUpsertRolPermiso();
+            RestaurarUpsertUsuarioPerfil();
 
             RecalcularTodasLasTablas();
             return avisos;
@@ -785,40 +831,32 @@ namespace BLL
 
         private static int ParseInt(string s) => int.Parse(s, CultureInfo.InvariantCulture);
 
-        private static decimal? ParseDecNullable(string s) =>
-            string.IsNullOrEmpty(s) ? (decimal?)null : decimal.Parse(s, CultureInfo.InvariantCulture);
-
-        private static DateTime? ParseFechaNullable(string s) =>
-            string.IsNullOrEmpty(s) ? (DateTime?)null : DateTime.ParseExact(s, "yyyyMMddHHmmss", CultureInfo.InvariantCulture);
-
-        private static bool ParseBit(string s) => s == "1";
-
         private static byte[] ParseBase64(string s) =>
             string.IsNullOrEmpty(s) ? null : Convert.FromBase64String(s);
-
-        private static string ParseStrNullable(string s) => string.IsNullOrEmpty(s) ? null : s;
 
         private class FilaUsuarioRestaurada
         {
             public int Id;
-            public string Usuario;
-            public string Pass;
+            public byte[] Usuario;
+            public byte[] Pass;
             public byte[] Direccion;
-            public bool Activo;
+            public byte[] Intentos;
+            public byte[] Bloqueado;
+            public byte[] Activo;
         }
 
         private class FilaRolRestaurada
         {
             public int Id;
-            public string Nombre;
+            public byte[] Nombre;
             public int? PadreId;
-            public bool Protegido;
+            public byte[] Protegido;
         }
 
         private class FilaPermisoRestaurada
         {
             public int Id;
-            public string Nombre;
+            public byte[] Nombre;
         }
 
         private class FilaRolPermisoRestaurada
@@ -838,19 +876,20 @@ namespace BLL
         private class FilaBitacoraRestaurada
         {
             public int Id;
-            public string Usuario;
-            public string Accion;
-            public DateTime Fecha;
+            public byte[] Usuario;
+            public byte[] Accion;
+            public byte[] Fecha;
+            public byte[] Criticidad;
         }
 
         private class FilaMateriaRestaurada
         {
             public int Id;
-            public string Nombre;
-            public string Codigo;
-            public string Modalidad;
-            public int Peso;
-            public bool Activa;
+            public byte[] Nombre;
+            public byte[] Codigo;
+            public byte[] Modalidad;
+            public byte[] Peso;
+            public byte[] Activa;
         }
 
         private class FilaCorrelativaRestaurada
@@ -865,13 +904,13 @@ namespace BLL
             public int Id;
             public int IdUsuario;
             public int IdMateria;
-            public string Estado;
-            public decimal? NotaParcial1;
-            public decimal? NotaParcial2;
-            public decimal? NotaRecuperatorio;
-            public decimal? NotaFinal;
-            public DateTime? FechaFinal;
-            public DateTime? FechaRecuperatorio;
+            public byte[] Estado;
+            public byte[] NotaParcial1;
+            public byte[] NotaParcial2;
+            public byte[] NotaRecuperatorio;
+            public byte[] NotaFinal;
+            public byte[] FechaFinal;
+            public byte[] FechaRecuperatorio;
         }
 
         private class FilaEventoAcademicoRestaurada
@@ -879,20 +918,20 @@ namespace BLL
             public int Id;
             public int IdMateria;
             public int IdUsuario;
-            public string Tipo;
-            public string Descripcion;
-            public DateTime Fecha;
-            public int Peso;
+            public byte[] Tipo;
+            public byte[] Descripcion;
+            public byte[] Fecha;
+            public byte[] Peso;
         }
 
         private class FilaPeriodoAcademicoRestaurada
         {
             public int Id;
-            public int Anio;
-            public int Cuatrimestre;
-            public string Descripcion;
-            public DateTime? FechaInicio;
-            public DateTime? FechaFin;
+            public byte[] Anio;
+            public byte[] Cuatrimestre;
+            public byte[] Descripcion;
+            public byte[] FechaInicio;
+            public byte[] FechaFin;
         }
 
         private class FilaInscripcionRestaurada
@@ -900,7 +939,7 @@ namespace BLL
             public int Id;
             public int IdUsuario;
             public int IdPeriodo;
-            public DateTime FechaInscripcion;
+            public byte[] FechaInscripcion;
         }
 
         private class FilaInscripcionDetalleRestaurada
@@ -913,24 +952,26 @@ namespace BLL
         private static FilaUsuarioRestaurada RehidratarUsuario(string[] a) => new FilaUsuarioRestaurada
         {
             Id = ParseInt(a[0]),
-            Usuario = a[1],
-            Pass = a[2],
+            Usuario = ParseBase64(a[1]),
+            Pass = ParseBase64(a[2]),
             Direccion = ParseBase64(a[3]),
-            Activo = ParseBit(a[6])
+            Intentos = ParseBase64(a[4]),
+            Bloqueado = ParseBase64(a[5]),
+            Activo = ParseBase64(a[6])
         };
 
         private static FilaRolRestaurada RehidratarRol(string[] a) => new FilaRolRestaurada
         {
             Id = ParseInt(a[0]),
-            Nombre = a[1],
+            Nombre = ParseBase64(a[1]),
             PadreId = string.IsNullOrEmpty(a[2]) ? (int?)null : ParseInt(a[2]),
-            Protegido = ParseBit(a[3])
+            Protegido = ParseBase64(a[3])
         };
 
         private static FilaPermisoRestaurada RehidratarPermiso(string[] a) => new FilaPermisoRestaurada
         {
             Id = ParseInt(a[0]),
-            Nombre = a[1]
+            Nombre = ParseBase64(a[1])
         };
 
         private static FilaRolPermisoRestaurada RehidratarRolPermiso(string[] a) => new FilaRolPermisoRestaurada
@@ -950,19 +991,20 @@ namespace BLL
         private static FilaBitacoraRestaurada RehidratarBitacora(string[] a) => new FilaBitacoraRestaurada
         {
             Id = ParseInt(a[0]),
-            Usuario = a[1],
-            Accion = a[2],
-            Fecha = ParseFechaNullable(a[3]).Value
+            Usuario = ParseBase64(a[1]),
+            Accion = ParseBase64(a[2]),
+            Fecha = ParseBase64(a[3]),
+            Criticidad = ParseBase64(a[4])
         };
 
         private static FilaMateriaRestaurada RehidratarMateria(string[] a) => new FilaMateriaRestaurada
         {
             Id = ParseInt(a[0]),
-            Nombre = a[1],
-            Codigo = a[2],
-            Modalidad = a[3],
-            Peso = ParseInt(a[4]),
-            Activa = ParseBit(a[5])
+            Nombre = ParseBase64(a[1]),
+            Codigo = ParseBase64(a[2]),
+            Modalidad = ParseBase64(a[3]),
+            Peso = ParseBase64(a[4]),
+            Activa = ParseBase64(a[5])
         };
 
         private static FilaCorrelativaRestaurada RehidratarCorrelativa(string[] a) => new FilaCorrelativaRestaurada
@@ -977,13 +1019,13 @@ namespace BLL
             Id = ParseInt(a[0]),
             IdUsuario = ParseInt(a[1]),
             IdMateria = ParseInt(a[2]),
-            Estado = a[3],
-            NotaParcial1 = ParseDecNullable(a[4]),
-            NotaParcial2 = ParseDecNullable(a[5]),
-            NotaRecuperatorio = ParseDecNullable(a[6]),
-            NotaFinal = ParseDecNullable(a[7]),
-            FechaFinal = ParseFechaNullable(a[8]),
-            FechaRecuperatorio = ParseFechaNullable(a[9])
+            Estado = ParseBase64(a[3]),
+            NotaParcial1 = ParseBase64(a[4]),
+            NotaParcial2 = ParseBase64(a[5]),
+            NotaRecuperatorio = ParseBase64(a[6]),
+            NotaFinal = ParseBase64(a[7]),
+            FechaFinal = ParseBase64(a[8]),
+            FechaRecuperatorio = ParseBase64(a[9])
         };
 
         private static FilaEventoAcademicoRestaurada RehidratarEventoAcademico(string[] a) => new FilaEventoAcademicoRestaurada
@@ -991,20 +1033,20 @@ namespace BLL
             Id = ParseInt(a[0]),
             IdMateria = ParseInt(a[1]),
             IdUsuario = ParseInt(a[2]),
-            Tipo = a[3],
-            Descripcion = ParseStrNullable(a[4]),
-            Fecha = ParseFechaNullable(a[5]).Value,
-            Peso = ParseInt(a[6])
+            Tipo = ParseBase64(a[3]),
+            Descripcion = ParseBase64(a[4]),
+            Fecha = ParseBase64(a[5]),
+            Peso = ParseBase64(a[6])
         };
 
         private static FilaPeriodoAcademicoRestaurada RehidratarPeriodoAcademico(string[] a) => new FilaPeriodoAcademicoRestaurada
         {
             Id = ParseInt(a[0]),
-            Anio = ParseInt(a[1]),
-            Cuatrimestre = ParseInt(a[2]),
-            Descripcion = ParseStrNullable(a[3]),
-            FechaInicio = ParseFechaNullable(a[4]),
-            FechaFin = ParseFechaNullable(a[5])
+            Anio = ParseBase64(a[1]),
+            Cuatrimestre = ParseBase64(a[2]),
+            Descripcion = ParseBase64(a[3]),
+            FechaInicio = ParseBase64(a[4]),
+            FechaFin = ParseBase64(a[5])
         };
 
         private static FilaInscripcionRestaurada RehidratarInscripcion(string[] a) => new FilaInscripcionRestaurada
@@ -1012,7 +1054,7 @@ namespace BLL
             Id = ParseInt(a[0]),
             IdUsuario = ParseInt(a[1]),
             IdPeriodo = ParseInt(a[2]),
-            FechaInscripcion = ParseFechaNullable(a[3]).Value
+            FechaInscripcion = ParseBase64(a[3])
         };
 
         private static FilaInscripcionDetalleRestaurada RehidratarInscripcionDetalle(string[] a) => new FilaInscripcionDetalleRestaurada
@@ -1027,7 +1069,7 @@ namespace BLL
             foreach (var f in ObtenerSnapshot("USUARIO"))
             {
                 var u = RehidratarUsuario(f.Atributos);
-                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion, u.Activo);
+                _dal.RestaurarFilaUsuario(u.Id, u.Usuario, u.Pass, u.Direccion, u.Intentos, u.Bloqueado, u.Activo);
             }
         }
 
@@ -1103,7 +1145,7 @@ namespace BLL
             foreach (var f in ObtenerSnapshot("BITACORA"))
             {
                 var b = RehidratarBitacora(f.Atributos);
-                _dal.RestaurarFilaBitacora(b.Id, b.Usuario, b.Accion, b.Fecha);
+                _dal.RestaurarFilaBitacora(b.Id, b.Usuario, b.Accion, b.Fecha, b.Criticidad);
             }
         }
 

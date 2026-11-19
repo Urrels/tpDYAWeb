@@ -14,50 +14,51 @@ GO
 USE BDUNIVERSIDAD
 GO
 
+-- Esta versión guarda las columnas de negocio cifradas (varbinary) y no migra datos:
+-- si la base es de una versión anterior (texto en claro) el script se detiene.
+IF OBJECT_ID('USUARIO', 'U') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM sys.columns
+               WHERE object_id = OBJECT_ID('USUARIO') AND name = 'USUARIO' AND system_type_id <> 165)
+BEGIN
+    RAISERROR('BDUNIVERSIDAD tiene el esquema anterior (datos sin cifrar). Esta versión no migra datos: borrá la base y volvé a correr el script.', 16, 1);
+    SET NOEXEC ON;
+END
+GO
+
 -- =============================================
 -- TABLAS
 -- =============================================
 
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='USUARIO' AND xtype='U')
 CREATE TABLE USUARIO (
-    ID        INT IDENTITY(1,1) PRIMARY KEY,
-    USUARIO   VARCHAR(50)    NOT NULL UNIQUE,
-    PASS      VARCHAR(64)    NOT NULL,
-    DIRECCION VARBINARY(256) NULL
+    ID                INT IDENTITY(1,1) PRIMARY KEY,
+    USUARIO           VARBINARY(256) NOT NULL UNIQUE,
+    PASS              VARBINARY(256) NOT NULL,
+    DIRECCION         VARBINARY(512) NULL,
+    ACTIVO            VARBINARY(64)  NOT NULL,
+    INTENTOS_FALLIDOS VARBINARY(64)  NOT NULL,
+    BLOQUEADO         VARBINARY(64)  NOT NULL
 )
-GO
-
--- ACTIVO: baja lógica de usuarios (no hay borrado físico por las FK a cursadas y
--- bitácora). Va acá, antes de los SP de USUARIO, porque USUARIO_LOGIN la lee.
--- Si la columna se agrega ahora, el orden de columnas de integridad de USUARIO
--- cambió: se descartan sus DVV y snapshot para que se regeneren.
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'ACTIVO' AND Object_ID = Object_ID('USUARIO'))
-BEGIN
-    ALTER TABLE USUARIO ADD ACTIVO BIT NOT NULL DEFAULT 1;
-    IF OBJECT_ID('DIGITO_VERIFICADOR_VERTICAL', 'U') IS NOT NULL
-        DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
-    IF OBJECT_ID('SNAPSHOT_INTEGRIDAD', 'U') IS NOT NULL
-        DELETE FROM SNAPSHOT_INTEGRIDAD WHERE TABLA = 'USUARIO';
-END
 GO
 
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BITACORA' AND xtype='U')
 CREATE TABLE BITACORA (
-    ID      INT IDENTITY(1,1) PRIMARY KEY,
-    USUARIO VARCHAR(50)  NOT NULL,
-    ACCION  VARCHAR(100) NOT NULL,
-    FECHA   DATETIME     NOT NULL DEFAULT GETDATE()
+    ID         INT IDENTITY(1,1) PRIMARY KEY,
+    USUARIO    VARBINARY(256) NOT NULL,
+    ACCION     VARBINARY(512) NOT NULL,
+    FECHA      VARBINARY(64)  NOT NULL,
+    CRITICIDAD VARBINARY(64)  NOT NULL
 )
 GO
 
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='MATERIA' AND xtype='U')
 CREATE TABLE MATERIA (
     ID        INT IDENTITY(1,1) PRIMARY KEY,
-    NOMBRE    VARCHAR(100) NOT NULL,
-    CODIGO    VARCHAR(20)  NOT NULL UNIQUE,
-    MODALIDAD VARCHAR(20)  NOT NULL DEFAULT 'Presencial',
-    PESO      INT          NOT NULL DEFAULT 3,
-    ACTIVA    BIT          NOT NULL DEFAULT 1
+    NOMBRE    VARBINARY(512) NOT NULL,
+    CODIGO    VARBINARY(64)  NOT NULL UNIQUE,
+    MODALIDAD VARBINARY(64)  NOT NULL,
+    PESO      VARBINARY(64)  NOT NULL,
+    ACTIVA    VARBINARY(64)  NOT NULL
 )
 GO
 
@@ -74,13 +75,13 @@ CREATE TABLE ALUMNO_MATERIA (
     ID                  INT IDENTITY(1,1) PRIMARY KEY,
     ID_USUARIO          INT            NOT NULL REFERENCES USUARIO(ID),
     ID_MATERIA          INT            NOT NULL REFERENCES MATERIA(ID),
-    ESTADO              VARCHAR(30)    NOT NULL DEFAULT 'Cursando',
-    NOTA_PARCIAL1       DECIMAL(4,2)   NULL,
-    NOTA_PARCIAL2       DECIMAL(4,2)   NULL,
-    NOTA_RECUPERATORIO  DECIMAL(4,2)   NULL,
-    NOTA_FINAL          DECIMAL(4,2)   NULL,
-    FECHA_FINAL         DATETIME       NULL,
-    FECHA_RECUPERATORIO DATETIME       NULL,
+    ESTADO              VARBINARY(128) NOT NULL,
+    NOTA_PARCIAL1       VARBINARY(64)  NULL,
+    NOTA_PARCIAL2       VARBINARY(64)  NULL,
+    NOTA_RECUPERATORIO  VARBINARY(64)  NULL,
+    NOTA_FINAL          VARBINARY(64)  NULL,
+    FECHA_FINAL         VARBINARY(64)  NULL,
+    FECHA_RECUPERATORIO VARBINARY(64)  NULL,
     DVH                 INT            NULL,
     UNIQUE(ID_USUARIO, ID_MATERIA)
 )
@@ -91,29 +92,21 @@ CREATE TABLE EVENTO_ACADEMICO (
     ID          INT IDENTITY(1,1) PRIMARY KEY,
     ID_MATERIA  INT          NOT NULL REFERENCES MATERIA(ID),
     ID_USUARIO  INT          NOT NULL REFERENCES USUARIO(ID),
-    TIPO        VARCHAR(30)  NOT NULL,
-    DESCRIPCION VARCHAR(200) NULL,
-    FECHA       DATETIME     NOT NULL,
-    PESO        INT          NOT NULL DEFAULT 3
-)
-GO
-
-IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DVV_NOTAS' AND xtype='U')
-CREATE TABLE DVV_NOTAS (
-    ID_USUARIO INT      NOT NULL REFERENCES USUARIO(ID) PRIMARY KEY,
-    DVV        INT      NOT NULL,
-    FECHA      DATETIME NOT NULL DEFAULT GETDATE()
+    TIPO        VARBINARY(128) NOT NULL,
+    DESCRIPCION VARBINARY(512) NULL,
+    FECHA       VARBINARY(64)  NOT NULL,
+    PESO        VARBINARY(64)  NOT NULL
 )
 GO
 
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='PERIODO_ACADEMICO' AND xtype='U')
 CREATE TABLE PERIODO_ACADEMICO (
     ID           INT IDENTITY(1,1) PRIMARY KEY,
-    ANIO         INT          NOT NULL,
-    CUATRIMESTRE INT          NOT NULL,
-    DESCRIPCION  VARCHAR(100) NULL,
-    FECHA_INICIO DATE         NULL,
-    FECHA_FIN    DATE         NULL,
+    ANIO         VARBINARY(64)  NOT NULL,
+    CUATRIMESTRE VARBINARY(64)  NOT NULL,
+    DESCRIPCION  VARBINARY(512) NULL,
+    FECHA_INICIO VARBINARY(64)  NULL,
+    FECHA_FIN    VARBINARY(64)  NULL,
     CONSTRAINT UQ_PERIODO UNIQUE (ANIO, CUATRIMESTRE)
 )
 GO
@@ -123,7 +116,7 @@ CREATE TABLE INSCRIPCION (
     ID                INT IDENTITY(1,1) PRIMARY KEY,
     ID_USUARIO        INT      NOT NULL REFERENCES USUARIO(ID),
     ID_PERIODO        INT      NOT NULL REFERENCES PERIODO_ACADEMICO(ID),
-    FECHA_INSCRIPCION DATETIME NOT NULL DEFAULT GETDATE(),
+    FECHA_INSCRIPCION VARBINARY(64) NOT NULL,
     CONSTRAINT UQ_INSCRIPCION UNIQUE (ID_USUARIO, ID_PERIODO)
 )
 GO
@@ -143,8 +136,8 @@ GO
 IF OBJECT_ID('USUARIO_LOGIN','P') IS NOT NULL DROP PROCEDURE USUARIO_LOGIN
 GO
 CREATE PROCEDURE USUARIO_LOGIN
-    @usuario VARCHAR(50),
-    @pass    VARCHAR(64)
+    @usuario VARBINARY(256),
+    @pass    VARBINARY(256)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -157,7 +150,7 @@ GO
 IF OBJECT_ID('USUARIO_OBTENER','P') IS NOT NULL DROP PROCEDURE USUARIO_OBTENER
 GO
 CREATE PROCEDURE USUARIO_OBTENER
-    @usuario VARCHAR(50)
+    @usuario VARBINARY(256)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -170,8 +163,8 @@ GO
 IF OBJECT_ID('USUARIO_CAMBIAR_PASS','P') IS NOT NULL DROP PROCEDURE USUARIO_CAMBIAR_PASS
 GO
 CREATE PROCEDURE USUARIO_CAMBIAR_PASS
-    @usuario VARCHAR(50),
-    @pass    VARCHAR(64)
+    @usuario VARBINARY(256),
+    @pass    VARBINARY(256)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -183,8 +176,8 @@ GO
 IF OBJECT_ID('USUARIO_ACTUALIZAR_DIRECCION','P') IS NOT NULL DROP PROCEDURE USUARIO_ACTUALIZAR_DIRECCION
 GO
 CREATE PROCEDURE USUARIO_ACTUALIZAR_DIRECCION
-    @usuario   VARCHAR(50),
-    @direccion VARBINARY(256)
+    @usuario   VARBINARY(256),
+    @direccion VARBINARY(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -208,7 +201,7 @@ CREATE PROCEDURE BITACORA_LISTAR
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO, ACCION, FECHA FROM BITACORA ORDER BY FECHA DESC, ID DESC;
+    SELECT ID, USUARIO, ACCION, FECHA, CRITICIDAD FROM BITACORA ORDER BY ID DESC;
 END
 GO
 
@@ -219,14 +212,15 @@ GO
 IF OBJECT_ID('MATERIA_INSERTAR','P') IS NOT NULL DROP PROCEDURE MATERIA_INSERTAR
 GO
 CREATE PROCEDURE MATERIA_INSERTAR
-    @nombre    VARCHAR(100),
-    @codigo    VARCHAR(20),
-    @modalidad VARCHAR(20),
-    @peso      INT
+    @nombre    VARBINARY(512),
+    @codigo    VARBINARY(64),
+    @modalidad VARBINARY(64),
+    @peso      VARBINARY(64),
+    @activa    VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO MATERIA (NOMBRE, CODIGO, MODALIDAD, PESO) VALUES (@nombre, @codigo, @modalidad, @peso);
+    INSERT INTO MATERIA (NOMBRE, CODIGO, MODALIDAD, PESO, ACTIVA) VALUES (@nombre, @codigo, @modalidad, @peso, @activa);
     SELECT SCOPE_IDENTITY() AS ID;
 END
 GO
@@ -235,10 +229,10 @@ IF OBJECT_ID('MATERIA_ACTUALIZAR','P') IS NOT NULL DROP PROCEDURE MATERIA_ACTUAL
 GO
 CREATE PROCEDURE MATERIA_ACTUALIZAR
     @id        INT,
-    @nombre    VARCHAR(100),
-    @codigo    VARCHAR(20),
-    @modalidad VARCHAR(20),
-    @peso      INT
+    @nombre    VARBINARY(512),
+    @codigo    VARBINARY(64),
+    @modalidad VARBINARY(64),
+    @peso      VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -250,11 +244,12 @@ GO
 IF OBJECT_ID('MATERIA_ELIMINAR','P') IS NOT NULL DROP PROCEDURE MATERIA_ELIMINAR
 GO
 CREATE PROCEDURE MATERIA_ELIMINAR
-    @id INT
+    @id     INT,
+    @activa VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    UPDATE MATERIA SET ACTIVA=0 WHERE ID=@id;
+    UPDATE MATERIA SET ACTIVA=@activa WHERE ID=@id;
     SELECT @@ROWCOUNT AS FILAS;
 END
 GO
@@ -262,10 +257,11 @@ GO
 IF OBJECT_ID('MATERIA_LISTAR','P') IS NOT NULL DROP PROCEDURE MATERIA_LISTAR
 GO
 CREATE PROCEDURE MATERIA_LISTAR
+    @activa VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, NOMBRE, CODIGO, MODALIDAD, PESO FROM MATERIA WHERE ACTIVA=1;
+    SELECT ID, NOMBRE, CODIGO, MODALIDAD, PESO FROM MATERIA WHERE ACTIVA=@activa ORDER BY ID;
 END
 GO
 
@@ -273,7 +269,8 @@ IF OBJECT_ID('MATERIA_LISTAR_PAGINADO','P') IS NOT NULL DROP PROCEDURE MATERIA_L
 GO
 CREATE PROCEDURE MATERIA_LISTAR_PAGINADO
     @pagina  INT = 1,
-    @tamanio INT = 10
+    @tamanio INT = 10,
+    @activa  VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -283,7 +280,7 @@ BEGIN
     SELECT ID, NOMBRE, CODIGO, MODALIDAD, PESO,
            COUNT(*) OVER() AS TOTAL_FILAS
     FROM MATERIA
-    WHERE ACTIVA=1
+    WHERE ACTIVA=@activa
     ORDER BY ID
     OFFSET (@pagina - 1) * @tamanio ROWS
     FETCH NEXT @tamanio ROWS ONLY;
@@ -293,11 +290,12 @@ GO
 IF OBJECT_ID('MATERIA_OBTENER','P') IS NOT NULL DROP PROCEDURE MATERIA_OBTENER
 GO
 CREATE PROCEDURE MATERIA_OBTENER
-    @id INT
+    @id     INT,
+    @activa VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, NOMBRE, CODIGO, MODALIDAD, PESO FROM MATERIA WHERE ID=@id AND ACTIVA=1;
+    SELECT ID, NOMBRE, CODIGO, MODALIDAD, PESO FROM MATERIA WHERE ID=@id AND ACTIVA=@activa;
 END
 GO
 
@@ -333,14 +331,15 @@ GO
 IF OBJECT_ID('CORRELATIVA_LISTAR','P') IS NOT NULL DROP PROCEDURE CORRELATIVA_LISTAR
 GO
 CREATE PROCEDURE CORRELATIVA_LISTAR
-    @id_materia INT
+    @id_materia INT,
+    @activa     VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
     SELECT m.ID, m.NOMBRE, m.CODIGO
     FROM   CORRELATIVA c
     JOIN   MATERIA m ON m.ID = c.ID_CORRELATIVA
-    WHERE  c.ID_MATERIA = @id_materia AND m.ACTIVA = 1;
+    WHERE  c.ID_MATERIA = @id_materia AND m.ACTIVA = @activa;
 END
 GO
 
@@ -353,7 +352,7 @@ GO
 CREATE PROCEDURE ALUMNO_MATERIA_INSERTAR
     @id_usuario INT,
     @id_materia INT,
-    @estado     VARCHAR(30)
+    @estado     VARBINARY(128)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -366,14 +365,13 @@ IF OBJECT_ID('ALUMNO_MATERIA_ACTUALIZAR','P') IS NOT NULL DROP PROCEDURE ALUMNO_
 GO
 CREATE PROCEDURE ALUMNO_MATERIA_ACTUALIZAR
     @id                  INT,
-    @estado              VARCHAR(30),
-    @nota_parcial1       DECIMAL(4,2),
-    @nota_parcial2       DECIMAL(4,2),
-    @nota_recuperatorio  DECIMAL(4,2),
-    @nota_final          DECIMAL(4,2),
-    @fecha_final         DATETIME,
-    @fecha_recuperatorio DATETIME,
-    @dvh                 INT
+    @estado              VARBINARY(128),
+    @nota_parcial1       VARBINARY(64),
+    @nota_parcial2       VARBINARY(64),
+    @nota_recuperatorio  VARBINARY(64),
+    @nota_final          VARBINARY(64),
+    @fecha_final         VARBINARY(64),
+    @fecha_recuperatorio VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -384,8 +382,7 @@ BEGIN
            NOTA_RECUPERATORIO  = @nota_recuperatorio,
            NOTA_FINAL          = @nota_final,
            FECHA_FINAL         = @fecha_final,
-           FECHA_RECUPERATORIO = @fecha_recuperatorio,
-           DVH                 = @dvh
+           FECHA_RECUPERATORIO = @fecha_recuperatorio
     WHERE  ID = @id;
     SELECT @@ROWCOUNT AS FILAS;
 END
@@ -394,7 +391,8 @@ GO
 IF OBJECT_ID('ALUMNO_MATERIA_LISTAR','P') IS NOT NULL DROP PROCEDURE ALUMNO_MATERIA_LISTAR
 GO
 CREATE PROCEDURE ALUMNO_MATERIA_LISTAR
-    @id_usuario INT
+    @id_usuario INT,
+    @activa     VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -406,7 +404,7 @@ BEGIN
            am.DVH
     FROM   ALUMNO_MATERIA am
     JOIN   MATERIA m ON m.ID = am.ID_MATERIA
-    WHERE  am.ID_USUARIO = @id_usuario AND m.ACTIVA = 1;
+    WHERE  am.ID_USUARIO = @id_usuario AND m.ACTIVA = @activa;
 END
 GO
 
@@ -419,10 +417,10 @@ GO
 CREATE PROCEDURE EVENTO_INSERTAR
     @id_materia  INT,
     @id_usuario  INT,
-    @tipo        VARCHAR(30),
-    @descripcion VARCHAR(200),
-    @fecha       DATETIME,
-    @peso        INT
+    @tipo        VARBINARY(128),
+    @descripcion VARBINARY(512),
+    @fecha       VARBINARY(64),
+    @peso        VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -437,10 +435,10 @@ GO
 CREATE PROCEDURE EVENTO_ACTUALIZAR
     @id          INT,
     @id_usuario  INT,
-    @tipo        VARCHAR(30),
-    @descripcion VARCHAR(200),
-    @fecha       DATETIME,
-    @peso        INT
+    @tipo        VARBINARY(128),
+    @descripcion VARBINARY(512),
+    @fecha       VARBINARY(64),
+    @peso        VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -473,26 +471,7 @@ BEGIN
     FROM   EVENTO_ACADEMICO e
     JOIN   MATERIA m ON m.ID = e.ID_MATERIA
     WHERE  e.ID_USUARIO = @id_usuario
-    ORDER BY e.FECHA;
-END
-GO
-
-IF OBJECT_ID('EVENTO_LISTAR_MES','P') IS NOT NULL DROP PROCEDURE EVENTO_LISTAR_MES
-GO
-CREATE PROCEDURE EVENTO_LISTAR_MES
-    @id_usuario INT,
-    @anio       INT,
-    @mes        INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT e.ID, e.ID_MATERIA, m.NOMBRE AS MATERIA, e.TIPO, e.DESCRIPCION, e.FECHA, e.PESO
-    FROM   EVENTO_ACADEMICO e
-    JOIN   MATERIA m ON m.ID = e.ID_MATERIA
-    WHERE  e.ID_USUARIO = @id_usuario
-      AND  YEAR(e.FECHA)  = @anio
-      AND  MONTH(e.FECHA) = @mes
-    ORDER BY e.FECHA;
+    ORDER BY e.ID;
 END
 GO
 
@@ -508,18 +487,18 @@ BEGIN
     SET NOCOUNT ON;
     SELECT ID, ANIO, CUATRIMESTRE, DESCRIPCION, FECHA_INICIO, FECHA_FIN
     FROM   PERIODO_ACADEMICO
-    ORDER  BY ANIO DESC, CUATRIMESTRE DESC;
+    ORDER  BY ID;
 END
 GO
 
 IF OBJECT_ID('PERIODO_INSERTAR','P') IS NOT NULL DROP PROCEDURE PERIODO_INSERTAR
 GO
 CREATE PROCEDURE PERIODO_INSERTAR
-    @anio         INT,
-    @cuatrimestre INT,
-    @descripcion  VARCHAR(100),
-    @fecha_inicio DATE,
-    @fecha_fin    DATE
+    @anio         VARBINARY(64),
+    @cuatrimestre VARBINARY(64),
+    @descripcion  VARBINARY(512),
+    @fecha_inicio VARBINARY(64),
+    @fecha_fin    VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -533,11 +512,11 @@ IF OBJECT_ID('PERIODO_ACTUALIZAR','P') IS NOT NULL DROP PROCEDURE PERIODO_ACTUAL
 GO
 CREATE PROCEDURE PERIODO_ACTUALIZAR
     @id           INT,
-    @anio         INT,
-    @cuatrimestre INT,
-    @descripcion  VARCHAR(100),
-    @fecha_inicio DATE,
-    @fecha_fin    DATE
+    @anio         VARBINARY(64),
+    @cuatrimestre VARBINARY(64),
+    @descripcion  VARBINARY(512),
+    @fecha_inicio VARBINARY(64),
+    @fecha_fin    VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -555,25 +534,23 @@ GO
 IF OBJECT_ID('PERIODO_OBTENER_ACTUAL','P') IS NOT NULL DROP PROCEDURE PERIODO_OBTENER_ACTUAL
 GO
 CREATE PROCEDURE PERIODO_OBTENER_ACTUAL
-    @hoy DATE
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT TOP 1 ID, ANIO, CUATRIMESTRE, DESCRIPCION, FECHA_INICIO, FECHA_FIN
-    FROM   PERIODO_ACADEMICO
-    WHERE  @hoy BETWEEN FECHA_INICIO AND FECHA_FIN;
+    SELECT ID, ANIO, CUATRIMESTRE, DESCRIPCION, FECHA_INICIO, FECHA_FIN FROM PERIODO_ACADEMICO;
 END
 GO
 
 IF OBJECT_ID('INSCRIPCION_INSERTAR','P') IS NOT NULL DROP PROCEDURE INSCRIPCION_INSERTAR
 GO
 CREATE PROCEDURE INSCRIPCION_INSERTAR
-    @id_usuario INT,
-    @id_periodo INT
+    @id_usuario        INT,
+    @id_periodo        INT,
+    @fecha_inscripcion VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO INSCRIPCION (ID_USUARIO, ID_PERIODO) VALUES (@id_usuario, @id_periodo);
+    INSERT INTO INSCRIPCION (ID_USUARIO, ID_PERIODO, FECHA_INSCRIPCION) VALUES (@id_usuario, @id_periodo, @fecha_inscripcion);
     SELECT SCOPE_IDENTITY();
 END
 GO
@@ -623,20 +600,20 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SELECT
-        i.ID                                                              AS ID_INSCRIPCION,
+        i.ID                AS ID_INSCRIPCION,
         i.ID_PERIODO,
         i.FECHA_INSCRIPCION,
-        CAST(p.ANIO AS VARCHAR) + ' — ' + CAST(p.CUATRIMESTRE AS VARCHAR)
-            + '° Cuatrimestre'                                            AS ETIQUETA_PERIODO,
+        p.ANIO              AS ANIO_PERIODO,
+        p.CUATRIMESTRE      AS CUATRIMESTRE_PERIODO,
         d.ID_MATERIA,
-        m.NOMBRE                                                          AS NOMBRE_MATERIA,
-        m.CODIGO                                                          AS CODIGO_MATERIA
+        m.NOMBRE            AS NOMBRE_MATERIA,
+        m.CODIGO            AS CODIGO_MATERIA
     FROM      INSCRIPCION i
     JOIN      PERIODO_ACADEMICO   p ON i.ID_PERIODO     = p.ID
     LEFT JOIN INSCRIPCION_DETALLE d ON i.ID             = d.ID_INSCRIPCION
     LEFT JOIN MATERIA             m ON d.ID_MATERIA     = m.ID
     WHERE     i.ID_USUARIO = @id_usuario
-    ORDER BY  i.ID DESC, m.NOMBRE;
+    ORDER BY  i.ID DESC, d.ID;
 END
 GO
 
@@ -648,116 +625,13 @@ GO
 
 -- =============================================
 -- DATOS INICIALES — PLAN DE ESTUDIOS
--- Ingeniería en Sistemas Informáticos UAI T109
--- Peso: 1=32h  2=48h  3=64h  4=80h  5=200h
+-- Las materias y sus correlativas (51 y 43) ya no se cargan desde este script:
+-- como las columnas de negocio se guardan cifradas, las siembra la aplicación
+-- (BLL.SiembraBLL) la primera vez que arranca sobre una base virgen.
 -- =============================================
 
-IF NOT EXISTS (SELECT 1 FROM MATERIA WHERE CODIGO = '01')
-    INSERT INTO MATERIA (NOMBRE, CODIGO, MODALIDAD, PESO) VALUES
-    ('Introducción a los Algoritmos y la Programación', '01', 'Presencial', 4),
-    ('Arquitectura de Computadoras I',                  '02', 'Presencial', 4),
-    ('Álgebra y Geometría Analítica',                   '03', 'Presencial', 4),
-    ('Problemática del Mundo Actual',                   '04', 'Presencial', 3),
-    ('Inglés I',                                        '05', 'Presencial', 1),
-    ('Arquitectura de Computadoras II',                 '06', 'Presencial', 4),
-    ('Cálculo Infinitesimal I',                         '07', 'Presencial', 4),
-    ('Historia de la Ciencia y de la Técnica',          '08', 'Presencial', 3),
-    ('Inglés II',                                       '09', 'Presencial', 1),
-    ('Programación y Estructuras de Datos',             '10', 'Presencial', 4),
-    ('Programación Orientada a Objetos',                '11', 'Presencial', 4),
-    ('Análisis y Diseño de Sistemas I',                 '12', 'Presencial', 4),
-    ('Cálculo Infinitesimal II',                        '13', 'Presencial', 4),
-    ('Inglés III',                                      '14', 'Presencial', 1),
-    ('Sistemas Operativos',                             '15', 'Presencial', 4),
-    ('Análisis de Procesos Administrativos',            '16', 'Presencial', 3),
-    ('Análisis y Diseño de Sistemas II',                '17', 'Presencial', 4),
-    ('Física I',                                        '18', 'Presencial', 4),
-    ('Probabilidad y Estadística',                      '19', 'Presencial', 4),
-    ('Inglés IV',                                       '20', 'Presencial', 1),
-    ('Ingeniería de Requerimientos',                    '21', 'Presencial', 2),
-    ('Desarrollo y Arquitectura de Software',           '22', 'Presencial', 4),
-    ('Análisis y Diseño de Sistemas III',               '23', 'Presencial', 2),
-    ('Base de Datos',                                   '24', 'Presencial', 4),
-    ('Tecnología de las Comunicaciones I',              '25', 'Presencial', 4),
-    ('Física II',                                       '26', 'Presencial', 3),
-    ('Ingeniería de Software',                          '27', 'Presencial', 4),
-    ('Experiencias Formativas Obligatorias (3er Año)',  '28', 'Presencial', 4),
-    ('Tecnología de las Comunicaciones II',             '29', 'Presencial', 4),
-    ('Matemática Discreta y Autómatas',                 '30', 'Presencial', 3),
-    ('Bases de Datos Aplicada',                         '31', 'Presencial', 4),
-    ('Trabajo de Diploma',                              '32', 'Presencial', 4),
-    ('Metodologías Ágiles',                             '33', 'Presencial', 4),
-    ('Organización y Gestión Empresaria',               '34', 'Presencial', 3),
-    ('Bases de Datos Avanzada',                         '35', 'Presencial', 4),
-    ('Desarrollo y Arquitecturas WEB',                  '36', 'Presencial', 4),
-    ('Experiencias Formativas Obligatorias (4to Año)',  '37', 'Presencial', 2),
-    ('Administración de Proyectos',                     '38', 'Presencial', 3),
-    ('Planificación Estratégica',                       '39', 'Presencial', 4),
-    ('Inteligencia Artificial',                         '40', 'Presencial', 3),
-    ('Metodologías y Desarrollos WEB',                  '41', 'Presencial', 4),
-    ('Electromagnetismo I',                             '42', 'Presencial', 3),
-    ('Sistema de Hardware',                             '43', 'Presencial', 4),
-    ('Modelización Numérica',                           '44', 'Presencial', 4),
-    ('Electromagnetismo II',                            '45', 'Presencial', 3),
-    ('Práctica Profesional Supervisada',                '46', 'Presencial', 5),
-    ('Seminario de Trabajo Final de Ingeniería',        '47', 'Presencial', 4),
-    ('Auditoría de Sistemas',                           '48', 'Presencial', 3),
-    ('Redes y Teleprocesamiento',                       '49', 'Presencial', 4),
-    ('Seguridad Informática',                           '50', 'Presencial', 3),
-    ('Trabajo Final de Ingeniería',                     '51', 'Presencial', 4);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM CORRELATIVA WHERE ID_MATERIA = (SELECT ID FROM MATERIA WHERE CODIGO='06'))
-BEGIN
-    INSERT INTO CORRELATIVA (ID_MATERIA, ID_CORRELATIVA) VALUES
-    ((SELECT ID FROM MATERIA WHERE CODIGO='06'), (SELECT ID FROM MATERIA WHERE CODIGO='02')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='07'), (SELECT ID FROM MATERIA WHERE CODIGO='03')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='09'), (SELECT ID FROM MATERIA WHERE CODIGO='05')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='10'), (SELECT ID FROM MATERIA WHERE CODIGO='01')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='11'), (SELECT ID FROM MATERIA WHERE CODIGO='10')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='13'), (SELECT ID FROM MATERIA WHERE CODIGO='07')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='14'), (SELECT ID FROM MATERIA WHERE CODIGO='09')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='15'), (SELECT ID FROM MATERIA WHERE CODIGO='06')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='17'), (SELECT ID FROM MATERIA WHERE CODIGO='12')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='18'), (SELECT ID FROM MATERIA WHERE CODIGO='07')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='20'), (SELECT ID FROM MATERIA WHERE CODIGO='14')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='21'), (SELECT ID FROM MATERIA WHERE CODIGO='12')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='22'), (SELECT ID FROM MATERIA WHERE CODIGO='11')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='23'), (SELECT ID FROM MATERIA WHERE CODIGO='17')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='24'), (SELECT ID FROM MATERIA WHERE CODIGO='12')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='25'), (SELECT ID FROM MATERIA WHERE CODIGO='16')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='26'), (SELECT ID FROM MATERIA WHERE CODIGO='18')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='27'), (SELECT ID FROM MATERIA WHERE CODIGO='17')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='27'), (SELECT ID FROM MATERIA WHERE CODIGO='21')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='27'), (SELECT ID FROM MATERIA WHERE CODIGO='22')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='29'), (SELECT ID FROM MATERIA WHERE CODIGO='25')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='31'), (SELECT ID FROM MATERIA WHERE CODIGO='24')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='32'), (SELECT ID FROM MATERIA WHERE CODIGO='23')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='32'), (SELECT ID FROM MATERIA WHERE CODIGO='24')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='32'), (SELECT ID FROM MATERIA WHERE CODIGO='27')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='33'), (SELECT ID FROM MATERIA WHERE CODIGO='17')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='35'), (SELECT ID FROM MATERIA WHERE CODIGO='24')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='36'), (SELECT ID FROM MATERIA WHERE CODIGO='22')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='39'), (SELECT ID FROM MATERIA WHERE CODIGO='34')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='40'), (SELECT ID FROM MATERIA WHERE CODIGO='22')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='41'), (SELECT ID FROM MATERIA WHERE CODIGO='36')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='42'), (SELECT ID FROM MATERIA WHERE CODIGO='26')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='43'), (SELECT ID FROM MATERIA WHERE CODIGO='18')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='44'), (SELECT ID FROM MATERIA WHERE CODIGO='19')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='45'), (SELECT ID FROM MATERIA WHERE CODIGO='42')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='46'), (SELECT ID FROM MATERIA WHERE CODIGO='32')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='47'), (SELECT ID FROM MATERIA WHERE CODIGO='38')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='47'), (SELECT ID FROM MATERIA WHERE CODIGO='39')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='47'), (SELECT ID FROM MATERIA WHERE CODIGO='41')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='48'), (SELECT ID FROM MATERIA WHERE CODIGO='16')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='49'), (SELECT ID FROM MATERIA WHERE CODIGO='29')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='50'), (SELECT ID FROM MATERIA WHERE CODIGO='43')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='51'), (SELECT ID FROM MATERIA WHERE CODIGO='47'));
-END
-GO
-
 PRINT '✔ BDUNIVERSIDAD creada y configurada correctamente.';
-PRINT 'Los usuarios admin (Admin123) y webmaster (Webmaster123) los crea la aplicación en su primer arranque.';
+PRINT 'Los usuarios, los perfiles y el plan de estudios los crea la aplicación en su primer arranque.';
 GO
 
 -- =============================================
@@ -766,8 +640,7 @@ GO
 -- con el script anterior. Generaliza el mecanismo de dígitos verificadores
 -- horizontal (DVH, por fila) y vertical (DVV, por columna) a las 9 tablas
 -- de negocio, reemplazando el mecanismo de propósito único que solo cubría
--- ALUMNO_MATERIA vía DVV_NOTAS (tabla que se deja en la base sin usar, por
--- las dudas de que algo la lea, pero el código C# ya no la toca).
+-- ALUMNO_MATERIA vía DVV_NOTAS (tabla que ya no se crea: el código C# no la usa).
 -- =============================================
 
 USE BDUNIVERSIDAD
@@ -781,28 +654,8 @@ IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'DVH' AND Object_ID = Obje
     ALTER TABLE USUARIO ADD DVH INT NOT NULL DEFAULT 0
 GO
 
--- INTENTOS_FALLIDOS/BLOQUEADO se agregan acá (no en el bloque de "Bloqueo de
--- cuenta" más abajo) porque USUARIO_LISTAR_PARA_INTEGRIDAD, unas líneas más
--- abajo en este mismo bloque, ya hace SELECT de esas columnas — tienen que
--- existir en la tabla ANTES de que se compile ese stored procedure.
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'INTENTOS_FALLIDOS' AND Object_ID = Object_ID('USUARIO'))
-    ALTER TABLE USUARIO ADD INTENTOS_FALLIDOS INT NOT NULL DEFAULT 0
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'BLOQUEADO' AND Object_ID = Object_ID('USUARIO'))
-    ALTER TABLE USUARIO ADD BLOQUEADO BIT NOT NULL DEFAULT 0
-GO
-
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'DVH' AND Object_ID = Object_ID('BITACORA'))
     ALTER TABLE BITACORA ADD DVH INT NOT NULL DEFAULT 0
-GO
-
--- CRITICIDAD se agrega acá (no en el bloque de "Bitácora: filtros y
--- paginado" más abajo) por la misma razón que INTENTOS_FALLIDOS/BLOQUEADO:
--- BITACORA_LISTAR_PARA_INTEGRIDAD, unas líneas más abajo en este mismo
--- bloque, ya hace SELECT de esta columna.
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'CRITICIDAD' AND Object_ID = Object_ID('BITACORA'))
-    ALTER TABLE BITACORA ADD CRITICIDAD VARCHAR(10) NOT NULL DEFAULT 'Media'
 GO
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = 'DVH' AND Object_ID = Object_ID('MATERIA'))
@@ -853,7 +706,7 @@ GO
 -- ---------------------------------------------
 -- Tabla genérica de dígitos verificadores verticales (uno por TABLA+COLUMNA)
 -- Reemplaza a DVV_NOTAS (que quedaba atada a un único usuario, sin noción
--- de columna). DVV_NOTAS se deja en la base sin usar; no se migra su
+-- de columna). DVV_NOTAS ya no se crea; no se migra su
 -- contenido porque usaba una fórmula distinta (mod 10) que este mecanismo
 -- reemplaza — los DVV nuevos se generan desde cero la primera vez que se
 -- invoque IntegridadBLL.RecalcularAlumnoMateria() (o RecalcularTodasLasTablas()).
@@ -1153,9 +1006,22 @@ GO
 IF OBJECT_ID('SNAPSHOT_INTEGRIDAD', 'U') IS NULL
 CREATE TABLE SNAPSHOT_INTEGRIDAD (
     TABLA      VARCHAR(50)   NOT NULL PRIMARY KEY,
-    DATOS_JSON NVARCHAR(MAX) NOT NULL,
-    FECHA      DATETIME      NOT NULL DEFAULT GETDATE()
+    DATOS_JSON NVARCHAR(MAX) NOT NULL
 )
+GO
+
+-- La fecha del snapshot quedaba en claro y el código no la usa: se elimina (junto con su DEFAULT) si existe.
+IF COL_LENGTH('SNAPSHOT_INTEGRIDAD', 'FECHA') IS NOT NULL
+BEGIN
+    DECLARE @dfSnapshot SYSNAME;
+    SELECT @dfSnapshot = dc.name
+    FROM sys.default_constraints dc
+    JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
+    WHERE dc.parent_object_id = OBJECT_ID('SNAPSHOT_INTEGRIDAD') AND c.name = 'FECHA';
+    IF @dfSnapshot IS NOT NULL
+        EXEC('ALTER TABLE SNAPSHOT_INTEGRIDAD DROP CONSTRAINT ' + @dfSnapshot);
+    ALTER TABLE SNAPSHOT_INTEGRIDAD DROP COLUMN FECHA;
+END
 GO
 
 IF OBJECT_ID('SNAPSHOT_OBTENER', 'P') IS NOT NULL DROP PROCEDURE SNAPSHOT_OBTENER
@@ -1178,7 +1044,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     IF EXISTS (SELECT 1 FROM SNAPSHOT_INTEGRIDAD WHERE TABLA = @tabla)
-        UPDATE SNAPSHOT_INTEGRIDAD SET DATOS_JSON = @datosJson, FECHA = GETDATE() WHERE TABLA = @tabla;
+        UPDATE SNAPSHOT_INTEGRIDAD SET DATOS_JSON = @datosJson WHERE TABLA = @tabla;
     ELSE
         INSERT INTO SNAPSHOT_INTEGRIDAD (TABLA, DATOS_JSON) VALUES (@tabla, @datosJson);
 END
@@ -1214,21 +1080,25 @@ IF OBJECT_ID('USUARIO_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE USUARIO_R
 GO
 CREATE PROCEDURE USUARIO_RESTAURAR_FILA
     @id        INT,
-    @usuario   VARCHAR(50),
-    @pass      VARCHAR(64),
-    @direccion VARBINARY(256),
-    @activo    BIT = 1
+    @usuario   VARBINARY(256),
+    @pass      VARBINARY(256),
+    @direccion VARBINARY(512),
+    @intentos  VARBINARY(64),
+    @bloqueado VARBINARY(64),
+    @activo    VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
     IF EXISTS (SELECT 1 FROM USUARIO WHERE ID = @id)
         UPDATE USUARIO
-        SET USUARIO = @usuario, PASS = @pass, DIRECCION = @direccion, ACTIVO = @activo
+        SET USUARIO = @usuario, PASS = @pass, DIRECCION = @direccion,
+            INTENTOS_FALLIDOS = @intentos, BLOQUEADO = @bloqueado, ACTIVO = @activo
         WHERE ID = @id;
     ELSE
     BEGIN
         SET IDENTITY_INSERT USUARIO ON;
-        INSERT INTO USUARIO (ID, USUARIO, PASS, DIRECCION, ACTIVO) VALUES (@id, @usuario, @pass, @direccion, @activo);
+        INSERT INTO USUARIO (ID, USUARIO, PASS, DIRECCION, INTENTOS_FALLIDOS, BLOQUEADO, ACTIVO)
+        VALUES (@id, @usuario, @pass, @direccion, @intentos, @bloqueado, @activo);
         SET IDENTITY_INSERT USUARIO OFF;
     END
 END
@@ -1251,11 +1121,11 @@ IF OBJECT_ID('MATERIA_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE MATERIA_R
 GO
 CREATE PROCEDURE MATERIA_RESTAURAR_FILA
     @id        INT,
-    @nombre    VARCHAR(100),
-    @codigo    VARCHAR(20),
-    @modalidad VARCHAR(20),
-    @peso      INT,
-    @activa    BIT
+    @nombre    VARBINARY(512),
+    @codigo    VARBINARY(64),
+    @modalidad VARBINARY(64),
+    @peso      VARBINARY(64),
+    @activa    VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1289,11 +1159,11 @@ IF OBJECT_ID('PERIODO_ACADEMICO_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE
 GO
 CREATE PROCEDURE PERIODO_ACADEMICO_RESTAURAR_FILA
     @id           INT,
-    @anio         INT,
-    @cuatrimestre INT,
-    @descripcion  VARCHAR(100),
-    @fechaInicio  DATE,
-    @fechaFin     DATE
+    @anio         VARBINARY(64),
+    @cuatrimestre VARBINARY(64),
+    @descripcion  VARBINARY(512),
+    @fechaInicio  VARBINARY(64),
+    @fechaFin     VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1328,19 +1198,20 @@ GO
 IF OBJECT_ID('BITACORA_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE BITACORA_RESTAURAR_FILA
 GO
 CREATE PROCEDURE BITACORA_RESTAURAR_FILA
-    @id      INT,
-    @usuario VARCHAR(50),
-    @accion  VARCHAR(100),
-    @fecha   DATETIME
+    @id         INT,
+    @usuario    VARBINARY(256),
+    @accion     VARBINARY(512),
+    @fecha      VARBINARY(64),
+    @criticidad VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
     IF EXISTS (SELECT 1 FROM BITACORA WHERE ID = @id)
-        UPDATE BITACORA SET USUARIO = @usuario, ACCION = @accion, FECHA = @fecha WHERE ID = @id;
+        UPDATE BITACORA SET USUARIO = @usuario, ACCION = @accion, FECHA = @fecha, CRITICIDAD = @criticidad WHERE ID = @id;
     ELSE
     BEGIN
         SET IDENTITY_INSERT BITACORA ON;
-        INSERT INTO BITACORA (ID, USUARIO, ACCION, FECHA) VALUES (@id, @usuario, @accion, @fecha);
+        INSERT INTO BITACORA (ID, USUARIO, ACCION, FECHA, CRITICIDAD) VALUES (@id, @usuario, @accion, @fecha, @criticidad);
         SET IDENTITY_INSERT BITACORA OFF;
     END
 END
@@ -1400,13 +1271,13 @@ CREATE PROCEDURE ALUMNO_MATERIA_RESTAURAR_FILA
     @id                  INT,
     @idUsuario           INT,
     @idMateria           INT,
-    @estado              VARCHAR(30),
-    @notaParcial1        DECIMAL(4,2),
-    @notaParcial2        DECIMAL(4,2),
-    @notaRecuperatorio   DECIMAL(4,2),
-    @notaFinal           DECIMAL(4,2),
-    @fechaFinal          DATETIME,
-    @fechaRecuperatorio  DATETIME
+    @estado              VARBINARY(128),
+    @notaParcial1        VARBINARY(64),
+    @notaParcial2        VARBINARY(64),
+    @notaRecuperatorio   VARBINARY(64),
+    @notaFinal           VARBINARY(64),
+    @fechaFinal          VARBINARY(64),
+    @fechaRecuperatorio  VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1448,10 +1319,10 @@ CREATE PROCEDURE EVENTO_ACADEMICO_RESTAURAR_FILA
     @id          INT,
     @idMateria   INT,
     @idUsuario   INT,
-    @tipo        VARCHAR(30),
-    @descripcion VARCHAR(200),
-    @fecha       DATETIME,
-    @peso        INT
+    @tipo        VARBINARY(128),
+    @descripcion VARBINARY(512),
+    @fecha       VARBINARY(64),
+    @peso        VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1489,7 +1360,7 @@ CREATE PROCEDURE INSCRIPCION_RESTAURAR_FILA
     @id                INT,
     @idUsuario         INT,
     @idPeriodo         INT,
-    @fechaInscripcion  DATETIME
+    @fechaInscripcion  VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1552,7 +1423,7 @@ GO
 IF OBJECT_ID('USUARIO_VERIFICAR_BLOQUEO', 'P') IS NOT NULL DROP PROCEDURE USUARIO_VERIFICAR_BLOQUEO
 GO
 CREATE PROCEDURE USUARIO_VERIFICAR_BLOQUEO
-    @usuario VARCHAR(50)
+    @usuario VARBINARY(256)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1562,49 +1433,66 @@ GO
 
 IF OBJECT_ID('USUARIO_INCREMENTAR_INTENTOS', 'P') IS NOT NULL DROP PROCEDURE USUARIO_INCREMENTAR_INTENTOS
 GO
-CREATE PROCEDURE USUARIO_INCREMENTAR_INTENTOS
-    @usuario VARCHAR(50)
+
+IF OBJECT_ID('USUARIO_OBTENER_ESTADO_LOGIN', 'P') IS NOT NULL DROP PROCEDURE USUARIO_OBTENER_ESTADO_LOGIN
+GO
+CREATE PROCEDURE USUARIO_OBTENER_ESTADO_LOGIN
+    @usuario VARBINARY(256)
 AS
 BEGIN
     SET NOCOUNT ON;
-    UPDATE USUARIO
-    SET INTENTOS_FALLIDOS = INTENTOS_FALLIDOS + 1,
-        BLOQUEADO = CASE WHEN INTENTOS_FALLIDOS + 1 >= 3 THEN 1 ELSE BLOQUEADO END
-    WHERE USUARIO = @usuario;
+    SELECT INTENTOS_FALLIDOS, BLOQUEADO
+    FROM   USUARIO WITH (UPDLOCK, ROWLOCK)
+    WHERE  USUARIO = @usuario;
+END
+GO
 
-    SELECT BLOQUEADO FROM USUARIO WHERE USUARIO = @usuario;
+IF OBJECT_ID('USUARIO_GUARDAR_ESTADO_LOGIN', 'P') IS NOT NULL DROP PROCEDURE USUARIO_GUARDAR_ESTADO_LOGIN
+GO
+CREATE PROCEDURE USUARIO_GUARDAR_ESTADO_LOGIN
+    @usuario   VARBINARY(256),
+    @intentos  VARBINARY(64),
+    @bloqueado VARBINARY(64)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE USUARIO SET INTENTOS_FALLIDOS = @intentos, BLOQUEADO = @bloqueado WHERE USUARIO = @usuario;
 END
 GO
 
 IF OBJECT_ID('USUARIO_RESETEAR_INTENTOS', 'P') IS NOT NULL DROP PROCEDURE USUARIO_RESETEAR_INTENTOS
 GO
 CREATE PROCEDURE USUARIO_RESETEAR_INTENTOS
-    @usuario VARCHAR(50)
+    @usuario  VARBINARY(256),
+    @intentos VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    UPDATE USUARIO SET INTENTOS_FALLIDOS = 0 WHERE USUARIO = @usuario;
+    UPDATE USUARIO SET INTENTOS_FALLIDOS = @intentos WHERE USUARIO = @usuario;
 END
 GO
 
 IF OBJECT_ID('USUARIO_DESBLOQUEAR', 'P') IS NOT NULL DROP PROCEDURE USUARIO_DESBLOQUEAR
 GO
 CREATE PROCEDURE USUARIO_DESBLOQUEAR
-    @usuario VARCHAR(50)
+    @usuario   VARBINARY(256),
+    @bloqueado VARBINARY(64),
+    @intentos  VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    UPDATE USUARIO SET BLOQUEADO = 0, INTENTOS_FALLIDOS = 0 WHERE USUARIO = @usuario;
+    UPDATE USUARIO SET BLOQUEADO = @bloqueado, INTENTOS_FALLIDOS = @intentos WHERE USUARIO = @usuario;
 END
 GO
 
 IF OBJECT_ID('USUARIO_LISTAR_BLOQUEADOS', 'P') IS NOT NULL DROP PROCEDURE USUARIO_LISTAR_BLOQUEADOS
 GO
 CREATE PROCEDURE USUARIO_LISTAR_BLOQUEADOS
+    @bloqueado VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO, INTENTOS_FALLIDOS FROM USUARIO WHERE BLOQUEADO = 1 ORDER BY USUARIO;
+    SELECT ID, USUARIO, INTENTOS_FALLIDOS FROM USUARIO WHERE BLOQUEADO = @bloqueado;
 END
 GO
 
@@ -1612,21 +1500,21 @@ PRINT '✔ Bloqueo de cuenta por intentos fallidos instalado correctamente.';
 GO
 
 -- =============================================
--- Bitácora: filtros + paginado (CRITICIDAD ya fue agregada más arriba,
--- junto a DVH de BITACORA, porque BITACORA_LISTAR_PARA_INTEGRIDAD la
--- necesitaba antes)
+-- Bitácora: filtros por igualdad cifrada. El rango de fechas y el paginado se
+-- resuelven en C# (BE.AESHelper no es consultable desde SQL).
 -- =============================================
 
 IF OBJECT_ID('BITACORA_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE BITACORA_INSERTAR
 GO
 CREATE PROCEDURE BITACORA_INSERTAR
-    @usuario    VARCHAR(50),
-    @accion     VARCHAR(100),
-    @criticidad VARCHAR(10)
+    @usuario    VARBINARY(256),
+    @accion     VARBINARY(512),
+    @fecha      VARBINARY(64),
+    @criticidad VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO BITACORA (USUARIO, ACCION, FECHA, CRITICIDAD) VALUES (@usuario, @accion, GETDATE(), @criticidad);
+    INSERT INTO BITACORA (USUARIO, ACCION, FECHA, CRITICIDAD) VALUES (@usuario, @accion, @fecha, @criticidad);
 END
 GO
 
@@ -1636,35 +1524,26 @@ CREATE PROCEDURE BITACORA_LISTAR_USUARIOS_DISTINCT
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT DISTINCT USUARIO FROM BITACORA ORDER BY USUARIO;
+    SELECT DISTINCT USUARIO FROM BITACORA;
 END
 GO
 
 IF OBJECT_ID('BITACORA_LISTAR_PAGINADO', 'P') IS NOT NULL DROP PROCEDURE BITACORA_LISTAR_PAGINADO
 GO
-CREATE PROCEDURE BITACORA_LISTAR_PAGINADO
-    @usuario     VARCHAR(50) = NULL,
-    @criticidad  VARCHAR(10) = NULL,
-    @fecha_desde DATETIME    = NULL,
-    @fecha_hasta DATETIME    = NULL,
-    @pagina      INT         = 1,
-    @tamanio     INT         = 50
+
+IF OBJECT_ID('BITACORA_LISTAR_FILTRADO', 'P') IS NOT NULL DROP PROCEDURE BITACORA_LISTAR_FILTRADO
+GO
+CREATE PROCEDURE BITACORA_LISTAR_FILTRADO
+    @usuario    VARBINARY(256) = NULL,
+    @criticidad VARBINARY(64)  = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF @pagina  < 1 SET @pagina  = 1;
-    IF @tamanio < 1 SET @tamanio = 50;
-
-    SELECT ID, USUARIO, ACCION, FECHA, CRITICIDAD,
-           COUNT(*) OVER() AS TOTAL_FILAS
+    SELECT ID, USUARIO, ACCION, FECHA, CRITICIDAD
     FROM BITACORA
-    WHERE (@usuario     IS NULL OR USUARIO    = @usuario)
-      AND (@criticidad  IS NULL OR CRITICIDAD = @criticidad)
-      AND (@fecha_desde IS NULL OR FECHA     >= @fecha_desde)
-      AND (@fecha_hasta IS NULL OR FECHA     <  @fecha_hasta)
-    ORDER BY FECHA DESC, ID DESC
-    OFFSET (@pagina - 1) * @tamanio ROWS
-    FETCH NEXT @tamanio ROWS ONLY;
+    WHERE (@usuario    IS NULL OR USUARIO    = @usuario)
+      AND (@criticidad IS NULL OR CRITICIDAD = @criticidad)
+    ORDER BY ID DESC;
 END
 GO
 
@@ -1685,9 +1564,8 @@ GO
 -- iniciar (BLL.SiembraBLL), para que cada fila nazca con su DVH/DVV calculado
 -- por el motor de integridad de C#.
 --
--- Sobre una base existente: crea las tablas, anota en MIGRACION_USUARIO_ROL el
--- perfil que corresponde a cada usuario según su USUARIO.ROL y elimina esa
--- columna; la aplicación asigna esos perfiles en su primer arranque.
+-- Los nombres de perfiles y permisos y el flag PROTEGIDO se guardan cifrados
+-- (AES, ver BE.AESHelper); el unico dato en claro es PADRE_ID.
 --
 -- REGLA: toda sentencia de este script que cambie filas de una tabla con
 -- integridad (DVH/DVV) descarta el DVV y el snapshot de esa tabla solo si
@@ -1707,9 +1585,9 @@ GO
 IF OBJECT_ID('ROL', 'U') IS NULL
 CREATE TABLE ROL (
     ID        INT IDENTITY(1,1) NOT NULL,
-    NOMBRE    VARCHAR(100)      NOT NULL,
+    NOMBRE    VARBINARY(512)    NOT NULL,
     PADRE_ID  INT               NULL,
-    PROTEGIDO BIT               NOT NULL DEFAULT 0,
+    PROTEGIDO VARBINARY(64)     NOT NULL,
     DVH       INT               NOT NULL DEFAULT 0,
     CONSTRAINT PK_ROL        PRIMARY KEY (ID),
     CONSTRAINT UQ_ROL_NOMBRE UNIQUE (NOMBRE),
@@ -1720,7 +1598,7 @@ GO
 IF OBJECT_ID('PERMISO', 'U') IS NULL
 CREATE TABLE PERMISO (
     ID     INT IDENTITY(1,1) NOT NULL,
-    NOMBRE VARCHAR(100)      NOT NULL,
+    NOMBRE VARBINARY(512)    NOT NULL,
     DVH    INT               NOT NULL DEFAULT 0,
     CONSTRAINT PK_PERMISO        PRIMARY KEY (ID),
     CONSTRAINT UQ_PERMISO_NOMBRE UNIQUE (NOMBRE)
@@ -1754,58 +1632,6 @@ CREATE TABLE USUARIO_PERFIL (
 GO
 
 -- ---------------------------------------------
--- Tabla de paso para migrar USUARIO.ROL -> USUARIO_PERFIL. Los perfiles base
--- (ROL) y sus permisos ya no se siembran en este script: los crea la aplicación
--- al iniciar (SiembraBLL). Como al migrar todavía no existen, se guarda acá el
--- nombre del perfil que le corresponde a cada usuario y la aplicación lo asigna
--- (y vacía la tabla) en su primer arranque.
--- ---------------------------------------------
-
-IF OBJECT_ID('MIGRACION_USUARIO_ROL', 'U') IS NULL
-CREATE TABLE MIGRACION_USUARIO_ROL (
-    USUARIO_ID INT          NOT NULL PRIMARY KEY,
-    ROL_NOMBRE VARCHAR(100) NOT NULL
-)
-GO
-
--- ---------------------------------------------
--- Migración de USUARIO.ROL (a MIGRACION_USUARIO_ROL), y baja de la columna.
--- Dinámico porque en una instalación nueva la columna ya no existe.
--- ---------------------------------------------
-
-IF COL_LENGTH('USUARIO', 'ROL') IS NOT NULL
-BEGIN
-    EXEC sp_executesql N'
-        INSERT INTO MIGRACION_USUARIO_ROL (USUARIO_ID, ROL_NOMBRE)
-        SELECT u.ID, CASE u.ROL
-                         WHEN ''Admin''     THEN ''Administrador''
-                         WHEN ''Webmaster'' THEN ''Webmaster''
-                         ELSE ''Alumno''
-                     END
-        FROM USUARIO u
-        WHERE NOT EXISTS (SELECT 1 FROM MIGRACION_USUARIO_ROL m WHERE m.USUARIO_ID = u.ID)
-          AND NOT EXISTS (SELECT 1 FROM USUARIO_PERFIL up WHERE up.USUARIO_ID = u.ID)';
-
-    DECLARE @df SYSNAME = (
-        SELECT dc.name
-        FROM sys.default_constraints dc
-        JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
-        WHERE dc.parent_object_id = OBJECT_ID('USUARIO') AND c.name = 'ROL');
-    IF @df IS NOT NULL
-        EXEC('ALTER TABLE USUARIO DROP CONSTRAINT [' + @df + ']');
-
-    EXEC('ALTER TABLE USUARIO DROP COLUMN ROL');
-
-    -- El orden de columnas de USUARIO cambió: los DVH/DVV y el snapshot que
-    -- había quedan obsoletos y se regeneran al recalcular la integridad.
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO';
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'USUARIO_PERFIL';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'USUARIO_PERFIL';
-END
-GO
-
--- ---------------------------------------------
 -- STORED PROCEDURES — perfiles y permisos
 -- ---------------------------------------------
 
@@ -1828,7 +1654,7 @@ BEGIN
     SELECT rp.ROL_ID, rp.PERMISO_ID, p.NOMBRE
     FROM   ROL_PERMISO rp
     JOIN   PERMISO     p ON p.ID = rp.PERMISO_ID
-    ORDER  BY rp.ROL_ID, p.NOMBRE;
+    ORDER  BY rp.ROL_ID, rp.PERMISO_ID;
 END
 GO
 
@@ -1914,9 +1740,9 @@ IF OBJECT_ID('ROL_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE ROL_RESTAURAR
 GO
 CREATE PROCEDURE ROL_RESTAURAR_FILA
     @id        INT,
-    @nombre    VARCHAR(100),
+    @nombre    VARBINARY(512),
     @padreId   INT,
-    @protegido BIT
+    @protegido VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1970,7 +1796,7 @@ IF OBJECT_ID('PERMISO_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE PERMISO_R
 GO
 CREATE PROCEDURE PERMISO_RESTAURAR_FILA
     @id     INT,
-    @nombre VARCHAR(100)
+    @nombre VARBINARY(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -2115,7 +1941,7 @@ CREATE PROCEDURE PERMISO_LISTAR_TODOS
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, NOMBRE FROM PERMISO ORDER BY NOMBRE;
+    SELECT ID, NOMBRE FROM PERMISO ORDER BY ID;
 END
 GO
 
@@ -2125,7 +1951,7 @@ CREATE PROCEDURE USUARIO_LISTAR_TODOS
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, USUARIO, BLOQUEADO, ACTIVO FROM USUARIO ORDER BY USUARIO;
+    SELECT ID, USUARIO, BLOQUEADO, ACTIVO FROM USUARIO ORDER BY ID;
 END
 GO
 
@@ -2142,9 +1968,9 @@ GO
 IF OBJECT_ID('ROL_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE ROL_INSERTAR
 GO
 CREATE PROCEDURE ROL_INSERTAR
-    @nombre    VARCHAR(100),
+    @nombre    VARBINARY(512),
     @padre_id  INT = NULL,
-    @protegido BIT = 0
+    @protegido VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -2157,7 +1983,7 @@ IF OBJECT_ID('ROL_RENOMBRAR', 'P') IS NOT NULL DROP PROCEDURE ROL_RENOMBRAR
 GO
 CREATE PROCEDURE ROL_RENOMBRAR
     @id     INT,
-    @nombre VARCHAR(100)
+    @nombre VARBINARY(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -2221,52 +2047,15 @@ GO
 -- Gestión de usuarios (alta, baja lógica)
 -- ---------------------------------------------
 
--- Con la integridad inválida solo el Webmaster puede ingresar: se le quita el permiso
--- "Ingresar con integridad invalida" al Administrador en bases que lo tenían sembrado.
--- El permiso sigue existiendo (un perfil propio puede recibirlo).
-DELETE rp
-FROM ROL_PERMISO rp
-JOIN ROL     r ON r.ID = rp.ROL_ID
-JOIN PERMISO p ON p.ID = rp.PERMISO_ID
-WHERE r.NOMBRE = 'Administrador' AND p.NOMBRE = 'Ingresar con integridad invalida'
-
-IF @@ROWCOUNT > 0
-BEGIN
-    DELETE FROM DIGITO_VERIFICADOR_VERTICAL WHERE TABLA = 'ROL_PERMISO';
-    DELETE FROM SNAPSHOT_INTEGRIDAD         WHERE TABLA = 'ROL_PERMISO';
-END
-GO
-
 IF OBJECT_ID('PERMISO_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE PERMISO_INSERTAR
 GO
 CREATE PROCEDURE PERMISO_INSERTAR
-    @nombre VARCHAR(100)
+    @nombre VARBINARY(512)
 AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO PERMISO (NOMBRE) VALUES (@nombre);
     SELECT CAST(SCOPE_IDENTITY() AS INT) AS ID;
-END
-GO
-
-IF OBJECT_ID('MIGRACION_USUARIO_ROL_LISTAR', 'P') IS NOT NULL DROP PROCEDURE MIGRACION_USUARIO_ROL_LISTAR
-GO
-CREATE PROCEDURE MIGRACION_USUARIO_ROL_LISTAR
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT USUARIO_ID, ROL_NOMBRE FROM MIGRACION_USUARIO_ROL;
-END
-GO
-
-IF OBJECT_ID('MIGRACION_USUARIO_ROL_ELIMINAR', 'P') IS NOT NULL DROP PROCEDURE MIGRACION_USUARIO_ROL_ELIMINAR
-GO
-CREATE PROCEDURE MIGRACION_USUARIO_ROL_ELIMINAR
-    @usuario_id INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    DELETE FROM MIGRACION_USUARIO_ROL WHERE USUARIO_ID = @usuario_id;
 END
 GO
 
@@ -2276,7 +2065,7 @@ GO
 IF OBJECT_ID('BITACORA_EXISTE_ACCION', 'P') IS NOT NULL DROP PROCEDURE BITACORA_EXISTE_ACCION
 GO
 CREATE PROCEDURE BITACORA_EXISTE_ACCION
-    @accion VARCHAR(100)
+    @accion VARBINARY(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -2304,13 +2093,17 @@ GO
 IF OBJECT_ID('USUARIO_INSERTAR', 'P') IS NOT NULL DROP PROCEDURE USUARIO_INSERTAR
 GO
 CREATE PROCEDURE USUARIO_INSERTAR
-    @usuario   VARCHAR(50),
-    @pass      VARCHAR(64),
-    @direccion VARBINARY(256) = NULL
+    @usuario   VARBINARY(256),
+    @pass      VARBINARY(256),
+    @direccion VARBINARY(512) = NULL,
+    @activo    VARBINARY(64),
+    @intentos  VARBINARY(64),
+    @bloqueado VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO USUARIO (USUARIO, PASS, DIRECCION) VALUES (@usuario, @pass, @direccion);
+    INSERT INTO USUARIO (USUARIO, PASS, DIRECCION, ACTIVO, INTENTOS_FALLIDOS, BLOQUEADO)
+    VALUES (@usuario, @pass, @direccion, @activo, @intentos, @bloqueado);
     SELECT CAST(SCOPE_IDENTITY() AS INT) AS ID;
 END
 GO
@@ -2319,7 +2112,7 @@ IF OBJECT_ID('USUARIO_ACTUALIZAR_ESTADO', 'P') IS NOT NULL DROP PROCEDURE USUARI
 GO
 CREATE PROCEDURE USUARIO_ACTUALIZAR_ESTADO
     @id     INT,
-    @activo BIT
+    @activo VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;

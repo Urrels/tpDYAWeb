@@ -11,7 +11,8 @@ namespace DAL
         public List<KeyValuePair<string, bool>> Roles = new List<KeyValuePair<string, bool>>();
         public List<KeyValuePair<string, string>> RolPermisos = new List<KeyValuePair<string, string>>();
         public List<UsuarioSembrado> Usuarios = new List<UsuarioSembrado>();
-        public bool IncluirMigracionDePerfiles;
+        public List<BE.MATERIA> Materias = new List<BE.MATERIA>();
+        public List<KeyValuePair<string, string>> Correlativas = new List<KeyValuePair<string, string>>();
         public bool EscribirMarcador;
         public HashSet<string> TablasIntegras = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
@@ -25,9 +26,9 @@ namespace DAL
 
     public class ResultadoSiembra
     {
-        public int Permisos, Roles, RolPermisos, Usuarios, UsuarioPerfiles;
+        public int Permisos, Roles, RolPermisos, Usuarios, UsuarioPerfiles, Materias, Correlativas;
         public bool Marcador;
-        public bool Algo => Permisos + Roles + RolPermisos + Usuarios + UsuarioPerfiles > 0;
+        public bool Algo => Permisos + Roles + RolPermisos + Usuarios + UsuarioPerfiles + Materias + Correlativas > 0;
     }
 
     public class SiembraDAL
@@ -42,7 +43,7 @@ namespace DAL
             {
                 _acceso.Abrir();
                 DataTable dt = _acceso.Leer("BITACORA_EXISTE_ACCION",
-                    new List<SqlParameter> { _acceso.CrearParametro("@accion", AccionMarcador) });
+                    new List<SqlParameter> { _acceso.CrearParametro("@accion", BE.AESHelper.Encriptar(AccionMarcador)) });
                 return Convert.ToInt32(dt.Rows[0]["EXISTE"]) == 1;
             }
             finally { _acceso.Cerrar(); }
@@ -60,17 +61,12 @@ namespace DAL
                     foreach (string nombre in plan.Permisos)
                     {
                         _acceso.EscribirConRetorno("PERMISO_INSERTAR",
-                            new List<SqlParameter> { _acceso.CrearParametro("@nombre", nombre) });
+                            new List<SqlParameter> { _acceso.CrearParametro("@nombre", BE.AESHelper.Encriptar(nombre)) });
                         resultado.Permisos++;
                     }
                     foreach (var rol in plan.Roles)
                     {
-                        _acceso.EscribirConRetorno("ROL_INSERTAR", new List<SqlParameter>
-                        {
-                            _acceso.CrearParametro("@nombre", rol.Key),
-                            _acceso.CrearParametro("@padre_id", (int?)null),
-                            new SqlParameter("@protegido", SqlDbType.Bit) { Value = rol.Value }
-                        });
+                        _acceso.EscribirConRetorno("ROL_INSERTAR", PerfilDAL.ParametrosRol(_acceso, rol.Key, null, rol.Value));
                         resultado.Roles++;
                     }
 
@@ -92,50 +88,33 @@ namespace DAL
                     foreach (UsuarioSembrado u in plan.Usuarios)
                     {
                         if (!idsRol.TryGetValue(u.Rol, out int rolId)) continue;
-                        int usuarioId = Convert.ToInt32(_acceso.EscribirConRetorno("USUARIO_INSERTAR", new List<SqlParameter>
-                        {
-                            _acceso.CrearParametro("@usuario", u.Usuario),
-                            _acceso.CrearParametro("@pass", u.PassHash),
-                            _acceso.CrearParametro("@direccion", (byte[])null)
-                        }));
+                        int usuarioId = Convert.ToInt32(_acceso.EscribirConRetorno("USUARIO_INSERTAR",
+                            UsuarioDAL.ParametrosAlta(_acceso, u.Usuario, u.PassHash, null)));
                         AsignarPerfil(usuarioId, rolId);
                         resultado.Usuarios++;
                         resultado.UsuarioPerfiles++;
                     }
 
-                    DataTable pendientes = plan.IncluirMigracionDePerfiles
-                        ? _acceso.Leer("MIGRACION_USUARIO_ROL_LISTAR")
-                        : new DataTable();
-                    foreach (DataRow fila in pendientes.Rows)
+                    var idPorCodigo = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    foreach (BE.MATERIA m in plan.Materias)
                     {
-                        int usuarioId = Convert.ToInt32(fila["USUARIO_ID"]);
-                        string rolNombre = fila["ROL_NOMBRE"].ToString();
-                        if (!idsRol.TryGetValue(rolNombre, out int rolId))
+                        idPorCodigo[m.Codigo] = Convert.ToInt32(
+                            _acceso.EscribirConRetorno("MATERIA_INSERTAR", MateriaDAL.ParametrosAlta(_acceso, m)));
+                        resultado.Materias++;
+                    }
+                    foreach (var par in plan.Correlativas)
+                    {
+                        _acceso.Escribir("CORRELATIVA_INSERTAR", new List<SqlParameter>
                         {
-                            _acceso.Escribir("MIGRACION_USUARIO_ROL_ELIMINAR",
-                                new List<SqlParameter> { _acceso.CrearParametro("@usuario_id", usuarioId) });
-                            continue;
-                        }
-
-                        DataTable actuales = _acceso.Leer("USUARIO_PERFIL_LISTAR_POR_USUARIO",
-                            new List<SqlParameter> { _acceso.CrearParametro("@usuario_id", usuarioId) });
-                        if (actuales.Rows.Count == 0)
-                        {
-                            AsignarPerfil(usuarioId, rolId);
-                            resultado.UsuarioPerfiles++;
-                        }
-                        _acceso.Escribir("MIGRACION_USUARIO_ROL_ELIMINAR",
-                            new List<SqlParameter> { _acceso.CrearParametro("@usuario_id", usuarioId) });
+                            _acceso.CrearParametro("@id_materia", idPorCodigo[par.Key]),
+                            _acceso.CrearParametro("@id_correlativa", idPorCodigo[par.Value])
+                        });
+                        resultado.Correlativas++;
                     }
 
                     if (plan.EscribirMarcador)
                     {
-                        _acceso.Escribir("BITACORA_INSERTAR", new List<SqlParameter>
-                        {
-                            _acceso.CrearParametro("@usuario", "SISTEMA"),
-                            _acceso.CrearParametro("@accion", AccionMarcador),
-                            _acceso.CrearParametro("@criticidad", "Media")
-                        });
+                        _acceso.Escribir("BITACORA_INSERTAR", BitacoraDAL.ParametrosAlta(_acceso, "SISTEMA", AccionMarcador, "Media"));
                         resultado.Marcador = true;
                     }
 
@@ -145,6 +124,8 @@ namespace DAL
                     InvalidarSiInserto(plan, "USUARIO", resultado.Usuarios);
                     InvalidarSiInserto(plan, "USUARIO_PERFIL", resultado.UsuarioPerfiles);
                     InvalidarSiInserto(plan, "BITACORA", resultado.Marcador ? 1 : 0);
+                    InvalidarSiInserto(plan, "MATERIA", resultado.Materias);
+                    InvalidarSiInserto(plan, "CORRELATIVA", resultado.Correlativas);
 
                     _acceso.ConfirmarTX();
                 }
@@ -178,7 +159,7 @@ namespace DAL
         {
             var mapa = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (DataRow r in _acceso.Leer(sp).Rows)
-                mapa[r[columnaNombre].ToString()] = Convert.ToInt32(r["ID"]);
+                mapa[BE.AESHelper.DesencriptarTexto(r[columnaNombre])] = Convert.ToInt32(r["ID"]);
             return mapa;
         }
     }

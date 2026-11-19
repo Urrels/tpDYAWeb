@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Data;
 using System.Data.SqlClient;
 
@@ -11,6 +12,28 @@ namespace DAL
         public const string MensajeCodigoDuplicado = "El código de materia ya existe.";
 
         private static bool EsClaveDuplicada(SqlException ex) => ex.Number == 2627 || ex.Number == 2601;
+
+        private static byte[] Activa => BE.AESHelper.EncriptarBool(true);
+
+        internal static List<SqlParameter> ParametrosAlta(Acceso acceso, BE.MATERIA m) => new List<SqlParameter>
+        {
+            acceso.CrearParametro("@nombre",    BE.AESHelper.Encriptar(m.Nombre)),
+            acceso.CrearParametro("@codigo",    BE.AESHelper.Encriptar(BE.Normalizador.CodigoMateria(m.Codigo))),
+            acceso.CrearParametro("@modalidad", BE.AESHelper.Encriptar(m.Modalidad)),
+            acceso.CrearParametro("@peso",      BE.AESHelper.EncriptarEntero(m.Peso)),
+            acceso.CrearParametro("@activa",    Activa)
+        };
+
+        internal static List<SqlParameter> ParametrosCambio(Acceso acceso, BE.MATERIA m) => new List<SqlParameter>
+        {
+            acceso.CrearParametro("@id",        m.Id),
+            acceso.CrearParametro("@nombre",    BE.AESHelper.Encriptar(m.Nombre)),
+            acceso.CrearParametro("@codigo",    BE.AESHelper.Encriptar(BE.Normalizador.CodigoMateria(m.Codigo))),
+            acceso.CrearParametro("@modalidad", BE.AESHelper.Encriptar(m.Modalidad)),
+            acceso.CrearParametro("@peso",      BE.AESHelper.EncriptarEntero(m.Peso))
+        };
+
+        private List<SqlParameter> SoloActivas() => new List<SqlParameter> { _acceso.CrearParametro("@activa", Activa) };
 
         public List<BE.MATERIA> ListarTodasConInactivas()
         {
@@ -28,13 +51,7 @@ namespace DAL
 
         public int Insertar(BE.MATERIA m)
         {
-            var p = new List<SqlParameter>
-            {
-                _acceso.CrearParametro("@nombre",    m.Nombre),
-                _acceso.CrearParametro("@codigo",    m.Codigo),
-                _acceso.CrearParametro("@modalidad", m.Modalidad),
-                _acceso.CrearParametro("@peso",      m.Peso)
-            };
+            var p = ParametrosAlta(_acceso, m);
             try
             {
                 _acceso.Abrir();
@@ -50,14 +67,7 @@ namespace DAL
 
         public bool Actualizar(BE.MATERIA m)
         {
-            var p = new List<SqlParameter>
-            {
-                _acceso.CrearParametro("@id",        m.Id),
-                _acceso.CrearParametro("@nombre",    m.Nombre),
-                _acceso.CrearParametro("@codigo",    m.Codigo),
-                _acceso.CrearParametro("@modalidad", m.Modalidad),
-                _acceso.CrearParametro("@peso",      m.Peso)
-            };
+            var p = ParametrosCambio(_acceso, m);
             try
             {
                 _acceso.Abrir();
@@ -73,7 +83,11 @@ namespace DAL
 
         public bool Eliminar(int id)
         {
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@id", id) };
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@activa", BE.AESHelper.EncriptarBool(false))
+            };
             try
             {
                 _acceso.Abrir();
@@ -89,12 +103,12 @@ namespace DAL
             try
             {
                 _acceso.Abrir();
-                DataTable dt = _acceso.Leer("MATERIA_LISTAR");
+                DataTable dt = _acceso.Leer("MATERIA_LISTAR", SoloActivas());
                 foreach (DataRow r in dt.Rows)
                     lista.Add(MapearFila(r));
             }
             finally { _acceso.Cerrar(); }
-            return lista;
+            return lista.OrderBy(m => m.Id).ToList();
         }
 
         public BE.PaginaResultado<BE.MATERIA> ListarPaginado(int pagina, int tamanio)
@@ -102,7 +116,8 @@ namespace DAL
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@pagina", pagina),
-                _acceso.CrearParametro("@tamanio", tamanio)
+                _acceso.CrearParametro("@tamanio", tamanio),
+                _acceso.CrearParametro("@activa", Activa)
             };
             var resultado = new BE.PaginaResultado<BE.MATERIA> { Pagina = pagina, Tamanio = tamanio };
             try
@@ -121,7 +136,11 @@ namespace DAL
 
         public BE.MATERIA Obtener(int id)
         {
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@id", id) };
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id", id),
+                _acceso.CrearParametro("@activa", Activa)
+            };
             try
             {
                 _acceso.Abrir();
@@ -134,7 +153,11 @@ namespace DAL
         public List<BE.MATERIA> ListarCorrelativas(int idMateria)
         {
             var lista = new List<BE.MATERIA>();
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@id_materia", idMateria) };
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id_materia", idMateria),
+                _acceso.CrearParametro("@activa", Activa)
+            };
             try
             {
                 _acceso.Abrir();
@@ -143,8 +166,8 @@ namespace DAL
                     lista.Add(new BE.MATERIA
                     {
                         Id = System.Convert.ToInt32(r["ID"]),
-                        Nombre = r["NOMBRE"].ToString(),
-                        Codigo = r["CODIGO"].ToString()
+                        Nombre = BE.AESHelper.DesencriptarTexto(r["NOMBRE"]),
+                        Codigo = BE.AESHelper.DesencriptarTexto(r["CODIGO"])
                     });
             }
             finally { _acceso.Cerrar(); }
@@ -164,26 +187,12 @@ namespace DAL
                     {
                         if (m.Id == 0)
                         {
-                            var pi = new List<SqlParameter>
-                            {
-                                _acceso.CrearParametro("@nombre",    m.Nombre),
-                                _acceso.CrearParametro("@codigo",    m.Codigo),
-                                _acceso.CrearParametro("@modalidad", m.Modalidad),
-                                _acceso.CrearParametro("@peso",      m.Peso)
-                            };
-                            idPorCodigo[m.Codigo] = System.Convert.ToInt32(_acceso.EscribirConRetorno("MATERIA_INSERTAR", pi));
+                            idPorCodigo[m.Codigo] = System.Convert.ToInt32(
+                                _acceso.EscribirConRetorno("MATERIA_INSERTAR", ParametrosAlta(_acceso, m)));
                         }
                         else
                         {
-                            var pa = new List<SqlParameter>
-                            {
-                                _acceso.CrearParametro("@id",        m.Id),
-                                _acceso.CrearParametro("@nombre",    m.Nombre),
-                                _acceso.CrearParametro("@codigo",    m.Codigo),
-                                _acceso.CrearParametro("@modalidad", m.Modalidad),
-                                _acceso.CrearParametro("@peso",      m.Peso)
-                            };
-                            _acceso.EscribirConRetorno("MATERIA_ACTUALIZAR", pa);
+                            _acceso.EscribirConRetorno("MATERIA_ACTUALIZAR", ParametrosCambio(_acceso, m));
                         }
                     }
 
@@ -212,10 +221,10 @@ namespace DAL
             return new BE.MATERIA
             {
                 Id = System.Convert.ToInt32(r["ID"]),
-                Nombre = r["NOMBRE"].ToString(),
-                Codigo = r["CODIGO"].ToString(),
-                Modalidad = r["MODALIDAD"].ToString(),
-                Peso = System.Convert.ToInt32(r["PESO"])
+                Nombre = BE.AESHelper.DesencriptarTexto(r["NOMBRE"]),
+                Codigo = BE.AESHelper.DesencriptarTexto(r["CODIGO"]),
+                Modalidad = BE.AESHelper.DesencriptarTexto(r["MODALIDAD"]),
+                Peso = BE.AESHelper.DesencriptarEntero(r["PESO"])
             };
         }
     }

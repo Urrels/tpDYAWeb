@@ -148,7 +148,8 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaUsuario(int id, string usuario, string pass, byte[] direccion, bool activo)
+        public void RestaurarFilaUsuario(int id, byte[] usuario, byte[] pass, byte[] direccion,
+            byte[] intentos, byte[] bloqueado, byte[] activo)
         {
             var p = new List<SqlParameter>
             {
@@ -156,13 +157,15 @@ namespace DAL
                 _acceso.CrearParametro("@usuario", usuario),
                 _acceso.CrearParametro("@pass", pass),
                 _acceso.CrearParametro("@direccion", direccion),
-                new SqlParameter("@activo", SqlDbType.Bit) { Value = activo }
+                _acceso.CrearParametro("@intentos", intentos),
+                _acceso.CrearParametro("@bloqueado", bloqueado),
+                _acceso.CrearParametro("@activo", activo)
             };
             try { _acceso.Abrir(); _acceso.Escribir("USUARIO_RESTAURAR_FILA", p); }
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaMateria(int id, string nombre, string codigo, string modalidad, int peso, bool activa)
+        public void RestaurarFilaMateria(int id, byte[] nombre, byte[] codigo, byte[] modalidad, byte[] peso, byte[] activa)
         {
             var p = new List<SqlParameter>
             {
@@ -171,14 +174,14 @@ namespace DAL
                 _acceso.CrearParametro("@codigo", codigo),
                 _acceso.CrearParametro("@modalidad", modalidad),
                 _acceso.CrearParametro("@peso", peso),
-                new SqlParameter("@activa", SqlDbType.Bit) { Value = activa }
+                _acceso.CrearParametro("@activa", activa)
             };
             try { _acceso.Abrir(); _acceso.Escribir("MATERIA_RESTAURAR_FILA", p); }
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaPeriodoAcademico(int id, int anio, int cuatrimestre, string descripcion,
-            DateTime? fechaInicio, DateTime? fechaFin)
+        public void RestaurarFilaPeriodoAcademico(int id, byte[] anio, byte[] cuatrimestre, byte[] descripcion,
+            byte[] fechaInicio, byte[] fechaFin)
         {
             var p = new List<SqlParameter>
             {
@@ -193,14 +196,15 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaBitacora(int id, string usuario, string accion, DateTime fecha)
+        public void RestaurarFilaBitacora(int id, byte[] usuario, byte[] accion, byte[] fecha, byte[] criticidad)
         {
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@id", id),
                 _acceso.CrearParametro("@usuario", usuario),
                 _acceso.CrearParametro("@accion", accion),
-                _acceso.CrearParametro("@fecha", fecha)
+                _acceso.CrearParametro("@fecha", fecha),
+                _acceso.CrearParametro("@criticidad", criticidad)
             };
             try { _acceso.Abrir(); _acceso.Escribir("BITACORA_RESTAURAR_FILA", p); }
             finally { _acceso.Cerrar(); }
@@ -218,9 +222,9 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaAlumnoMateria(int id, int idUsuario, int idMateria, string estado,
-            decimal? notaParcial1, decimal? notaParcial2, decimal? notaRecuperatorio, decimal? notaFinal,
-            DateTime? fechaFinal, DateTime? fechaRecuperatorio)
+        public void RestaurarFilaAlumnoMateria(int id, int idUsuario, int idMateria, byte[] estado,
+            byte[] notaParcial1, byte[] notaParcial2, byte[] notaRecuperatorio, byte[] notaFinal,
+            byte[] fechaFinal, byte[] fechaRecuperatorio)
         {
             var p = new List<SqlParameter>
             {
@@ -239,8 +243,8 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaEventoAcademico(int id, int idMateria, int idUsuario, string tipo,
-            string descripcion, DateTime fecha, int peso)
+        public void RestaurarFilaEventoAcademico(int id, int idMateria, int idUsuario, byte[] tipo,
+            byte[] descripcion, byte[] fecha, byte[] peso)
         {
             var p = new List<SqlParameter>
             {
@@ -256,7 +260,7 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaInscripcion(int id, int idUsuario, int idPeriodo, DateTime fechaInscripcion)
+        public void RestaurarFilaInscripcion(int id, int idUsuario, int idPeriodo, byte[] fechaInscripcion)
         {
             var p = new List<SqlParameter>
             {
@@ -269,20 +273,20 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaRol(int id, string nombre, int? padreId, bool protegido)
+        public void RestaurarFilaRol(int id, byte[] nombre, int? padreId, byte[] protegido)
         {
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@id", id),
                 _acceso.CrearParametro("@nombre", nombre),
                 _acceso.CrearParametro("@padreId", padreId),
-                new SqlParameter("@protegido", SqlDbType.Bit) { Value = protegido }
+                _acceso.CrearParametro("@protegido", protegido)
             };
             try { _acceso.Abrir(); _acceso.Escribir("ROL_RESTAURAR_FILA", p); }
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaPermiso(int id, string nombre)
+        public void RestaurarFilaPermiso(int id, byte[] nombre)
         {
             var p = new List<SqlParameter>
             {

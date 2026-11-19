@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Linq;
 
 namespace DAL
 {
@@ -12,6 +13,15 @@ namespace DAL
         public const string MensajePeriodoDuplicado = "Ya existe un período para ese año y cuatrimestre.";
 
         private static bool EsClaveDuplicada(SqlException ex) => ex.Number == 2627 || ex.Number == 2601;
+
+        private List<SqlParameter> Parametros(BE.PERIODO_ACADEMICO p) => new List<SqlParameter>
+        {
+            _acceso.CrearParametro("@anio",         BE.AESHelper.EncriptarEntero(p.Anio)),
+            _acceso.CrearParametro("@cuatrimestre", BE.AESHelper.EncriptarEntero(p.Cuatrimestre)),
+            _acceso.CrearParametro("@descripcion",  BE.AESHelper.Encriptar(p.Descripcion)),
+            _acceso.CrearParametro("@fecha_inicio", BE.AESHelper.EncriptarFecha(p.FechaInicio?.Date)),
+            _acceso.CrearParametro("@fecha_fin",    BE.AESHelper.EncriptarFecha(p.FechaFin?.Date))
+        };
 
         public List<BE.PERIODO_ACADEMICO> Listar()
         {
@@ -24,19 +34,12 @@ namespace DAL
                     lista.Add(Mapear(r));
             }
             finally { _acceso.Cerrar(); }
-            return lista;
+            return lista.OrderByDescending(x => x.Anio).ThenByDescending(x => x.Cuatrimestre).ToList();
         }
 
         public int Insertar(BE.PERIODO_ACADEMICO p)
         {
-            var pars = new List<SqlParameter>
-            {
-                _acceso.CrearParametro("@anio",         p.Anio),
-                _acceso.CrearParametro("@cuatrimestre", p.Cuatrimestre),
-                _acceso.CrearParametro("@descripcion",  p.Descripcion),
-                _acceso.CrearParametro("@fecha_inicio", p.FechaInicio),
-                _acceso.CrearParametro("@fecha_fin",    p.FechaFin)
-            };
+            var pars = Parametros(p);
             try
             {
                 _acceso.Abrir();
@@ -52,15 +55,8 @@ namespace DAL
 
         public bool Actualizar(BE.PERIODO_ACADEMICO p)
         {
-            var pars = new List<SqlParameter>
-            {
-                _acceso.CrearParametro("@id",           p.Id),
-                _acceso.CrearParametro("@anio",         p.Anio),
-                _acceso.CrearParametro("@cuatrimestre", p.Cuatrimestre),
-                _acceso.CrearParametro("@descripcion",  p.Descripcion),
-                _acceso.CrearParametro("@fecha_inicio", p.FechaInicio),
-                _acceso.CrearParametro("@fecha_fin",    p.FechaFin)
-            };
+            var pars = Parametros(p);
+            pars.Insert(0, _acceso.CrearParametro("@id", p.Id));
             try
             {
                 _acceso.Abrir();
@@ -76,15 +72,16 @@ namespace DAL
 
         public BE.PERIODO_ACADEMICO ObtenerActual()
         {
-            var pars = new List<SqlParameter>
-            {
-                _acceso.CrearParametro("@hoy", DateTime.Today)
-            };
+            DateTime hoy = DateTime.Today;
             try
             {
                 _acceso.Abrir();
-                DataTable dt = _acceso.Leer("PERIODO_OBTENER_ACTUAL", pars);
-                return dt.Rows.Count > 0 ? Mapear(dt.Rows[0]) : null;
+                DataTable dt = _acceso.Leer("PERIODO_OBTENER_ACTUAL");
+                return dt.Rows.Cast<DataRow>().Select(Mapear)
+                    .Where(x => x.FechaInicio.HasValue && x.FechaFin.HasValue
+                                && x.FechaInicio.Value.Date <= hoy && hoy <= x.FechaFin.Value.Date)
+                    .OrderByDescending(x => x.Anio).ThenByDescending(x => x.Cuatrimestre)
+                    .FirstOrDefault();
             }
             finally { _acceso.Cerrar(); }
         }
@@ -94,11 +91,11 @@ namespace DAL
             return new BE.PERIODO_ACADEMICO
             {
                 Id            = Convert.ToInt32(r["ID"]),
-                Anio          = Convert.ToInt32(r["ANIO"]),
-                Cuatrimestre  = Convert.ToInt32(r["CUATRIMESTRE"]),
-                Descripcion   = r["DESCRIPCION"].ToString(),
-                FechaInicio   = r["FECHA_INICIO"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["FECHA_INICIO"]),
-                FechaFin      = r["FECHA_FIN"]    == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["FECHA_FIN"])
+                Anio          = BE.AESHelper.DesencriptarEntero(r["ANIO"]),
+                Cuatrimestre  = BE.AESHelper.DesencriptarEntero(r["CUATRIMESTRE"]),
+                Descripcion   = BE.AESHelper.DesencriptarTexto(r["DESCRIPCION"]) ?? "",
+                FechaInicio   = BE.AESHelper.DesencriptarFecha(r["FECHA_INICIO"]),
+                FechaFin      = BE.AESHelper.DesencriptarFecha(r["FECHA_FIN"])
             };
         }
     }
@@ -112,7 +109,8 @@ namespace DAL
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@id_usuario", idUsuario),
-                _acceso.CrearParametro("@id_periodo", idPeriodo)
+                _acceso.CrearParametro("@id_periodo", idPeriodo),
+                _acceso.CrearParametro("@fecha_inscripcion", BE.AESHelper.EncriptarFecha(DateTime.Now))
             };
             try
             {
@@ -185,8 +183,12 @@ namespace DAL
                             Id               = idInscripcion,
                             IdUsuario        = idUsuario,
                             IdPeriodo        = Convert.ToInt32(r["ID_PERIODO"]),
-                            FechaInscripcion = Convert.ToDateTime(r["FECHA_INSCRIPCION"]),
-                            EtiquetaPeriodo  = r["ETIQUETA_PERIODO"].ToString()
+                            FechaInscripcion = BE.AESHelper.DesencriptarFecha(r["FECHA_INSCRIPCION"]) ?? DateTime.MinValue,
+                            EtiquetaPeriodo  = new BE.PERIODO_ACADEMICO
+                            {
+                                Anio         = BE.AESHelper.DesencriptarEntero(r["ANIO_PERIODO"]),
+                                Cuatrimestre = BE.AESHelper.DesencriptarEntero(r["CUATRIMESTRE_PERIODO"])
+                            }.Etiqueta
                         };
                         lista.Add(insc);
                     }
@@ -194,12 +196,14 @@ namespace DAL
                         insc.Materias.Add(new BE.MATERIA
                         {
                             Id     = Convert.ToInt32(r["ID_MATERIA"]),
-                            Nombre = r["NOMBRE_MATERIA"].ToString(),
-                            Codigo = r["CODIGO_MATERIA"].ToString()
+                            Nombre = BE.AESHelper.DesencriptarTexto(r["NOMBRE_MATERIA"]),
+                            Codigo = BE.AESHelper.DesencriptarTexto(r["CODIGO_MATERIA"])
                         });
                 }
             }
             finally { _acceso.Cerrar(); }
+            foreach (var insc in lista)
+                insc.Materias = insc.Materias.OrderBy(m => m.Nombre, StringComparer.CurrentCultureIgnoreCase).ToList();
             return lista;
         }
     }

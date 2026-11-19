@@ -20,6 +20,8 @@ namespace BLL
 
         public int Insertar(BE.MATERIA m, string usuarioAccion)
         {
+            m.Codigo = BE.Normalizador.CodigoMateria(m.Codigo);
+            ValidacionLongitud.Materia(m);
             if (CodigoDuplicado(_dal.ListarTodasConInactivas(), m.Codigo, 0))
                 throw new System.InvalidOperationException(MensajeCodigoDuplicado);
             int id = _dal.Insertar(m);
@@ -33,6 +35,8 @@ namespace BLL
 
         public bool Actualizar(BE.MATERIA m, string usuarioAccion)
         {
+            m.Codigo = BE.Normalizador.CodigoMateria(m.Codigo);
+            ValidacionLongitud.Materia(m);
             if (CodigoDuplicado(_dal.ListarTodasConInactivas(), m.Codigo, m.Id))
                 throw new System.InvalidOperationException(MensajeCodigoDuplicado);
             bool ok = _dal.Actualizar(m);

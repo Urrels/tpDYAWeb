@@ -28,7 +28,7 @@
                     <label class="form-label fw-semibold"><asp:Literal ID="litUsuario" runat="server" Text="Usuario"/></label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        <asp:TextBox ID="txtUsuario" runat="server" CssClass="form-control"/>
+                        <asp:TextBox ID="txtUsuario" runat="server" CssClass="form-control" MaxLength="50"/>
                     </div>
                 </div>
                 <div class="mb-4">

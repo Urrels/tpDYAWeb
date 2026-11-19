@@ -20,6 +20,7 @@ namespace BLL
 
         public int Insertar(BE.PERIODO_ACADEMICO p, string usuarioAccion)
         {
+            ValidacionLongitud.Periodo(p);
             if (PeriodoDuplicado(_dal.Listar(), p))
                 throw new System.InvalidOperationException(MensajePeriodoDuplicado);
             int id = _dal.Insertar(p);
@@ -33,6 +34,7 @@ namespace BLL
 
         public bool Actualizar(BE.PERIODO_ACADEMICO p, string usuarioAccion)
         {
+            ValidacionLongitud.Periodo(p);
             if (PeriodoDuplicado(_dal.Listar(), p))
                 throw new System.InvalidOperationException(MensajePeriodoDuplicado);
             bool ok = _dal.Actualizar(p);

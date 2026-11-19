@@ -94,6 +94,7 @@
     <Compile Include="Paginacion.cs" />
     <Compile Include="PerfilBLL.cs" />
     <Compile Include="SiembraBLL.cs" />
+    <Compile Include="ValidacionLongitud.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

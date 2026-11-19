@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Linq;
 
 namespace DAL
 {
@@ -8,12 +9,26 @@ namespace DAL
     {
         private readonly Acceso _acceso = new Acceso();
 
+        private static byte[] CifrarUsuario(string usuario) =>
+            BE.AESHelper.Encriptar(BE.Normalizador.Usuario(usuario));
+
+        internal static List<SqlParameter> ParametrosAlta(Acceso acceso, string usuario, string passHash, byte[] direccionCifrada) =>
+            new List<SqlParameter>
+            {
+                acceso.CrearParametro("@usuario",   CifrarUsuario(usuario)),
+                acceso.CrearParametro("@pass",      BE.AESHelper.Encriptar(passHash)),
+                acceso.CrearParametro("@direccion", direccionCifrada),
+                acceso.CrearParametro("@activo",    BE.AESHelper.EncriptarBool(true)),
+                acceso.CrearParametro("@intentos",  BE.AESHelper.EncriptarEntero(0)),
+                acceso.CrearParametro("@bloqueado", BE.AESHelper.EncriptarBool(false))
+            };
+
         public BE.USUARIO ObtenerPorCredenciales(string usuario, string passHash)
         {
             var p = new List<SqlParameter>
             {
-                _acceso.CrearParametro("@usuario", usuario),
-                _acceso.CrearParametro("@pass",    passHash)
+                _acceso.CrearParametro("@usuario", CifrarUsuario(usuario)),
+                _acceso.CrearParametro("@pass",    BE.AESHelper.Encriptar(passHash))
             };
             try
             {
@@ -24,8 +39,8 @@ namespace DAL
                 return new BE.USUARIO
                 {
                     Id      = System.Convert.ToInt32(r["ID"]),
-                    Usuario = r["USUARIO"].ToString(),
-                    Activo  = System.Convert.ToBoolean(r["ACTIVO"])
+                    Usuario = BE.AESHelper.DesencriptarTexto(r["USUARIO"]),
+                    Activo  = BE.AESHelper.DesencriptarBool(r["ACTIVO"])
                 };
             }
             finally { _acceso.Cerrar(); }
@@ -35,8 +50,8 @@ namespace DAL
         {
             var p = new List<SqlParameter>
             {
-                _acceso.CrearParametro("@usuario", usuario),
-                _acceso.CrearParametro("@pass",    nuevaPassHash)
+                _acceso.CrearParametro("@usuario", CifrarUsuario(usuario)),
+                _acceso.CrearParametro("@pass",    BE.AESHelper.Encriptar(nuevaPassHash))
             };
             try
             {
@@ -49,7 +64,7 @@ namespace DAL
 
         public BE.USUARIO ObtenerPorNombre(string usuario)
         {
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", usuario) };
+            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", CifrarUsuario(usuario)) };
             try
             {
                 _acceso.Abrir();
@@ -59,13 +74,10 @@ namespace DAL
                 var u = new BE.USUARIO
                 {
                     Id      = System.Convert.ToInt32(r["ID"]),
-                    Usuario = r["USUARIO"].ToString()
+                    Usuario = BE.AESHelper.DesencriptarTexto(r["USUARIO"])
                 };
                 if (r["DIRECCION"] != System.DBNull.Value)
-                {
-                    byte[] encriptado = (byte[])r["DIRECCION"];
-                    u.DireccionVisible = BE.AESHelper.Desencriptar(encriptado);
-                }
+                    u.DireccionVisible = BE.AESHelper.DesencriptarTexto(r["DIRECCION"]);
                 return u;
             }
             finally { _acceso.Cerrar(); }
@@ -82,13 +94,13 @@ namespace DAL
                     lista.Add(new BE.USUARIO
                     {
                         Id        = System.Convert.ToInt32(r["ID"]),
-                        Usuario   = r["USUARIO"].ToString(),
-                        Bloqueado = System.Convert.ToBoolean(r["BLOQUEADO"]),
-                        Activo    = System.Convert.ToBoolean(r["ACTIVO"])
+                        Usuario   = BE.AESHelper.DesencriptarTexto(r["USUARIO"]),
+                        Bloqueado = BE.AESHelper.DesencriptarBool(r["BLOQUEADO"]),
+                        Activo    = BE.AESHelper.DesencriptarBool(r["ACTIVO"])
                     });
             }
             finally { _acceso.Cerrar(); }
-            return lista;
+            return lista.OrderBy(u => u.Usuario, System.StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         public int InsertarConPerfiles(string usuario, string passHash, string direccion, List<int> rolIds)
@@ -100,12 +112,7 @@ namespace DAL
                 _acceso.IniciarTx();
                 try
                 {
-                    object id = _acceso.EscribirConRetorno("USUARIO_INSERTAR", new List<SqlParameter>
-                    {
-                        _acceso.CrearParametro("@usuario",   usuario),
-                        _acceso.CrearParametro("@pass",      passHash),
-                        _acceso.CrearParametro("@direccion", encriptado)
-                    });
+                    object id = _acceso.EscribirConRetorno("USUARIO_INSERTAR", ParametrosAlta(_acceso, usuario, passHash, encriptado));
                     int usuarioId = System.Convert.ToInt32(id);
                     foreach (int rolId in rolIds)
                         _acceso.Escribir("USUARIO_PERFIL_ASIGNAR", new List<SqlParameter>
@@ -134,7 +141,7 @@ namespace DAL
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@id", id),
-                new SqlParameter("@activo", SqlDbType.Bit) { Value = activo }
+                _acceso.CrearParametro("@activo", BE.AESHelper.EncriptarBool(activo))
             };
             try { _acceso.Abrir(); _acceso.Escribir("USUARIO_ACTUALIZAR_ESTADO", p); }
             finally { _acceso.Cerrar(); }
@@ -145,7 +152,7 @@ namespace DAL
             byte[] encriptado = BE.AESHelper.Encriptar(direccion);
             var p = new List<SqlParameter>
             {
-                _acceso.CrearParametro("@usuario",   usuario),
+                _acceso.CrearParametro("@usuario",   CifrarUsuario(usuario)),
                 _acceso.CrearParametro("@direccion", encriptado)
             };
             try
@@ -159,38 +166,72 @@ namespace DAL
 
         public bool EstaBloqueado(string usuario)
         {
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", usuario) };
+            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", CifrarUsuario(usuario)) };
             try
             {
                 _acceso.Abrir();
                 DataTable dt = _acceso.Leer("USUARIO_VERIFICAR_BLOQUEO", p);
-                return dt.Rows.Count == 0 ? false : System.Convert.ToBoolean(dt.Rows[0]["BLOQUEADO"]);
+                return dt.Rows.Count == 0 ? false : BE.AESHelper.DesencriptarBool(dt.Rows[0]["BLOQUEADO"]);
             }
             finally { _acceso.Cerrar(); }
         }
 
         public bool IncrementarIntentos(string usuario)
         {
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", usuario) };
+            var pLectura = new List<SqlParameter> { _acceso.CrearParametro("@usuario", CifrarUsuario(usuario)) };
             try
             {
                 _acceso.Abrir();
-                DataTable dt = _acceso.Leer("USUARIO_INCREMENTAR_INTENTOS", p);
-                return dt.Rows.Count == 0 ? false : System.Convert.ToBoolean(dt.Rows[0]["BLOQUEADO"]);
+                _acceso.IniciarTx();
+                try
+                {
+                    DataTable dt = _acceso.Leer("USUARIO_OBTENER_ESTADO_LOGIN", pLectura);
+                    if (dt.Rows.Count == 0)
+                    {
+                        _acceso.ConfirmarTX();
+                        return false;
+                    }
+                    BE.PoliticaBloqueo.Siguiente(
+                        BE.AESHelper.DesencriptarEntero(dt.Rows[0]["INTENTOS_FALLIDOS"]),
+                        BE.AESHelper.DesencriptarBool(dt.Rows[0]["BLOQUEADO"]),
+                        out int intentos, out bool bloqueado);
+                    _acceso.Escribir("USUARIO_GUARDAR_ESTADO_LOGIN", new List<SqlParameter>
+                    {
+                        _acceso.CrearParametro("@usuario",   CifrarUsuario(usuario)),
+                        _acceso.CrearParametro("@intentos",  BE.AESHelper.EncriptarEntero(intentos)),
+                        _acceso.CrearParametro("@bloqueado", BE.AESHelper.EncriptarBool(bloqueado))
+                    });
+                    _acceso.ConfirmarTX();
+                    return bloqueado;
+                }
+                catch
+                {
+                    _acceso.DeshacerTX();
+                    throw;
+                }
             }
             finally { _acceso.Cerrar(); }
         }
 
         public void ResetearIntentos(string usuario)
         {
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", usuario) };
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@usuario",  CifrarUsuario(usuario)),
+                _acceso.CrearParametro("@intentos", BE.AESHelper.EncriptarEntero(0))
+            };
             try { _acceso.Abrir(); _acceso.Escribir("USUARIO_RESETEAR_INTENTOS", p); }
             finally { _acceso.Cerrar(); }
         }
 
         public void Desbloquear(string usuario)
         {
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@usuario", usuario) };
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@usuario",   CifrarUsuario(usuario)),
+                _acceso.CrearParametro("@bloqueado", BE.AESHelper.EncriptarBool(false)),
+                _acceso.CrearParametro("@intentos",  BE.AESHelper.EncriptarEntero(0))
+            };
             try { _acceso.Abrir(); _acceso.Escribir("USUARIO_DESBLOQUEAR", p); }
             finally { _acceso.Cerrar(); }
         }
@@ -198,20 +239,21 @@ namespace DAL
         public List<BE.USUARIO> ListarBloqueados()
         {
             var lista = new List<BE.USUARIO>();
+            var p = new List<SqlParameter> { _acceso.CrearParametro("@bloqueado", BE.AESHelper.EncriptarBool(true)) };
             try
             {
                 _acceso.Abrir();
-                DataTable dt = _acceso.Leer("USUARIO_LISTAR_BLOQUEADOS");
+                DataTable dt = _acceso.Leer("USUARIO_LISTAR_BLOQUEADOS", p);
                 foreach (DataRow r in dt.Rows)
                     lista.Add(new BE.USUARIO
                     {
                         Id               = System.Convert.ToInt32(r["ID"]),
-                        Usuario          = r["USUARIO"].ToString(),
-                        IntentosFallidos = System.Convert.ToInt32(r["INTENTOS_FALLIDOS"])
+                        Usuario          = BE.AESHelper.DesencriptarTexto(r["USUARIO"]),
+                        IntentosFallidos = BE.AESHelper.DesencriptarEntero(r["INTENTOS_FALLIDOS"])
                     });
             }
             finally { _acceso.Cerrar(); }
-            return lista;
+            return lista.OrderBy(u => u.Usuario, System.StringComparer.OrdinalIgnoreCase).ToList();
         }
     }
 }

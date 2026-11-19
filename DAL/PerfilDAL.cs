@@ -2,12 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Linq;
 
 namespace DAL
 {
     public class PerfilDAL
     {
         private readonly Acceso _acceso = new Acceso();
+
+        internal static List<SqlParameter> ParametrosRol(Acceso acceso, string nombre, int? padreId, bool protegido) =>
+            new List<SqlParameter>
+            {
+                acceso.CrearParametro("@nombre",    BE.AESHelper.Encriptar(nombre)),
+                acceso.CrearParametro("@padre_id",  padreId),
+                acceso.CrearParametro("@protegido", BE.AESHelper.EncriptarBool(protegido))
+            };
 
         public List<BE.Rol> ListarRoles()
         {
@@ -20,9 +29,9 @@ namespace DAL
                     lista.Add(new BE.Rol
                     {
                         Id        = Convert.ToInt32(r["ID"]),
-                        Nombre    = r["NOMBRE"].ToString(),
+                        Nombre    = BE.AESHelper.DesencriptarTexto(r["NOMBRE"]),
                         PadreId   = r["PADRE_ID"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["PADRE_ID"]),
-                        Protegido = Convert.ToBoolean(r["PROTEGIDO"])
+                        Protegido = BE.AESHelper.DesencriptarBool(r["PROTEGIDO"])
                     });
             }
             finally { _acceso.Cerrar(); }
@@ -40,12 +49,12 @@ namespace DAL
                     lista.Add(new BE.Permiso
                     {
                         Id      = Convert.ToInt32(r["PERMISO_ID"]),
-                        Nombre  = r["NOMBRE"].ToString(),
+                        Nombre  = BE.AESHelper.DesencriptarTexto(r["NOMBRE"]),
                         PadreId = Convert.ToInt32(r["ROL_ID"])
                     });
             }
             finally { _acceso.Cerrar(); }
-            return lista;
+            return lista.OrderBy(p => p.PadreId).ThenBy(p => p.Nombre, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
 
         public List<int> ListarRolesDeUsuario(int usuarioId)
@@ -84,10 +93,10 @@ namespace DAL
                 _acceso.Abrir();
                 DataTable dt = _acceso.Leer("PERMISO_LISTAR_TODOS");
                 foreach (DataRow r in dt.Rows)
-                    lista.Add(new BE.Permiso { Id = Convert.ToInt32(r["ID"]), Nombre = r["NOMBRE"].ToString() });
+                    lista.Add(new BE.Permiso { Id = Convert.ToInt32(r["ID"]), Nombre = BE.AESHelper.DesencriptarTexto(r["NOMBRE"]) });
             }
             finally { _acceso.Cerrar(); }
-            return lista;
+            return lista.OrderBy(p => p.Nombre, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
 
         public List<KeyValuePair<int, int>> ListarAsignaciones()
@@ -106,11 +115,7 @@ namespace DAL
 
         public int InsertarRol(string nombre, int? padreId)
         {
-            var p = new List<SqlParameter>
-            {
-                _acceso.CrearParametro("@nombre",   nombre),
-                _acceso.CrearParametro("@padre_id", padreId)
-            };
+            var p = ParametrosRol(_acceso, nombre, padreId, false);
             try
             {
                 _acceso.Abrir();
@@ -128,7 +133,7 @@ namespace DAL
             var p = new List<SqlParameter>
             {
                 _acceso.CrearParametro("@id",     rolId),
-                _acceso.CrearParametro("@nombre", nombre)
+                _acceso.CrearParametro("@nombre", BE.AESHelper.Encriptar(nombre))
             };
             try { _acceso.Abrir(); _acceso.Escribir("ROL_RENOMBRAR", p); }
             catch (SqlException ex) when (EsNombreDuplicado(ex))

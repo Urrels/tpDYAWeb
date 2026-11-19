@@ -128,53 +128,6 @@ namespace UnitTests.BLL
             new global::BLL.EventoBLL().AplicarMapaDeCalor(new List<global::BE.EVENTO_ACADEMICO>());
         }
 
-        // ---------- dígito verificador de las cursadas ----------
-
-        private static global::BE.ALUMNO_MATERIA Cursada10() => new global::BE.ALUMNO_MATERIA
-        {
-            Id = 1, IdUsuario = 2, IdMateria = 3, Estado = "Cursando"
-        };
-
-        [TestMethod]
-        public void DvhCursada_CoincideConElCalculoManualDeLosAtributos()
-        {
-            var am = Cursada10();
-            int esperado = global::BE.CalculadorDVH.Calcular(new[] { "1", "2", "3", "Cursando", "", "", "", "", "", "" });
-            Assert.AreEqual(esperado, new global::BLL.IntegridadBLL().CalcularDVHAlumnoMateria(am));
-        }
-
-        [TestMethod]
-        public void DvhCursada_CambiaSiCambiaUnaNota()
-        {
-            var bll = new global::BLL.IntegridadBLL();
-            var a = Cursada10();
-            var b = Cursada10();
-            b.NotaParcial1 = 8;
-            Assert.AreNotEqual(bll.CalcularDVHAlumnoMateria(a), bll.CalcularDVHAlumnoMateria(b));
-        }
-
-        [TestMethod]
-        public void DvhCursada_NoDependeDeLaCulturaDelEquipo()
-        {
-            var original = Thread.CurrentThread.CurrentCulture;
-            try
-            {
-                var am = Cursada10();
-                am.NotaParcial1 = 7.5m;     // con coma decimal el texto sería "7,5"
-                am.FechaFinal = new DateTime(2026, 3, 4, 10, 30, 0);
-
-                Thread.CurrentThread.CurrentCulture = new CultureInfo("es-AR");
-                int enEspanol = new global::BLL.IntegridadBLL().CalcularDVHAlumnoMateria(am);
-                Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
-                int enIngles = new global::BLL.IntegridadBLL().CalcularDVHAlumnoMateria(am);
-
-                Assert.AreEqual(enEspanol, enIngles);
-                int esperado = global::BE.CalculadorDVH.Calcular(new[] { "1", "2", "3", "Cursando", "7.5", "", "", "", "20260304103000", "" });
-                Assert.AreEqual(esperado, enIngles);
-            }
-            finally { Thread.CurrentThread.CurrentCulture = original; }
-        }
-
         // ---------- catálogo de permisos (lo que siembra la aplicación) ----------
 
         [TestMethod]
