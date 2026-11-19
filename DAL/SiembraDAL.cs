@@ -12,6 +12,8 @@ namespace DAL
         public List<KeyValuePair<string, string>> RolPermisos = new List<KeyValuePair<string, string>>();
         public List<UsuarioSembrado> Usuarios = new List<UsuarioSembrado>();
         public bool IncluirMigracionDePerfiles;
+        public List<BE.MATERIA> Materias = new List<BE.MATERIA>();
+        public List<KeyValuePair<string, string>> Correlativas = new List<KeyValuePair<string, string>>();
         public bool EscribirMarcador;
         public HashSet<string> TablasIntegras = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
@@ -25,9 +27,9 @@ namespace DAL
 
     public class ResultadoSiembra
     {
-        public int Permisos, Roles, RolPermisos, Usuarios, UsuarioPerfiles;
+        public int Permisos, Roles, RolPermisos, Usuarios, UsuarioPerfiles, Materias, Correlativas;
         public bool Marcador;
-        public bool Algo => Permisos + Roles + RolPermisos + Usuarios + UsuarioPerfiles > 0;
+        public bool Algo => Permisos + Roles + RolPermisos + Usuarios + UsuarioPerfiles + Materias + Correlativas > 0;
     }
 
     public class SiembraDAL
@@ -128,6 +130,23 @@ namespace DAL
                             new List<SqlParameter> { _acceso.CrearParametro("@usuario_id", usuarioId) });
                     }
 
+                    var idPorCodigo = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    foreach (BE.MATERIA m in plan.Materias)
+                    {
+                        idPorCodigo[m.Codigo] = Convert.ToInt32(
+                            _acceso.EscribirConRetorno("MATERIA_INSERTAR", MateriaDAL.ParametrosAlta(_acceso, m)));
+                        resultado.Materias++;
+                    }
+                    foreach (var par in plan.Correlativas)
+                    {
+                        _acceso.Escribir("CORRELATIVA_INSERTAR", new List<SqlParameter>
+                        {
+                            _acceso.CrearParametro("@id_materia", idPorCodigo[par.Key]),
+                            _acceso.CrearParametro("@id_correlativa", idPorCodigo[par.Value])
+                        });
+                        resultado.Correlativas++;
+                    }
+
                     if (plan.EscribirMarcador)
                     {
                         _acceso.Escribir("BITACORA_INSERTAR", new List<SqlParameter>
@@ -145,6 +164,8 @@ namespace DAL
                     InvalidarSiInserto(plan, "USUARIO", resultado.Usuarios);
                     InvalidarSiInserto(plan, "USUARIO_PERFIL", resultado.UsuarioPerfiles);
                     InvalidarSiInserto(plan, "BITACORA", resultado.Marcador ? 1 : 0);
+                    InvalidarSiInserto(plan, "MATERIA", resultado.Materias);
+                    InvalidarSiInserto(plan, "CORRELATIVA", resultado.Correlativas);
 
                     _acceso.ConfirmarTX();
                 }

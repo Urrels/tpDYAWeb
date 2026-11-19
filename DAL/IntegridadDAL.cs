@@ -162,7 +162,7 @@ namespace DAL
             finally { _acceso.Cerrar(); }
         }
 
-        public void RestaurarFilaMateria(int id, string nombre, string codigo, string modalidad, int peso, bool activa)
+        public void RestaurarFilaMateria(int id, byte[] nombre, byte[] codigo, byte[] modalidad, byte[] peso, byte[] activa)
         {
             var p = new List<SqlParameter>
             {
@@ -171,7 +171,7 @@ namespace DAL
                 _acceso.CrearParametro("@codigo", codigo),
                 _acceso.CrearParametro("@modalidad", modalidad),
                 _acceso.CrearParametro("@peso", peso),
-                new SqlParameter("@activa", SqlDbType.Bit) { Value = activa }
+                _acceso.CrearParametro("@activa", activa)
             };
             try { _acceso.Abrir(); _acceso.Escribir("MATERIA_RESTAURAR_FILA", p); }
             finally { _acceso.Cerrar(); }

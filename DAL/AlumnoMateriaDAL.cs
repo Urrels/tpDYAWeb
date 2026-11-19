@@ -50,7 +50,11 @@ namespace DAL
         public List<BE.ALUMNO_MATERIA> Listar(int idUsuario)
         {
             var lista = new List<BE.ALUMNO_MATERIA>();
-            var p = new List<SqlParameter> { _acceso.CrearParametro("@id_usuario", idUsuario) };
+            var p = new List<SqlParameter>
+            {
+                _acceso.CrearParametro("@id_usuario", idUsuario),
+                _acceso.CrearParametro("@activa", BE.AESHelper.EncriptarBool(true))
+            };
             try
             {
                 _acceso.Abrir();
@@ -60,10 +64,10 @@ namespace DAL
                     {
                         Id = Convert.ToInt32(r["ID"]),
                         IdMateria = Convert.ToInt32(r["ID_MATERIA"]),
-                        NombreMateria = r["NOMBRE"].ToString(),
-                        CodigoMateria = r["CODIGO"].ToString(),
-                        Modalidad = r["MODALIDAD"].ToString(),
-                        PesoMateria = Convert.ToInt32(r["PESO"]),
+                        NombreMateria = BE.AESHelper.DesencriptarTexto(r["NOMBRE"]),
+                        CodigoMateria = BE.AESHelper.DesencriptarTexto(r["CODIGO"]),
+                        Modalidad = BE.AESHelper.DesencriptarTexto(r["MODALIDAD"]),
+                        PesoMateria = BE.AESHelper.DesencriptarEntero(r["PESO"]),
                         Estado = r["ESTADO"].ToString(),
                         NotaParcial1 = r["NOTA_PARCIAL1"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["NOTA_PARCIAL1"]),
                         NotaParcial2 = r["NOTA_PARCIAL2"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["NOTA_PARCIAL2"]),
@@ -174,7 +178,7 @@ namespace DAL
                 {
                     Id = Convert.ToInt32(r["ID"]),
                     IdMateria = Convert.ToInt32(r["ID_MATERIA"]),
-                    NombreMateria = r["MATERIA"].ToString(),
+                    NombreMateria = BE.AESHelper.DesencriptarTexto(r["MATERIA"]),
                     Tipo = r["TIPO"].ToString(),
                     Descripcion = r["DESCRIPCION"].ToString(),
                     Fecha = Convert.ToDateTime(r["FECHA"]),

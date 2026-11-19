@@ -53,11 +53,11 @@ GO
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='MATERIA' AND xtype='U')
 CREATE TABLE MATERIA (
     ID        INT IDENTITY(1,1) PRIMARY KEY,
-    NOMBRE    VARCHAR(100) NOT NULL,
-    CODIGO    VARCHAR(20)  NOT NULL UNIQUE,
-    MODALIDAD VARCHAR(20)  NOT NULL DEFAULT 'Presencial',
-    PESO      INT          NOT NULL DEFAULT 3,
-    ACTIVA    BIT          NOT NULL DEFAULT 1
+    NOMBRE    VARBINARY(512) NOT NULL,
+    CODIGO    VARBINARY(64)  NOT NULL UNIQUE,
+    MODALIDAD VARBINARY(64)  NOT NULL,
+    PESO      VARBINARY(64)  NOT NULL,
+    ACTIVA    VARBINARY(64)  NOT NULL
 )
 GO
 
@@ -219,14 +219,15 @@ GO
 IF OBJECT_ID('MATERIA_INSERTAR','P') IS NOT NULL DROP PROCEDURE MATERIA_INSERTAR
 GO
 CREATE PROCEDURE MATERIA_INSERTAR
-    @nombre    VARCHAR(100),
-    @codigo    VARCHAR(20),
-    @modalidad VARCHAR(20),
-    @peso      INT
+    @nombre    VARBINARY(512),
+    @codigo    VARBINARY(64),
+    @modalidad VARBINARY(64),
+    @peso      VARBINARY(64),
+    @activa    VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO MATERIA (NOMBRE, CODIGO, MODALIDAD, PESO) VALUES (@nombre, @codigo, @modalidad, @peso);
+    INSERT INTO MATERIA (NOMBRE, CODIGO, MODALIDAD, PESO, ACTIVA) VALUES (@nombre, @codigo, @modalidad, @peso, @activa);
     SELECT SCOPE_IDENTITY() AS ID;
 END
 GO
@@ -235,10 +236,10 @@ IF OBJECT_ID('MATERIA_ACTUALIZAR','P') IS NOT NULL DROP PROCEDURE MATERIA_ACTUAL
 GO
 CREATE PROCEDURE MATERIA_ACTUALIZAR
     @id        INT,
-    @nombre    VARCHAR(100),
-    @codigo    VARCHAR(20),
-    @modalidad VARCHAR(20),
-    @peso      INT
+    @nombre    VARBINARY(512),
+    @codigo    VARBINARY(64),
+    @modalidad VARBINARY(64),
+    @peso      VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -250,11 +251,12 @@ GO
 IF OBJECT_ID('MATERIA_ELIMINAR','P') IS NOT NULL DROP PROCEDURE MATERIA_ELIMINAR
 GO
 CREATE PROCEDURE MATERIA_ELIMINAR
-    @id INT
+    @id     INT,
+    @activa VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    UPDATE MATERIA SET ACTIVA=0 WHERE ID=@id;
+    UPDATE MATERIA SET ACTIVA=@activa WHERE ID=@id;
     SELECT @@ROWCOUNT AS FILAS;
 END
 GO
@@ -262,10 +264,11 @@ GO
 IF OBJECT_ID('MATERIA_LISTAR','P') IS NOT NULL DROP PROCEDURE MATERIA_LISTAR
 GO
 CREATE PROCEDURE MATERIA_LISTAR
+    @activa VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, NOMBRE, CODIGO, MODALIDAD, PESO FROM MATERIA WHERE ACTIVA=1;
+    SELECT ID, NOMBRE, CODIGO, MODALIDAD, PESO FROM MATERIA WHERE ACTIVA=@activa ORDER BY ID;
 END
 GO
 
@@ -273,7 +276,8 @@ IF OBJECT_ID('MATERIA_LISTAR_PAGINADO','P') IS NOT NULL DROP PROCEDURE MATERIA_L
 GO
 CREATE PROCEDURE MATERIA_LISTAR_PAGINADO
     @pagina  INT = 1,
-    @tamanio INT = 10
+    @tamanio INT = 10,
+    @activa  VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -283,7 +287,7 @@ BEGIN
     SELECT ID, NOMBRE, CODIGO, MODALIDAD, PESO,
            COUNT(*) OVER() AS TOTAL_FILAS
     FROM MATERIA
-    WHERE ACTIVA=1
+    WHERE ACTIVA=@activa
     ORDER BY ID
     OFFSET (@pagina - 1) * @tamanio ROWS
     FETCH NEXT @tamanio ROWS ONLY;
@@ -293,11 +297,12 @@ GO
 IF OBJECT_ID('MATERIA_OBTENER','P') IS NOT NULL DROP PROCEDURE MATERIA_OBTENER
 GO
 CREATE PROCEDURE MATERIA_OBTENER
-    @id INT
+    @id     INT,
+    @activa VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT ID, NOMBRE, CODIGO, MODALIDAD, PESO FROM MATERIA WHERE ID=@id AND ACTIVA=1;
+    SELECT ID, NOMBRE, CODIGO, MODALIDAD, PESO FROM MATERIA WHERE ID=@id AND ACTIVA=@activa;
 END
 GO
 
@@ -333,14 +338,15 @@ GO
 IF OBJECT_ID('CORRELATIVA_LISTAR','P') IS NOT NULL DROP PROCEDURE CORRELATIVA_LISTAR
 GO
 CREATE PROCEDURE CORRELATIVA_LISTAR
-    @id_materia INT
+    @id_materia INT,
+    @activa     VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
     SELECT m.ID, m.NOMBRE, m.CODIGO
     FROM   CORRELATIVA c
     JOIN   MATERIA m ON m.ID = c.ID_CORRELATIVA
-    WHERE  c.ID_MATERIA = @id_materia AND m.ACTIVA = 1;
+    WHERE  c.ID_MATERIA = @id_materia AND m.ACTIVA = @activa;
 END
 GO
 
@@ -394,7 +400,8 @@ GO
 IF OBJECT_ID('ALUMNO_MATERIA_LISTAR','P') IS NOT NULL DROP PROCEDURE ALUMNO_MATERIA_LISTAR
 GO
 CREATE PROCEDURE ALUMNO_MATERIA_LISTAR
-    @id_usuario INT
+    @id_usuario INT,
+    @activa     VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -406,7 +413,7 @@ BEGIN
            am.DVH
     FROM   ALUMNO_MATERIA am
     JOIN   MATERIA m ON m.ID = am.ID_MATERIA
-    WHERE  am.ID_USUARIO = @id_usuario AND m.ACTIVA = 1;
+    WHERE  am.ID_USUARIO = @id_usuario AND m.ACTIVA = @activa;
 END
 GO
 
@@ -648,116 +655,13 @@ GO
 
 -- =============================================
 -- DATOS INICIALES — PLAN DE ESTUDIOS
--- Ingeniería en Sistemas Informáticos UAI T109
--- Peso: 1=32h  2=48h  3=64h  4=80h  5=200h
+-- Las materias y sus correlativas (51 y 43) ya no se cargan desde este script:
+-- como las columnas de negocio se guardan cifradas, las siembra la aplicación
+-- (BLL.SiembraBLL) la primera vez que arranca sobre una base virgen.
 -- =============================================
 
-IF NOT EXISTS (SELECT 1 FROM MATERIA WHERE CODIGO = '01')
-    INSERT INTO MATERIA (NOMBRE, CODIGO, MODALIDAD, PESO) VALUES
-    ('Introducción a los Algoritmos y la Programación', '01', 'Presencial', 4),
-    ('Arquitectura de Computadoras I',                  '02', 'Presencial', 4),
-    ('Álgebra y Geometría Analítica',                   '03', 'Presencial', 4),
-    ('Problemática del Mundo Actual',                   '04', 'Presencial', 3),
-    ('Inglés I',                                        '05', 'Presencial', 1),
-    ('Arquitectura de Computadoras II',                 '06', 'Presencial', 4),
-    ('Cálculo Infinitesimal I',                         '07', 'Presencial', 4),
-    ('Historia de la Ciencia y de la Técnica',          '08', 'Presencial', 3),
-    ('Inglés II',                                       '09', 'Presencial', 1),
-    ('Programación y Estructuras de Datos',             '10', 'Presencial', 4),
-    ('Programación Orientada a Objetos',                '11', 'Presencial', 4),
-    ('Análisis y Diseño de Sistemas I',                 '12', 'Presencial', 4),
-    ('Cálculo Infinitesimal II',                        '13', 'Presencial', 4),
-    ('Inglés III',                                      '14', 'Presencial', 1),
-    ('Sistemas Operativos',                             '15', 'Presencial', 4),
-    ('Análisis de Procesos Administrativos',            '16', 'Presencial', 3),
-    ('Análisis y Diseño de Sistemas II',                '17', 'Presencial', 4),
-    ('Física I',                                        '18', 'Presencial', 4),
-    ('Probabilidad y Estadística',                      '19', 'Presencial', 4),
-    ('Inglés IV',                                       '20', 'Presencial', 1),
-    ('Ingeniería de Requerimientos',                    '21', 'Presencial', 2),
-    ('Desarrollo y Arquitectura de Software',           '22', 'Presencial', 4),
-    ('Análisis y Diseño de Sistemas III',               '23', 'Presencial', 2),
-    ('Base de Datos',                                   '24', 'Presencial', 4),
-    ('Tecnología de las Comunicaciones I',              '25', 'Presencial', 4),
-    ('Física II',                                       '26', 'Presencial', 3),
-    ('Ingeniería de Software',                          '27', 'Presencial', 4),
-    ('Experiencias Formativas Obligatorias (3er Año)',  '28', 'Presencial', 4),
-    ('Tecnología de las Comunicaciones II',             '29', 'Presencial', 4),
-    ('Matemática Discreta y Autómatas',                 '30', 'Presencial', 3),
-    ('Bases de Datos Aplicada',                         '31', 'Presencial', 4),
-    ('Trabajo de Diploma',                              '32', 'Presencial', 4),
-    ('Metodologías Ágiles',                             '33', 'Presencial', 4),
-    ('Organización y Gestión Empresaria',               '34', 'Presencial', 3),
-    ('Bases de Datos Avanzada',                         '35', 'Presencial', 4),
-    ('Desarrollo y Arquitecturas WEB',                  '36', 'Presencial', 4),
-    ('Experiencias Formativas Obligatorias (4to Año)',  '37', 'Presencial', 2),
-    ('Administración de Proyectos',                     '38', 'Presencial', 3),
-    ('Planificación Estratégica',                       '39', 'Presencial', 4),
-    ('Inteligencia Artificial',                         '40', 'Presencial', 3),
-    ('Metodologías y Desarrollos WEB',                  '41', 'Presencial', 4),
-    ('Electromagnetismo I',                             '42', 'Presencial', 3),
-    ('Sistema de Hardware',                             '43', 'Presencial', 4),
-    ('Modelización Numérica',                           '44', 'Presencial', 4),
-    ('Electromagnetismo II',                            '45', 'Presencial', 3),
-    ('Práctica Profesional Supervisada',                '46', 'Presencial', 5),
-    ('Seminario de Trabajo Final de Ingeniería',        '47', 'Presencial', 4),
-    ('Auditoría de Sistemas',                           '48', 'Presencial', 3),
-    ('Redes y Teleprocesamiento',                       '49', 'Presencial', 4),
-    ('Seguridad Informática',                           '50', 'Presencial', 3),
-    ('Trabajo Final de Ingeniería',                     '51', 'Presencial', 4);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM CORRELATIVA WHERE ID_MATERIA = (SELECT ID FROM MATERIA WHERE CODIGO='06'))
-BEGIN
-    INSERT INTO CORRELATIVA (ID_MATERIA, ID_CORRELATIVA) VALUES
-    ((SELECT ID FROM MATERIA WHERE CODIGO='06'), (SELECT ID FROM MATERIA WHERE CODIGO='02')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='07'), (SELECT ID FROM MATERIA WHERE CODIGO='03')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='09'), (SELECT ID FROM MATERIA WHERE CODIGO='05')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='10'), (SELECT ID FROM MATERIA WHERE CODIGO='01')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='11'), (SELECT ID FROM MATERIA WHERE CODIGO='10')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='13'), (SELECT ID FROM MATERIA WHERE CODIGO='07')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='14'), (SELECT ID FROM MATERIA WHERE CODIGO='09')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='15'), (SELECT ID FROM MATERIA WHERE CODIGO='06')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='17'), (SELECT ID FROM MATERIA WHERE CODIGO='12')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='18'), (SELECT ID FROM MATERIA WHERE CODIGO='07')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='20'), (SELECT ID FROM MATERIA WHERE CODIGO='14')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='21'), (SELECT ID FROM MATERIA WHERE CODIGO='12')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='22'), (SELECT ID FROM MATERIA WHERE CODIGO='11')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='23'), (SELECT ID FROM MATERIA WHERE CODIGO='17')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='24'), (SELECT ID FROM MATERIA WHERE CODIGO='12')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='25'), (SELECT ID FROM MATERIA WHERE CODIGO='16')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='26'), (SELECT ID FROM MATERIA WHERE CODIGO='18')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='27'), (SELECT ID FROM MATERIA WHERE CODIGO='17')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='27'), (SELECT ID FROM MATERIA WHERE CODIGO='21')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='27'), (SELECT ID FROM MATERIA WHERE CODIGO='22')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='29'), (SELECT ID FROM MATERIA WHERE CODIGO='25')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='31'), (SELECT ID FROM MATERIA WHERE CODIGO='24')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='32'), (SELECT ID FROM MATERIA WHERE CODIGO='23')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='32'), (SELECT ID FROM MATERIA WHERE CODIGO='24')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='32'), (SELECT ID FROM MATERIA WHERE CODIGO='27')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='33'), (SELECT ID FROM MATERIA WHERE CODIGO='17')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='35'), (SELECT ID FROM MATERIA WHERE CODIGO='24')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='36'), (SELECT ID FROM MATERIA WHERE CODIGO='22')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='39'), (SELECT ID FROM MATERIA WHERE CODIGO='34')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='40'), (SELECT ID FROM MATERIA WHERE CODIGO='22')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='41'), (SELECT ID FROM MATERIA WHERE CODIGO='36')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='42'), (SELECT ID FROM MATERIA WHERE CODIGO='26')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='43'), (SELECT ID FROM MATERIA WHERE CODIGO='18')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='44'), (SELECT ID FROM MATERIA WHERE CODIGO='19')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='45'), (SELECT ID FROM MATERIA WHERE CODIGO='42')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='46'), (SELECT ID FROM MATERIA WHERE CODIGO='32')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='47'), (SELECT ID FROM MATERIA WHERE CODIGO='38')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='47'), (SELECT ID FROM MATERIA WHERE CODIGO='39')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='47'), (SELECT ID FROM MATERIA WHERE CODIGO='41')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='48'), (SELECT ID FROM MATERIA WHERE CODIGO='16')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='49'), (SELECT ID FROM MATERIA WHERE CODIGO='29')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='50'), (SELECT ID FROM MATERIA WHERE CODIGO='43')),
-    ((SELECT ID FROM MATERIA WHERE CODIGO='51'), (SELECT ID FROM MATERIA WHERE CODIGO='47'));
-END
-GO
-
 PRINT '✔ BDUNIVERSIDAD creada y configurada correctamente.';
-PRINT 'Los usuarios admin (Admin123) y webmaster (Webmaster123) los crea la aplicación en su primer arranque.';
+PRINT 'Los usuarios, los perfiles y el plan de estudios los crea la aplicación en su primer arranque.';
 GO
 
 -- =============================================
@@ -1251,11 +1155,11 @@ IF OBJECT_ID('MATERIA_RESTAURAR_FILA', 'P') IS NOT NULL DROP PROCEDURE MATERIA_R
 GO
 CREATE PROCEDURE MATERIA_RESTAURAR_FILA
     @id        INT,
-    @nombre    VARCHAR(100),
-    @codigo    VARCHAR(20),
-    @modalidad VARCHAR(20),
-    @peso      INT,
-    @activa    BIT
+    @nombre    VARBINARY(512),
+    @codigo    VARBINARY(64),
+    @modalidad VARBINARY(64),
+    @peso      VARBINARY(64),
+    @activa    VARBINARY(64)
 AS
 BEGIN
     SET NOCOUNT ON;

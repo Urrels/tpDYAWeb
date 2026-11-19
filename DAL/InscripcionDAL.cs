@@ -194,8 +194,8 @@ namespace DAL
                         insc.Materias.Add(new BE.MATERIA
                         {
                             Id     = Convert.ToInt32(r["ID_MATERIA"]),
-                            Nombre = r["NOMBRE_MATERIA"].ToString(),
-                            Codigo = r["CODIGO_MATERIA"].ToString()
+                            Nombre = BE.AESHelper.DesencriptarTexto(r["NOMBRE_MATERIA"]),
+                            Codigo = BE.AESHelper.DesencriptarTexto(r["CODIGO_MATERIA"])
                         });
                 }
             }

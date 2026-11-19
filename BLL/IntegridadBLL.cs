@@ -249,7 +249,8 @@ namespace BLL
 
         private static string[] ExtraerMateria(DataRow r) => new[]
         {
-            IntStr(r["ID"]), StrStr(r["NOMBRE"]), StrStr(r["CODIGO"]), StrStr(r["MODALIDAD"]), IntStr(r["PESO"]), BitStr(r["ACTIVA"])
+            IntStr(r["ID"]), Base64Str(r["NOMBRE"]), Base64Str(r["CODIGO"]), Base64Str(r["MODALIDAD"]),
+            Base64Str(r["PESO"]), Base64Str(r["ACTIVA"])
         };
 
         private static string[] ExtraerCorrelativa(DataRow r) => new[]
@@ -846,11 +847,11 @@ namespace BLL
         private class FilaMateriaRestaurada
         {
             public int Id;
-            public string Nombre;
-            public string Codigo;
-            public string Modalidad;
-            public int Peso;
-            public bool Activa;
+            public byte[] Nombre;
+            public byte[] Codigo;
+            public byte[] Modalidad;
+            public byte[] Peso;
+            public byte[] Activa;
         }
 
         private class FilaCorrelativaRestaurada
@@ -958,11 +959,11 @@ namespace BLL
         private static FilaMateriaRestaurada RehidratarMateria(string[] a) => new FilaMateriaRestaurada
         {
             Id = ParseInt(a[0]),
-            Nombre = a[1],
-            Codigo = a[2],
-            Modalidad = a[3],
-            Peso = ParseInt(a[4]),
-            Activa = ParseBit(a[5])
+            Nombre = ParseBase64(a[1]),
+            Codigo = ParseBase64(a[2]),
+            Modalidad = ParseBase64(a[3]),
+            Peso = ParseBase64(a[4]),
+            Activa = ParseBase64(a[5])
         };
 
         private static FilaCorrelativaRestaurada RehidratarCorrelativa(string[] a) => new FilaCorrelativaRestaurada
