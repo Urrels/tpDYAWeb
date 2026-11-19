@@ -107,9 +107,18 @@ namespace CAPAS_Web
                 Descripcion   = txtDescripcionEvento.Text.Trim()
             };
 
-            bool ok = esNuevo
-                ? _eventoBll.Insertar(ev, u.Usuario)
-                : _eventoBll.Actualizar(ev, u.Usuario);
+            bool ok;
+            try
+            {
+                ok = esNuevo
+                    ? _eventoBll.Insertar(ev, u.Usuario)
+                    : _eventoBll.Actualizar(ev, u.Usuario);
+            }
+            catch (InvalidOperationException ex)
+            {
+                MostrarMsg("alert-danger", Textos.MH(ex.Message));
+                return;
+            }
 
             MostrarMsg(ok ? "alert-success" : "alert-danger",
                 ok ? (esNuevo ? Textos.TH("Calendario.msgCreado", "✔ Evento creado.") : Textos.TH("Calendario.msgActualizado", "✔ Evento actualizado."))

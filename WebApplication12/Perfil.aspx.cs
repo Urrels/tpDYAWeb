@@ -22,9 +22,18 @@ namespace CAPAS_Web
         protected void btnGuardar_Click(object sender, EventArgs e)
         {
             var u = Session["Usuario"] as BE.USUARIO;
-            bool ok = new BLL.UsuarioBLL().ActualizarDireccion(u.Usuario, txtDireccion.Text.Trim());
+            bool ok = false;
+            string detalle = null;
+            try
+            {
+                ok = new BLL.UsuarioBLL().ActualizarDireccion(u.Usuario, txtDireccion.Text.Trim());
+            }
+            catch (InvalidOperationException ex)
+            {
+                detalle = Textos.MH(ex.Message);
+            }
             lblMsg.CssClass = ok ? "alert alert-success d-block mb-3" : "alert alert-danger d-block mb-3";
-            lblMsg.Text = ok ? Textos.TH("Perfil.msgGuardada", "✔ Dirección guardada con AES-256.") : Textos.TH("Perfil.msgError", "✖ Error al guardar.");
+            lblMsg.Text = ok ? Textos.TH("Perfil.msgGuardada", "✔ Dirección guardada con AES-256.") : detalle ?? Textos.TH("Perfil.msgError", "✖ Error al guardar.");
             lblMsg.Visible = true;
         }
     }

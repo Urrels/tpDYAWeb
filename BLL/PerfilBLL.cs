@@ -640,7 +640,7 @@ namespace BLL
             if (!Regex.IsMatch(contrasena, PoliticaContrasena)) throw new InvalidOperationException(MensajePoliticaContrasena);
         }
 
-        private static void ValidarDireccion(string direccion)
+        public static void ValidarDireccion(string direccion)
         {
             if (string.IsNullOrEmpty(direccion)) return;
             byte[] cifrada = BE.AESHelper.Encriptar(direccion);

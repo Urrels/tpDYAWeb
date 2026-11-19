@@ -12,6 +12,7 @@ namespace BLL
 
         public bool Insertar(BE.EVENTO_ACADEMICO e, string usuarioAccion)
         {
+            ValidacionLongitud.Evento(e);
             bool ok = _dal.Insertar(e);
             if (ok)
             {
@@ -23,6 +24,7 @@ namespace BLL
 
         public bool Actualizar(BE.EVENTO_ACADEMICO e, string usuarioAccion)
         {
+            ValidacionLongitud.Evento(e);
             bool ok = _dal.Actualizar(e);
             if (ok)
             {

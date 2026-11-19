@@ -23,7 +23,7 @@
                                 <asp:Literal ID="litAes256" runat="server" Text="🔒 AES-256"/>
                             </span>
                         </label>
-                        <asp:TextBox ID="txtDireccion" runat="server"
+                        <asp:TextBox ID="txtDireccion" runat="server" MaxLength="100"
                                      CssClass="form-control"
                                      placeholder="Ej: Av. Corrientes 1234, CABA"/>
                         <div class="form-text">

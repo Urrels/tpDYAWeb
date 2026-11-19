@@ -30,11 +30,11 @@
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label"><asp:Literal ID="litNombre" runat="server" Text="Nombre"/></label>
-                    <asp:TextBox ID="txtNombre" runat="server" CssClass="form-control"/>
+                    <asp:TextBox ID="txtNombre" runat="server" CssClass="form-control" MaxLength="100"/>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label"><asp:Literal ID="litCodigo" runat="server" Text="Código"/></label>
-                    <asp:TextBox ID="txtCodigo" runat="server" CssClass="form-control"/>
+                    <asp:TextBox ID="txtCodigo" runat="server" CssClass="form-control" MaxLength="20"/>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label"><asp:Literal ID="litModalidad" runat="server" Text="Modalidad"/></label>

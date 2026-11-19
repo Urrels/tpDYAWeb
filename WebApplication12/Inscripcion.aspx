@@ -78,7 +78,7 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label"><asp:Literal ID="litDescripcion" runat="server" Text="Descripción"/></label>
-                    <asp:TextBox ID="txtDescripcion" runat="server" CssClass="form-control"
+                    <asp:TextBox ID="txtDescripcion" runat="server" CssClass="form-control" MaxLength="170"
                                  placeholder="Ej: Cursada regular 2025"/>
                 </div>
                 <div class="col-md-2">

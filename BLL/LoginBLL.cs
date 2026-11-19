@@ -111,6 +111,7 @@ namespace BLL
 
         public bool ActualizarDireccion(string usuario, string direccion)
         {
+            PerfilBLL.ValidarDireccion(direccion);
             bool ok = _dal.ActualizarDireccion(usuario, direccion);
             if (ok)
             {
