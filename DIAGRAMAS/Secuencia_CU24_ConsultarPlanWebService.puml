@@ -18,7 +18,7 @@ participant "MateriaBLL" as BLL <<BLL>>
 participant "MateriaDAL" as DAL <<DAL>>
 database "SQL Server" as DB <<BD>>
 
-ADM -> PAGE : click "Consultar MateriasService"
+ADM -> PAGE : click "Ver plan completo"
 activate PAGE
 PAGE -> WS : POST MateriasService.asmx/ListarMaterias\nContent-Type: application/json + cookie de sesión
 activate WS
@@ -41,7 +41,7 @@ else autorizado
   activate BLL
   BLL -> DAL : Listar()
   DAL -> DB : Leer("MATERIA_LISTAR")
-  DB --> DAL : materias activas
+  DB --> DAL : materias activas (cifradas); el DAL las descifra
   DAL --> BLL : List<MATERIA>
   deactivate BLL
   loop por cada materia

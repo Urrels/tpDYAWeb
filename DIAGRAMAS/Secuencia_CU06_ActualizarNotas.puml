@@ -39,6 +39,7 @@ end note
 
 BLL -> DAL : Actualizar(am)
 activate DAL
+DAL -> DAL : cifra estado, notas y fechas (AESHelper.EncriptarDecimal / EncriptarFecha)
 DAL -> DB : EscribirConRetorno("ALUMNO_MATERIA_ACTUALIZAR", params)
 note right of DB : SP: ALUMNO_MATERIA_ACTUALIZAR
 DB --> DAL : filas afectadas

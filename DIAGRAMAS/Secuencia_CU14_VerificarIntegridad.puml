@@ -42,8 +42,9 @@ loop por cada una de las 13 tablas de negocio
     deactivate DAL
 
     note over BLL
-        Por cada fila: calcula BE.CalculadorDVH.Calcular(atributos)
-        y lo compara contra la columna DVH guardada.
+        Por cada fila: calcula BE.CalculadorDVH.Calcular(atributos),
+        tomados como Base64 del texto cifrado (no hace falta la
+        clave AES para verificar), y lo compara contra la columna DVH guardada.
         Si nombreTabla == "USUARIO" y difiere, agrega el ID
         a IdsUsuariosAfectados.
     end note
@@ -70,8 +71,12 @@ loop por cada una de las 13 tablas de negocio
         deactivate DAL
         note over BLL
             DiagnosticarDiferencias(): compara snapshot vs. datos
-            actuales fila a fila y agrega a Errores un mensaje por
-            cada alta, baja o modificación de campo detectada.
+            actuales fila a fila (sobre el texto cifrado) y agrega a
+            Errores un mensaje por cada alta, baja o modificación de
+            campo detectada. Solo acá se descifra, y solo para que el
+            mensaje sea legible (ValorLegible); la contraseña (PASS)
+            nunca se muestra. Un dato adulterado se lee como
+            "[dato ilegible]" en vez de lanzar excepción.
         end note
     end
 end

@@ -166,8 +166,21 @@ package "BE — Entidades" as BE #DBEAFE {
   }
 
   class AESHelper <<static>> {
+    +TextoIlegible : string {const}
     +Encriptar(texto) : byte[]
     +Desencriptar(datos) : string
+    +EncriptarEntero/Bool/Decimal/Fecha(valor) : byte[]
+    +DesencriptarTexto/Entero/Bool/Decimal/Fecha(valor)
+  }
+
+  class Normalizador <<static>> {
+    +Usuario(texto) : string
+    +CodigoMateria(texto) : string
+  }
+
+  class PoliticaBloqueo <<static>> {
+    +MaximoIntentos : int {const}
+    +Siguiente(intentos, bloqueado, out intentos, out bloqueado)
   }
 
   class HashHelper <<static>> {
@@ -223,6 +236,11 @@ package "BE — Entidades" as BE #DBEAFE {
 ' CAPA DAL — Acceso a Datos
 ' ============================================================
 package "DAL — Acceso a Datos" as DAL #FEF08A {
+
+  note as NotaCifrado
+    Cada DAL cifra los parámetros y descifra los resultados
+    con BE.AESHelper (columnas varbinary); Acceso solo mueve byte[].
+  end note
 
   class Acceso <<internal>> {
     +Abrir() / Cerrar()
@@ -287,6 +305,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +Listar() : List<BITACORA>
     +ListarUsuariosDistinct() : List<string>
     +ListarPaginado(...) : PaginaResultado<BITACORA>
+    +Paginar(filas, desde, hasta, pagina, tamanio) {static}
   }
 
   class EventoDAL {
@@ -335,6 +354,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +RestaurarFila{... las 13 tablas}(...)
   }
 
+  NotaCifrado      -[hidden]down-> Acceso
   UsuarioDAL       --> Acceso
   MateriaDAL       --> Acceso
   AlumnoMateriaDAL --> Acceso
@@ -463,8 +483,12 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
     +Recalcular{las 13 tablas}()
     +VerificarTodasLasTablas() : ResultadoIntegridad
     +RecalcularTodasLasTablas()
-    +CalcularDVHAlumnoMateria(am) : int
     +RestaurarTodasLasTablas()
+    +ExportarBackupJson() : string
+    +RestaurarDesdeBackupJson(json) : List<string>
+    +VersionBackup : int {const}
+    +IntentarInicializarDatosBase() {static}
+    +InicializarTablasNuncaCalculadas(modo)
   }
 
   class PerfilBLL {
@@ -485,6 +509,8 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   class SiembraBLL {
     +CatalogoDePermisos() : List<string> {static}
     +SembrarDatosBase() : bool
+    +MateriasDelPlan() : List<MATERIA> {static}
+    +CorrelativasDelPlan() : List<(codigo, correlativa)> {static}
   }
 
   class IdiomaBLL {
@@ -509,6 +535,10 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
 
   class Paginacion <<static>> {
     +ConsultarAjustando(pagina, consulta) : PaginaResultado<T>
+  }
+
+  class ValidacionLongitud <<static>> {
+    +Materia(m) / Evento(e) / Periodo(p)
   }
 
   LoginBLL         ..> LoginResultado
@@ -561,6 +591,9 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   FachadaIdioma    --> IdiomaManager
   BitacoraBLL      --> Paginacion
   PerfilBLL        --> Paginacion
+  MateriaBLL       ..> ValidacionLongitud
+  EventoBLL        ..> ValidacionLongitud
+  PeriodoBLL       ..> ValidacionLongitud
 
   LoginBLL         -[hidden]right-> LoginResultado
   LoginResultado   -[hidden]right-> UsuarioBLL
@@ -575,6 +608,7 @@ package "BLL — Lógica de Negocio" as BLL #BBF7D0 {
   FeriadosBLL      -[hidden]right-> IntegridadBLL
   IntegridadBLL    -[hidden]right-> PerfilBLL
   PerfilBLL        -[hidden]right-> Paginacion
+  Paginacion       -[hidden]down-> ValidacionLongitud
 }
 
 ' ============================================================

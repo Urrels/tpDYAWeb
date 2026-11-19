@@ -36,7 +36,7 @@ PAGE --> ADM : gvUsuarios con Activo/De baja y Bloqueado\n+ "Página 1 de N"
 ADM -> PAGE : completa usuario, contraseña, confirmación, dirección (opcional)\ny tilda al menos un perfil, click "Crear usuario"
 PAGE -> BLL : CrearUsuario(usuario, contraseña, confirmación, dirección, rolIds, actor)
 activate BLL
-BLL -> BLL : valida nombre (obligatorio, ≤ 50), política de contraseña\n(6+, 1 mayúscula, 1 número), dirección ≤ 100,\nal menos un perfil
+BLL -> BLL : valida nombre (obligatorio, ≤ 50), política de contraseña\n(6+, 1 mayúscula, 1 número), dirección ≤ 100 (y que el cifrado\nentre en la columna, PerfilBLL.ValidarDireccion),\nal menos un perfil
 note right of BLL : lock (_lockEscritura) + CargarEstado()
 BLL -> BLL : ExigirPuedeAsignar(perfiles)\nnombre de usuario libre
 BLL -> UDAL : InsertarConPerfiles(usuario, hash SHA-256, dirección cifrada, rolIds)

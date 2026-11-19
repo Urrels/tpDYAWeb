@@ -23,18 +23,23 @@ activate PAGE
 PAGE -> BLL : AutenticarUsuario(usuario, contrasena, Session.SessionID, out usuario)
 activate BLL
 
+BLL -> BLL : Normalizador.Usuario(usuario) (trim + minúsculas)
+BLL -> INT : IntentarInicializarDatosBase() (reintenta la siembra si falló al iniciar)
+
 BLL -> DAL : EstaBloqueado(usuario)
 activate DAL
-DAL -> DB : SP USUARIO_VERIFICAR_BLOQUEO
-DB --> DAL : bloqueado = false
+DAL -> DB : SP USUARIO_VERIFICAR_BLOQUEO (usuario cifrado con AESHelper)
+DB --> DAL : BLOQUEADO (cifrado)
+DAL -> DAL : AESHelper.DesencriptarBool
 DAL --> BLL : false
 deactivate DAL
 
 BLL -> BLL : HashHelper.HashSHA256(contrasena)
 BLL -> DAL : ObtenerPorCredenciales(usuario, hash)
 activate DAL
-DAL -> DB : SP USUARIO_LOGIN
-DB --> DAL : datos del usuario
+DAL -> DB : SP USUARIO_LOGIN (usuario y hash cifrados con AESHelper: se compara el texto cifrado por igualdad)
+DB --> DAL : ID, USUARIO, ACTIVO (cifrados)
+DAL -> DAL : AESHelper.Desencriptar*
 DAL --> BLL : USUARIO
 deactivate DAL
 
@@ -78,6 +83,13 @@ alt campos vacíos
   PAGE --> A : "Completá usuario y contraseña."
 else credenciales inválidas
   BLL -> DAL : IncrementarIntentos(usuario)
+  activate DAL
+  DAL -> DB : inicia transacción, SP USUARIO_OBTENER_ESTADO_LOGIN (lectura con UPDLOCK)
+  DAL -> DAL : descifra intentos y bloqueo, BE.PoliticaBloqueo.Siguiente (máximo 3 intentos)
+  DAL -> DB : SP USUARIO_GUARDAR_ESTADO_LOGIN (intentos y bloqueo cifrados), confirma la transacción
+  DAL --> BLL : quedó bloqueado (true/false)
+  deactivate DAL
+  BLL -> INT : RecalcularUsuario()
   BLL -> BIT : RegistrarAccion("LOGIN_FALLIDO")
   BLL --> PAGE : LoginResultado.CredencialesInvalidas
   PAGE --> A : "Usuario o contraseña incorrectos.", limpia campo contraseña

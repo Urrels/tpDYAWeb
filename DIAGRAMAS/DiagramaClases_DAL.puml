@@ -12,6 +12,11 @@ skinparam nodesep 25
 
 package "DAL — Acceso a Datos" as DAL #FEF08A {
 
+  note as NotaCifrado
+    Cada DAL cifra los parámetros y descifra los resultados
+    con BE.AESHelper (columnas varbinary); Acceso solo mueve byte[].
+  end note
+
   class Acceso <<internal>> {
     +Abrir() / Cerrar()
     +Leer(sp) : DataTable
@@ -76,6 +81,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +Listar() : List<BITACORA>
     +ListarUsuariosDistinct() : List<string>
     +ListarPaginado(...) : PaginaResultado<BITACORA>
+    +Paginar(filas, desde, hasta, pagina, tamanio) {static}
   }
 
   class EventoDAL {
@@ -126,6 +132,7 @@ package "DAL — Acceso a Datos" as DAL #FEF08A {
     +RestaurarFila{... las 13 tablas}(...)
   }
 
+  NotaCifrado      -[hidden]down-> Acceso
   UsuarioDAL       --> Acceso
   MateriaDAL       --> Acceso
   AlumnoMateriaDAL --> Acceso

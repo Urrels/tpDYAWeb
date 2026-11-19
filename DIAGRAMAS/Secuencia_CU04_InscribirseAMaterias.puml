@@ -26,7 +26,8 @@ activate BLL
 BLL -> PERDAL : ObtenerActual()
 activate PERDAL
 PERDAL -> DB : EXEC PERIODO_OBTENER_ACTUAL
-DB --> PERDAL
+DB --> PERDAL : períodos (fechas cifradas)
+PERDAL -> PERDAL : descifra y elige el que incluye hoy (C#)
 PERDAL --> BLL : periodo
 deactivate PERDAL
 BLL --> PAGE : periodo

@@ -26,9 +26,10 @@ PAGE -> INSBLL : ObtenerPeriodoActual()
 activate INSBLL
 INSBLL -> PERDAL : ObtenerActual()
 activate PERDAL
-PERDAL -> DB : Leer("PERIODO_OBTENER_ACTUAL", @hoy)
-note right of DB : SP: PERIODO_OBTENER_ACTUAL\n(WHERE @hoy BETWEEN FECHA_INICIO AND FECHA_FIN)
-DB --> PERDAL : fila (o ninguna)
+PERDAL -> DB : Leer("PERIODO_OBTENER_ACTUAL")
+note right of DB : SP: PERIODO_OBTENER_ACTUAL\n(devuelve los períodos con sus fechas cifradas)
+DB --> PERDAL : filas cifradas
+PERDAL -> PERDAL : descifra y se queda con el período cuyo rango de fechas\nincluye hoy (el de mayor año y cuatrimestre); lo resuelve C#
 PERDAL --> INSBLL : PERIODO_ACADEMICO / null
 deactivate PERDAL
 INSBLL --> PAGE : periodo actual
@@ -118,9 +119,9 @@ note over PERBLL, PERDAL
   BE.PERIODO_ACADEMICO (BE/PERIODO_ACADEMICO.cs) no tiene ningún
   campo "Activo", y ni PeriodoBLL ni PeriodoDAL contienen lógica
   que desactive un período anterior al crear o modificar uno nuevo.
-  "ObtenerPeriodoActual()" no lee ningún flag: el SP
-  PERIODO_OBTENER_ACTUAL determina el período vigente en tiempo
-  real por rango de fechas. No hay ningún control de exclusividad:
+  "ObtenerPeriodoActual()" no lee ningún flag: PeriodoDAL
+  determina el período vigente en tiempo real por rango de fechas
+  (en C#, porque las fechas están cifradas en la base). No hay ningún control de exclusividad:
   pueden coexistir varios períodos con fechas superpuestas.
 end note
 
